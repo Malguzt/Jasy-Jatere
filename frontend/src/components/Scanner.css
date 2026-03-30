@@ -1,0 +1,59 @@
+.scanner-container {
+    text-align: center;
+    padding: 4rem 2rem;
+    max-width: 500px;
+    margin: 0 auto;
+    animation: fadeIn 0.5s ease-in;
+}
+
+.radar-animation {
+    position: relative;
+    width: 120px;
+    height: 120px;
+    margin: 0 auto 2rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.radar-icon {
+    color: var(--accent-color);
+    z-index: 2;
+    animation: spin 3s linear infinite;
+}
+
+.pulse-ring {
+    position: absolute;
+    width: 60px;
+    height: 60px;
+    background: transparent;
+    border: 2px solid var(--accent-color);
+    border-radius: 50%;
+    animation: pulse 2s cubic-bezier(0.1, 0.4, 0.4, 1) infinite;
+}
+
+.pulse-ring.delay-1 {
+    animation-delay: 1s;
+}
+
+.scanner-text {
+    font-size: 1.25rem;
+    color: var(--text-light);
+    margin-bottom: 0.5rem;
+}
+
+.scanner-subtext {
+    color: var(--text-main);
+    font-size: 0.95rem;
+    opacity: 0.8;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); opacity: 0.8; }
+    100% { transform: scale(3.5); opacity: 0; }
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}

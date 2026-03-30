@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  backend:
+    build: 
+      context: ./backend
+    container_name: ipcam-backend
+    # Usar red del host permite a node-onvif lanzar la detección (WS-Discovery) 
+    # en la red LAN sin que Docker bloquee los paquetes UDP multicast.
+    # También soluciona la exposición dinámica de websockets para JSMpeg
+    network_mode: "host"
+    volumes:
+      - ./backend/data:/app/data
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: ipcam-frontend
+    ports:
+      - "5173:80"
+    restart: unless-stopped
+    depends_on:
+      - backend

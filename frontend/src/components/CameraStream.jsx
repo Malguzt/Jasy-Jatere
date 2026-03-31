@@ -1,51 +1,67 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Loader, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Plus, Minus, Camera as CameraIcon, RefreshCw, Lock, Save, X } from 'lucide-react';
+import { Loader, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Plus, Minus, Camera as CameraIcon, RefreshCw, Lock, Save, X, Lightbulb, LightbulbOff } from 'lucide-react';
 
 const CameraStream = ({ camera }) => {
     const canvasRef = useRef(null);
-    const [status, setStatus] = useState('Inicializando stream...');
-    const [wsPort, setWsPort] = useState(null);
-    const [showControls, setShowControls] = useState(false);
+    const [status, setStatus] = useState('Conectando video...');
     const [isPtzAction, setIsPtzAction] = useState(false);
     const [isEditingAuth, setIsEditingAuth] = useState(false);
     const [tempUser, setTempUser] = useState(camera.user || '');
     const [tempPass, setTempPass] = useState(camera.pass || '');
     const [localCamera, setLocalCamera] = useState(camera);
+    const [showControls, setShowControls] = useState(false);
+    const [lightOn, setLightOn] = useState(false);
+    const [lightLoading, setLightLoading] = useState(false);
 
+    const [retryCount, setRetryCount] = useState(0);
+    const [error, setError] = useState(null);
     let playerRef = useRef(null);
 
-    const startStream = async () => {
-        setStatus('Conectando video en vivo...');
-        setWsPort(null);
+    const startStream = () => {
         if (playerRef.current) playerRef.current.destroy();
-
-        try {
-            const res = await fetch('http://localhost:4000/api/stream/start', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    rtspUrl: localCamera.rtspUrl, 
-                    id: localCamera.id,
-                    user: localCamera.user,
-                    pass: localCamera.pass
-                })
+        
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const url = `${protocol}//${window.location.host}/stream/${localCamera.id}`;
+        
+        console.log(`[JSMP] Conectando a ${url} (Intento ${retryCount + 1})`);
+        
+        if (window.JSMpeg && canvasRef.current) {
+            playerRef.current = new window.JSMpeg.Player(url, {
+                canvas: canvasRef.current,
+                videoBufferSize: 1024 * 1024,
+                audio: false,
+                onSourceEstablished: () => {
+                    setStatus('');
+                    setRetryCount(0);
+                    setError(null);
+                },
+                onSourceCompleted: () => {
+                    handleRetry();
+                },
+                onVideoDecode: () => {
+                    setStatus(''); 
+                }
             });
-            const data = await res.json();
-            
-            if (data.success) {
-                setWsPort(data.wsPort);
-            } else {
-                setStatus(data.error || 'Error al iniciar stream');
-            }
-        } catch (error) {
-            setStatus('Error de conectividad Backend.');
+        } else {
+            setStatus('Error: JSMpeg no disponible.');
+        }
+    };
+
+    const handleRetry = () => {
+        if (retryCount < 10) {
+            const delay = Math.min(Math.pow(2, retryCount) * 1000, 15000);
+            setStatus(`Reconectando en ${Math.round(delay/1000)}s... (${retryCount + 1})`);
+            setTimeout(() => setRetryCount(prev => prev + 1), delay);
+        } else {
+            setError('Error de conexión persistente.');
+            setStatus('Error de conexión.');
         }
     };
 
     const updateAuth = async (e) => {
         e.preventDefault();
         try {
-            const res = await fetch(`http://localhost:4000/api/saved-cameras/${localCamera.id}`, {
+            const res = await fetch(`/api/saved-cameras/${localCamera.id}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ user: tempUser, pass: tempPass })
@@ -64,41 +80,18 @@ const CameraStream = ({ camera }) => {
     };
 
     useEffect(() => {
-        let isMounted = true;
         startStream();
 
         return () => {
-            isMounted = false;
             if (playerRef.current) playerRef.current.destroy();
-            fetch('http://localhost:4000/api/stream/stop', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id: localCamera.id })
-            }).catch(e => console.error(e));
         };
-    }, [localCamera.id, localCamera.rtspUrl, localCamera.user, localCamera.pass]);
+    }, [localCamera.id, localCamera.rtspUrl, localCamera.user, localCamera.pass, retryCount]);
 
-    useEffect(() => {
-        if (wsPort && canvasRef.current) {
-            const url = `ws://localhost:${wsPort}`;
-            if (window.JSMpeg) {
-                playerRef.current = new window.JSMpeg.Player(url, {
-                    canvas: canvasRef.current,
-                    videoBufferSize: 1024 * 1024,
-                    onVideoDecode: () => {
-                        setStatus(''); 
-                    }
-                });
-            } else {
-                setStatus('JSMpeg player library not found.');
-            }
-        }
-    }, [wsPort]);
 
     const handlePtz = async (direction) => {
         setIsPtzAction(true);
         try {
-            await fetch('http://localhost:4000/api/ptz/move', {
+            await fetch('/api/ptz/move', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
@@ -116,7 +109,7 @@ const CameraStream = ({ camera }) => {
 
     const stopPtz = async () => {
         try {
-            await fetch('http://localhost:4000/api/ptz/stop', {
+            await fetch('/api/ptz/stop', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ url: localCamera.ip, user: localCamera.user, pass: localCamera.pass || '' })
@@ -128,7 +121,7 @@ const CameraStream = ({ camera }) => {
 
     const takeSnapshot = async () => {
         try {
-            const res = await fetch('http://localhost:4000/api/snapshot', {
+            const res = await fetch('/api/snapshot', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ url: localCamera.ip, user: localCamera.user, pass: localCamera.pass || '' })
@@ -144,6 +137,31 @@ const CameraStream = ({ camera }) => {
             window.URL.revokeObjectURL(url);
         } catch (e) {
             alert('Error capturando snapshot. Asegúrate de que las credenciales son correctas.');
+        }
+    };
+
+    const toggleLight = async () => {
+        if (!localCamera?.ip || lightLoading) return;
+        setLightLoading(true);
+        try {
+            const next = !lightOn;
+            const res = await fetch('/api/light/toggle', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    url: localCamera.ip,
+                    user: localCamera.user,
+                    pass: localCamera.pass || '',
+                    enabled: next
+                })
+            });
+            const data = await res.json();
+            if (!data.success) throw new Error(data.error || 'No se pudo cambiar la luz');
+            setLightOn(next);
+        } catch (e) {
+            alert('No se pudo controlar la luz ONVIF en esta cámara.');
+        } finally {
+            setLightLoading(false);
         }
     };
 
@@ -192,7 +210,7 @@ const CameraStream = ({ camera }) => {
                 </div>
             )}
             
-            <canvas ref={canvasRef} style={{ width: '100%', height: '100%', display: 'block' }}></canvas>
+            <canvas ref={canvasRef} style={{ width: '100%', height: '100%', display: 'block', objectFit: 'contain' }}></canvas>
 
             {/* Controls Overlay */}
             {showControls && !isEditingAuth && (
@@ -214,7 +232,10 @@ const CameraStream = ({ camera }) => {
                         <button className="ptz-btn" onClick={() => handlePtz('zoom-out')}><Minus size={20}/></button>
                     </div>
 
-                    <div style={{ position: 'absolute', top: '1rem', right: '1rem', pointerEvents: 'auto' }}>
+                    <div style={{ position: 'absolute', top: '1rem', right: '1rem', pointerEvents: 'auto', display: 'flex', gap: '6px' }}>
+                        <button className="ptz-btn" onClick={toggleLight} title={lightOn ? 'Apagar luz' : 'Encender luz'}>
+                            {lightLoading ? <Loader className="spin" size={18} /> : (lightOn ? <LightbulbOff size={20}/> : <Lightbulb size={20}/>)}
+                        </button>
                         <button className="ptz-btn" onClick={takeSnapshot} title="Capture Snapshot">
                             <CameraIcon size={20}/>
                         </button>

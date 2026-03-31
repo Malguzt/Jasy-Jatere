@@ -14,7 +14,7 @@ const CameraDetailsModal = ({ camera, onClose }) => {
         setLoading(true);
         setError('');
         try {
-           const res = await fetch('http://localhost:4000/api/connect', {
+           const res = await fetch('/api/connect', {
                method: 'POST',
                headers: { 'Content-Type': 'application/json' },
                body: JSON.stringify({ url: camera.address, user, pass })
@@ -34,17 +34,28 @@ const CameraDetailsModal = ({ camera, onClose }) => {
 
     const handleSave = async (profile) => {
         if (!profile.rtspUrl) return alert("RTSP no disponible para guardar.");
+        
+        const payload = { 
+            name: `${camera.name || 'Cámara'} - ${profile.name}`, 
+            rtspUrl: profile.rtspUrl, 
+            ip: camera.address,
+            user,
+            pass
+        };
+
+        // If it's the combined profile, include ALL rtspUrls
+        if (profile.token === 'combined_ai') {
+            payload.type = 'combined';
+            payload.allRtspUrls = details.profiles
+                .filter(p => p.token !== 'combined_ai' && p.rtspUrl)
+                .map(p => p.rtspUrl);
+        }
+
         try {
-            const res = await fetch('http://localhost:4000/api/saved-cameras', {
+            const res = await fetch('/api/saved-cameras', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    name: `${camera.name || 'Cámara'} - ${profile.name}`, 
-                    rtspUrl: profile.rtspUrl, 
-                    ip: camera.address,
-                    user,
-                    pass
-                })
+                body: JSON.stringify(payload)
             });
             const data = await res.json();
             if (data.success) {

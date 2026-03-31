@@ -1,12 +1,26 @@
 import React, { useEffect, useState } from 'react';
 import CameraStream from './CameraStream';
+import DetectionBadge from './DetectionBadge';
 import { Trash2, ShieldAlert, Star } from 'lucide-react';
 
 const Dashboard = () => {
     const [savedCameras, setSavedCameras] = useState([]);
     const [featuredIds, setFeaturedIds] = useState([]);
+    const [detectorStatus, setDetectorStatus] = useState({});
 
     useEffect(() => { fetchCameras(); }, []);
+
+    // Poll detector status every 2 seconds
+    useEffect(() => {
+        const poll = setInterval(async () => {
+            try {
+                const res = await fetch('/api/detector/status');
+                const data = await res.json();
+                if (data.cameras) setDetectorStatus(data.cameras);
+            } catch (e) { /* detector offline */ }
+        }, 2000);
+        return () => clearInterval(poll);
+    }, []);
 
     const markActivity = (camId) => {
         setFeaturedIds(prev => {
@@ -17,7 +31,7 @@ const Dashboard = () => {
 
     const fetchCameras = async () => {
         try {
-            const res = await fetch('http://localhost:4000/api/saved-cameras');
+            const res = await fetch('/api/saved-cameras');
             const data = await res.json();
             if (data.success) {
                 setSavedCameras(data.cameras);
@@ -34,7 +48,7 @@ const Dashboard = () => {
 
     const deleteCamera = async (id) => {
         try {
-            await fetch(`http://localhost:4000/api/saved-cameras/${id}`, { method: 'DELETE' });
+            await fetch(`/api/saved-cameras/${id}`, { method: 'DELETE' });
             setFeaturedIds(prev => prev.filter(fid => fid !== id));
             fetchCameras();
         } catch (error) {
@@ -64,58 +78,25 @@ const Dashboard = () => {
         );
     }
 
-    const featured = savedCameras.filter(c => featuredIds.includes(c.id));
-    const secondary = savedCameras.filter(c => !featuredIds.includes(c.id));
+    const featured = (savedCameras || []).filter(c => featuredIds.includes(c.id));
+    const secondary = (savedCameras || []).filter(c => !featuredIds.includes(c.id));
 
-    const TileBar = ({ cam, isFeatured }) => (
-        <div style={{
-            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-            padding: '2px 6px',
-            background: isFeatured ? 'rgba(102, 252, 241, 0.15)' : 'rgba(255,255,255,0.05)',
-            borderBottom: '1px solid rgba(102, 252, 241, 0.2)',
-            fontSize: '0.72rem',
-            color: isFeatured ? 'var(--accent-color)' : 'var(--text-main)',
-            fontWeight: 500,
-            lineHeight: 1.4
-        }}>
-            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
-                {cam.name}
-            </span>
-            <div style={{ display: 'flex', gap: '2px', flexShrink: 0, marginLeft: '4px' }}>
-                <button
-                    onClick={(e) => { e.stopPropagation(); toggleFeatured(cam.id); }}
-                    style={{
-                        background: 'none', border: 'none', cursor: 'pointer', padding: '1px 3px',
-                        color: isFeatured ? 'var(--accent-color)' : 'rgba(255,255,255,0.3)',
-                        display: 'flex', alignItems: 'center'
-                    }}
-                    title={isFeatured ? 'Quitar de destacados' : 'Destacar'}
-                >
-                    <Star size={11} fill={isFeatured ? 'var(--accent-color)' : 'none'} />
-                </button>
-                <button
-                    onClick={(e) => { e.stopPropagation(); deleteCamera(cam.id); }}
-                    style={{
-                        background: 'none', border: 'none', cursor: 'pointer', padding: '1px 3px',
-                        color: '#ff6b6b', display: 'flex', alignItems: 'center'
-                    }}
-                >
-                    <Trash2 size={11} />
-                </button>
-            </div>
-        </div>
-    );
+    console.log(`[DASH] Render: saved=${savedCameras.length}, featured=${featured.length}, secondary=${secondary.length}`);
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: '1px', background: 'rgba(102, 252, 241, 0.15)' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: '500px', gap: '1px', background: 'rgba(102, 252, 241, 0.15)' }}>
+            {featured.length === 0 && secondary.length === 0 && (
+                <div style={{ padding: '2rem', textAlign: 'center' }}>Inicializando vista...</div>
+            )}
 
             {/* Featured — top tiles */}
             {featured.length > 0 && (
                 <div style={{ flex: secondary.length > 0 ? '1 1 60%' : '1 1 100%', display: 'flex', gap: '1px', minHeight: 0 }}>
                     {featured.map(cam => (
                         <div key={cam.id} style={{ flex: '1 1 0', display: 'flex', flexDirection: 'column', background: '#0b0c10', minWidth: 0 }} onClick={() => markActivity(cam.id)}>
-                            <TileBar cam={cam} isFeatured={true} />
+                            <TileBar cam={cam} isFeatured={true} toggleFeatured={toggleFeatured} deleteCamera={deleteCamera} />
                             <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
+                                <DetectionBadge detectorState={detectorStatus[cam.id]} />
                                 <CameraStream camera={cam} />
                             </div>
                         </div>
@@ -131,7 +112,7 @@ const Dashboard = () => {
                 }}>
                     {secondary.map(cam => (
                         <div key={cam.id} style={{ flex: '1 1 0', display: 'flex', flexDirection: 'column', background: '#0b0c10', minWidth: 0 }} onClick={() => markActivity(cam.id)}>
-                            <TileBar cam={cam} isFeatured={false} />
+                            <TileBar cam={cam} isFeatured={false} toggleFeatured={toggleFeatured} deleteCamera={deleteCamera} />
                             <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
                                 <CameraStream camera={cam} />
                             </div>
@@ -142,5 +123,44 @@ const Dashboard = () => {
         </div>
     );
 };
+
+const TileBar = ({ cam, isFeatured, toggleFeatured, deleteCamera }) => (
+    <div style={{
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        padding: '2px 6px',
+        background: isFeatured ? 'rgba(102, 252, 241, 0.15)' : 'rgba(255,255,255,0.05)',
+        borderBottom: '1px solid rgba(102, 252, 241, 0.2)',
+        fontSize: '0.72rem',
+        color: isFeatured ? 'var(--accent-color)' : 'var(--text-main)',
+        fontWeight: 500,
+        lineHeight: 1.4
+    }}>
+        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+            {cam.name}
+        </span>
+        <div style={{ display: 'flex', gap: '2px', flexShrink: 0, marginLeft: '4px' }}>
+            <button
+                onClick={(e) => { e.stopPropagation(); toggleFeatured(cam.id); }}
+                style={{
+                    background: 'none', border: 'none', cursor: 'pointer', padding: '1px 3px',
+                    color: isFeatured ? 'var(--accent-color)' : 'rgba(255,255,255,0.3)',
+                    display: 'flex', alignItems: 'center'
+                }}
+                title={isFeatured ? 'Quitar de destacados' : 'Destacar'}
+            >
+                <Star size={11} fill={isFeatured ? 'var(--accent-color)' : 'none'} />
+            </button>
+            <button
+                onClick={(e) => { e.stopPropagation(); deleteCamera(cam.id); }}
+                style={{
+                    background: 'none', border: 'none', cursor: 'pointer', padding: '1px 3px',
+                    color: '#ff6b6b', display: 'flex', alignItems: 'center'
+                }}
+            >
+                <Trash2 size={11} />
+            </button>
+        </div>
+    </div>
+);
 
 export default Dashboard;

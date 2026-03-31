@@ -7,6 +7,16 @@ frontend/dist/
 # Data files (passwords, camera configs)
 backend/data/
 
+# Recordings (video files)
+recordings/
+
+# Python
+__pycache__/
+*.pyc
+
+# Data files (passwords, camera configs)
+backend/data/
+
 # OS files
 .DS_Store
 Thumbs.db

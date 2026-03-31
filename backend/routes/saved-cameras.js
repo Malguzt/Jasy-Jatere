@@ -29,6 +29,8 @@ router.post('/', (req, res) => {
             id: Date.now().toString(),
             name: name || 'Cámara Sin Nombre',
             rtspUrl,
+            allRtspUrls: req.body.allRtspUrls || [], // Support for combined streams
+            type: req.body.type || 'single',        // Type flag
             ip,
             user,
             pass,

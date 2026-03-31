@@ -3,7 +3,8 @@ import Scanner from './components/Scanner';
 import CameraList from './components/CameraList';
 import CameraDetailsModal from './components/CameraDetailsModal';
 import Dashboard from './components/Dashboard';
-import { Search, Plus, LayoutDashboard, Radar } from 'lucide-react';
+import Recordings from './components/Recordings';
+import { Search, Plus, LayoutDashboard, Radar, Video } from 'lucide-react';
 import './index.css';
 
 function App() {
@@ -17,7 +18,7 @@ function App() {
     setIsScanning(true);
     setCameras([]);
     try {
-      const res = await fetch('http://localhost:4000/api/discover');
+      const res = await fetch('/api/discover');
       const data = await res.json();
       if(data.success) {
          setCameras(data.devices);
@@ -47,30 +48,46 @@ function App() {
         <div className="dash-toolbar">
           <span style={{ fontWeight: 600, fontSize: '0.8rem', color: 'var(--accent-color)' }}>IP Cam</span>
           <div style={{ display: 'flex', gap: '4px' }}>
-            <button className="toolbar-btn" style={{ opacity: 0.5 }} onClick={() => setActiveTab('radar')}>
+            <button className="toolbar-btn" style={{ opacity: activeTab === 'radar' ? 1 : 0.5 }} onClick={() => setActiveTab('radar')}>
               <Radar size={13} /> Explorar
             </button>
-            <button className="toolbar-btn active">
+            <button 
+              className={`toolbar-btn ${activeTab === 'dashboard' ? 'active' : ''}`} 
+              style={{ opacity: activeTab === 'dashboard' ? 1 : 0.5 }}
+              onClick={() => setActiveTab('dashboard')}
+            >
               <LayoutDashboard size={13} /> Dashboard
+            </button>
+            <button 
+              className={`toolbar-btn ${activeTab === 'recordings' ? 'active' : ''}`} 
+              style={{ opacity: activeTab === 'recordings' ? 1 : 0.5 }}
+              onClick={() => setActiveTab('recordings')}
+            >
+              <Video size={13} /> Grabaciones
             </button>
           </div>
         </div>
       ) : (
         <header style={{ animation: 'fadeIn 1s ease-out' }}>
           <h1 className="title">IP Camera Explorer</h1>
-          <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', marginTop: '1.5rem', marginBottom: '2rem' }}>
-              <button className="btn" style={{ borderColor: 'var(--accent-color)', color: 'var(--accent-color)' }} onClick={() => setActiveTab('radar')}>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', marginTop: '1.5rem', marginBottom: '1.2rem' }}>
+              <button className="btn" style={{ borderColor: activeTab === 'radar' ? 'var(--accent-color)' : 'rgba(255,255,255,0.2)', color: activeTab === 'radar' ? 'var(--accent-color)' : '#fff', opacity: activeTab === 'radar' ? 1 : 0.6 }} onClick={() => setActiveTab('radar')}>
                   <Radar size={18} /> Explorar / Buscar
               </button>
-              <button className="btn" style={{ borderColor: 'rgba(255,255,255,0.2)', color: '#fff', opacity: 0.6 }} onClick={() => setActiveTab('dashboard')}>
+              <button className="btn" style={{ borderColor: activeTab === 'dashboard' ? 'var(--accent-color)' : 'rgba(255,255,255,0.2)', color: activeTab === 'dashboard' ? 'var(--accent-color)' : '#fff', opacity: activeTab === 'dashboard' ? 1 : 0.6 }} onClick={() => setActiveTab('dashboard')}>
                   <LayoutDashboard size={18} /> Mi Dashboard
+              </button>
+              <button className="btn" style={{ borderColor: activeTab === 'recordings' ? 'var(--accent-color)' : 'rgba(255,255,255,0.2)', color: activeTab === 'recordings' ? 'var(--accent-color)' : '#fff', opacity: activeTab === 'recordings' ? 1 : 0.6 }} onClick={() => setActiveTab('recordings')}>
+                  <Video size={18} /> Grabaciones
               </button>
           </div>
         </header>
       )}
 
-      {isDashboard ? (
+      {activeTab === 'dashboard' ? (
           <Dashboard />
+      ) : activeTab === 'recordings' ? (
+          <Recordings />
       ) : (
           <>
             {!isScanning && cameras.length === 0 && (

@@ -1,0 +1,6 @@
+# Utilities
+opencv-python-headless<4.12
+numpy<2
+flask
+flask-cors
+requests

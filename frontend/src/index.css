@@ -101,3 +101,24 @@ a:hover { text-decoration: underline; }
 }
 .spin { animation: spin 1.5s linear infinite; }
 
+.text-accent { color: var(--accent-color); }
+
+.glass-panel {
+  background: var(--panel-bg);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--border-color);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-panel:hover {
+  border-color: var(--accent-color);
+  box-shadow: 0 0 20px rgba(102, 252, 241, 0.15);
+}
+
+/* Custom Scrollbar for i3 style */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: var(--bg-color); }
+::-webkit-scrollbar-thumb { background: var(--panel-bg); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: var(--accent-color); }
+
+

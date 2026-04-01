@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, Camera, CheckCircle2, Clock3, Play, Plus, Save, Trash2 } from 'lucide-react';
+import { AlertTriangle, Camera, CheckCircle2, Clock3, Play, Plus, RefreshCw, Save, Trash2 } from 'lucide-react';
 import MapToolbar from './MapToolbar';
 
 const CATEGORY_COLORS = {

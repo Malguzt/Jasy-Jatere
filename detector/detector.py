@@ -3,8 +3,12 @@ import json
 import time
 import threading
 import subprocess
+import select
+import re
 import urllib.request
 import urllib.error
+import urllib.parse
+from collections import deque
 
 # Optional: Set global capture options if needed (currently commented out to allow auto-negotiation)
 # os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp"
@@ -41,6 +45,22 @@ PTZ_STEP_DURATION = 0.7
 PTZ_DIRECTIONS = ["left", "right", "up", "down"]
 PTZ_API_MOVE = "http://localhost:4000/api/ptz/move"
 PTZ_API_STOP = "http://localhost:4000/api/ptz/stop"
+DETECTOR_OUTPUT_STREAM_BASE = (os.getenv("DETECTOR_OUTPUT_STREAM_BASE", "http://localhost:5001/stream") or "http://localhost:5001/stream").rstrip("/")
+DETECTOR_MONITOR_TRANSPORT = (os.getenv("DETECTOR_MONITOR_TRANSPORT", "udp") or "udp").strip().lower()
+if DETECTOR_MONITOR_TRANSPORT not in {"tcp", "udp"}:
+    DETECTOR_MONITOR_TRANSPORT = "udp"
+MONITOR_FRAME_WIDTH = 640
+MONITOR_FRAME_HEIGHT = 360
+MONITOR_READ_TIMEOUT_SEC = 8.0
+MONITOR_RESTART_AFTER_FAILS = 6
+CAMERA_DEFAULT_USER = (os.getenv("CAMERA_DEFAULT_USER", "admin") or "admin").strip() or "admin"
+CAMERA_DEFAULT_PASS = os.getenv("CAMERA_DEFAULT_PASS", "PerroN3gro")
+SOFT_MOTION_SIZE = (320, 180)
+SOFT_MOTION_DELTA_THRESHOLD = 16
+SOFT_MOTION_SCORE_THRESHOLD = 0.010
+SOFT_MOTION_MIN_BLOB_RATIO = 0.0012
+SOFT_MOTION_HOLD_SECONDS = 2.0
+SOFT_MOTION_CYCLE_CORR_THRESHOLD = 0.86
 
 # Classes of interest (COCO dataset IDs)
 PERSON_CLASSES = {0}  # person
@@ -64,6 +84,102 @@ motion_cache = {}   # cam_id -> {"ts": epoch, "motion": bool, "healthy": bool}
 recordings_index_lock = threading.Lock()
 
 os.makedirs(RECORDINGS_DIR, exist_ok=True)
+
+
+class PersistentFFmpegReader:
+    """Persistent low-res RTSP reader that keeps a single socket open per camera."""
+
+    def __init__(self, url, width=MONITOR_FRAME_WIDTH, height=MONITOR_FRAME_HEIGHT, transport=DETECTOR_MONITOR_TRANSPORT):
+        self.url = url
+        self.width = int(width)
+        self.height = int(height)
+        self.transport = transport if transport in {"tcp", "udp"} else "udp"
+        self.frame_size = self.width * self.height * 3
+        self.process = None
+        self.start()
+
+    def start(self):
+        self.release()
+        is_rtsp = isinstance(self.url, str) and self.url.startswith("rtsp://")
+        cmd = ["ffmpeg", "-hide_banner", "-loglevel", "error"]
+        if is_rtsp:
+            cmd.extend([
+                "-rtsp_transport", self.transport,
+                "-fflags", "+discardcorrupt",
+                "-flags", "low_delay",
+                "-analyzeduration", "1000000",
+                "-probesize", "500000"
+            ])
+        else:
+            cmd.extend([
+                "-fflags", "+discardcorrupt",
+                "-analyzeduration", "1000000",
+                "-probesize", "500000"
+            ])
+        cmd.extend([
+            "-i", self.url,
+            "-an",
+            "-sn",
+            "-dn",
+            "-vf", f"scale={self.width}:{self.height}",
+            "-pix_fmt", "bgr24",
+            "-f", "rawvideo",
+            "-vcodec", "rawvideo",
+            "-"
+        ])
+        try:
+            self.process = subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
+                bufsize=10**7
+            )
+        except Exception:
+            self.process = None
+
+    def is_opened(self):
+        return self.process is not None and self.process.poll() is None and self.process.stdout is not None
+
+    def read(self, timeout_sec=MONITOR_READ_TIMEOUT_SEC):
+        if not self.is_opened():
+            return False, None
+        raw = bytearray()
+        fd = self.process.stdout.fileno()
+        deadline = time.monotonic() + max(0.05, timeout_sec)
+        while len(raw) < self.frame_size:
+            if self.process.poll() is not None:
+                return False, None
+
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                return False, None
+
+            ready, _, _ = select.select([fd], [], [], min(0.2, remaining))
+            if not ready:
+                continue
+            chunk = os.read(fd, self.frame_size - len(raw))
+            if not chunk:
+                return False, None
+            raw.extend(chunk)
+        frame = np.frombuffer(raw, dtype=np.uint8).reshape((self.height, self.width, 3)).copy()
+        return True, frame
+
+    def restart(self, transport=None):
+        if transport in {"tcp", "udp"}:
+            self.transport = transport
+        self.start()
+
+    def release(self):
+        if self.process and self.process.poll() is None:
+            try:
+                self.process.terminate()
+                self.process.wait(timeout=1.5)
+            except Exception:
+                try:
+                    self.process.kill()
+                except Exception:
+                    pass
+        self.process = None
 
 
 def get_recordings_dir_size_bytes():
@@ -253,6 +369,20 @@ def load_cameras():
     return []
 
 
+def resolve_camera_credentials(cam):
+    user = (cam.get("user") or cam.get("username") or "").strip()
+    password = cam.get("pass")
+    if password is None:
+        password = cam.get("password")
+    if password is None:
+        password = ""
+    password = str(password)
+    return {
+        "user": user or CAMERA_DEFAULT_USER,
+        "pass": password if password != "" else CAMERA_DEFAULT_PASS
+    }
+
+
 def build_rtsp_url(cam):
     """Build authenticated RTSP URL from camera data."""
     url = cam.get("rtspUrl", "")
@@ -260,13 +390,214 @@ def build_rtsp_url(cam):
     # If it is a combined AI stream, take the first real RTSP URL as reference for detection
     if url == "combined" and "allRtspUrls" in cam:
         url = cam["allRtspUrls"][0]
-        
-    user = cam.get("user", "")
-    password = cam.get("pass", "")
+
+    creds = resolve_camera_credentials(cam)
+    user = creds["user"]
+    password = creds["pass"]
     if password and "@" not in url:
-        effective_user = user or "admin"
-        url = url.replace("rtsp://", f"rtsp://{effective_user}:{password}@")
+        url = url.replace("rtsp://", f"rtsp://{user}:{password}@")
     return url
+
+
+def inject_rtsp_auth(url, user, password):
+    if not url or not isinstance(url, str):
+        return None
+    if not url.startswith("rtsp://"):
+        return url
+    if "@" in url:
+        return url
+    if not password:
+        return url
+    return url.replace("rtsp://", f"rtsp://{user}:{password}@")
+
+
+def derive_companion_rtsp(url):
+    if not url or not isinstance(url, str):
+        return None
+    candidates = []
+    if "/onvif1" in url:
+        candidates.append(url.replace("/onvif1", "/onvif2"))
+    if "/onvif2" in url:
+        candidates.append(url.replace("/onvif2", "/onvif1"))
+    if "/stream1" in url:
+        candidates.append(url.replace("/stream1", "/stream2"))
+    if "/stream2" in url:
+        candidates.append(url.replace("/stream2", "/stream1"))
+    if "subtype=0" in url:
+        candidates.append(url.replace("subtype=0", "subtype=1"))
+    if "subtype=1" in url:
+        candidates.append(url.replace("subtype=1", "subtype=0"))
+    for cand in candidates:
+        if cand and cand != url:
+            return cand
+    return None
+
+
+def parse_resolution_hint(label):
+    if not label:
+        return None
+    m = re.search(r"(\d{2,5})\s*x\s*(\d{2,5})", str(label))
+    if not m:
+        return None
+    w = int(m.group(1))
+    h = int(m.group(2))
+    if w <= 0 or h <= 0:
+        return None
+    return (w, h)
+
+
+def collect_camera_sources(cam):
+    creds = resolve_camera_credentials(cam)
+    user = creds["user"]
+    password = creds["pass"]
+
+    raw_urls = []
+    base_url = cam.get("rtspUrl")
+    extra_urls = cam.get("allRtspUrls") if isinstance(cam.get("allRtspUrls"), list) else []
+    if cam.get("type") == "combined" or base_url == "combined":
+        raw_urls.extend(extra_urls)
+        if base_url and base_url != "combined":
+            raw_urls.append(base_url)
+    else:
+        if base_url and base_url != "combined":
+            raw_urls.append(base_url)
+        raw_urls.extend(extra_urls)
+
+    labels = cam.get("sourceLabels") if isinstance(cam.get("sourceLabels"), list) else []
+    out = []
+    seen = set()
+    for idx, raw_url in enumerate(raw_urls):
+        authed = inject_rtsp_auth(raw_url, user, password)
+        if not authed:
+            continue
+        label = labels[idx] if idx < len(labels) else f"source_{idx}"
+        if authed in seen:
+            # Some cameras return duplicate main/sub URLs. Derive a companion endpoint when possible.
+            companion = derive_companion_rtsp(authed)
+            if companion:
+                authed = companion
+            if authed in seen:
+                continue
+        if authed in seen:
+            continue
+        seen.add(authed)
+        resolution = parse_resolution_hint(label)
+        pixels = resolution[0] * resolution[1] if resolution else None
+        out.append({
+            "url": authed,
+            "label": label,
+            "resolution": resolution,
+            "pixels": pixels
+        })
+    return out
+
+
+def select_reconstructor_sources(cam):
+    sources = collect_camera_sources(cam)
+    if not sources:
+        return None, None, []
+
+    with_pixels = [s for s in sources if s["pixels"] is not None]
+    if with_pixels:
+        main = max(with_pixels, key=lambda s: s["pixels"])
+        low = min(with_pixels, key=lambda s: s["pixels"])
+    else:
+        # Keep backward compatibility with existing ordering: first as main, second as low when possible.
+        main = sources[0]
+        low = sources[1] if len(sources) > 1 else sources[0]
+
+    return main["url"], low["url"], sources
+
+
+def build_output_stream_url(cam):
+    cam_id = cam.get("id")
+    main_url, low_url, _ = select_reconstructor_sources(cam)
+    if not cam_id or not main_url or not low_url:
+        return None, main_url, low_url
+    cam_id_safe = urllib.parse.quote(str(cam_id), safe="")
+    query = urllib.parse.urlencode({"main": main_url, "sub": low_url})
+    return f"{DETECTOR_OUTPUT_STREAM_BASE}/{cam_id_safe}?{query}", main_url, low_url
+
+
+def soft_motion_is_cyclic(scores):
+    if len(scores) < 40:
+        return False
+    arr = np.array(scores, dtype=np.float32)
+    centered = arr - float(np.mean(arr))
+    std = float(np.std(centered))
+    if std < 1e-4:
+        return False
+    norm = centered / std
+    max_lag = min(36, len(norm) - 4)
+    if max_lag <= 6:
+        return False
+    best_corr = 0.0
+    for lag in range(6, max_lag):
+        x = norm[:-lag]
+        y = norm[lag:]
+        corr = float(np.dot(x, y) / max(1, len(x)))
+        if corr > best_corr:
+            best_corr = corr
+    amp = float(np.percentile(arr, 90) - np.percentile(arr, 10))
+    return best_corr >= SOFT_MOTION_CYCLE_CORR_THRESHOLD and amp < 0.08
+
+
+def update_soft_motion_state(state, frame):
+    if frame is None or frame.size == 0:
+        return state.get("soft_motion_active", False), 0.0, False
+
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    gray = cv2.resize(gray, SOFT_MOTION_SIZE, interpolation=cv2.INTER_AREA)
+    gray = cv2.GaussianBlur(gray, (5, 5), 0)
+
+    prev = state.get("soft_prev_gray")
+    scores = state.get("soft_motion_scores")
+    if scores is None:
+        scores = deque(maxlen=120)
+        state["soft_motion_scores"] = scores
+
+    if prev is None:
+        state["soft_prev_gray"] = gray
+        scores.append(0.0)
+        state["soft_motion_active"] = False
+        state["soft_motion_score"] = 0.0
+        state["soft_motion_cyclic"] = False
+        return False, 0.0, False
+
+    delta = cv2.absdiff(gray, prev)
+    state["soft_prev_gray"] = gray
+    _, mask = cv2.threshold(delta, SOFT_MOTION_DELTA_THRESHOLD, 255, cv2.THRESH_BINARY)
+    mask = cv2.medianBlur(mask, 3)
+    kernel = np.ones((3, 3), np.uint8)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel, iterations=1)
+
+    active_ratio = float(np.count_nonzero(mask)) / float(mask.size)
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    max_blob_ratio = 0.0
+    if contours:
+        max_blob = max(cv2.contourArea(c) for c in contours)
+        max_blob_ratio = float(max_blob) / float(mask.size)
+
+    score = 0.65 * active_ratio + 0.35 * max_blob_ratio
+    scores.append(score)
+    cyclic = soft_motion_is_cyclic(scores)
+    motion_now = (
+        score >= SOFT_MOTION_SCORE_THRESHOLD and
+        max_blob_ratio >= SOFT_MOTION_MIN_BLOB_RATIO and
+        not cyclic
+    )
+
+    now = time.time()
+    if motion_now:
+        state["soft_last_motion_ts"] = now
+        state["soft_motion_active"] = True
+    else:
+        last = state.get("soft_last_motion_ts", 0.0)
+        state["soft_motion_active"] = bool(last > 0 and (now - last) <= SOFT_MOTION_HOLD_SECONDS)
+
+    state["soft_motion_score"] = float(score)
+    state["soft_motion_cyclic"] = bool(cyclic)
+    return state["soft_motion_active"], float(score), bool(cyclic)
 
 
 def grab_frame(rtsp_url):
@@ -369,10 +700,11 @@ def scene_is_wall_like(frame, device_id=0):
 def nudge_camera_ptz(cam, direction):
     if not cam.get("ip"):
         return False
+    creds = resolve_camera_credentials(cam)
     payload = {
         "url": cam.get("ip"),
-        "user": cam.get("user", ""),
-        "pass": cam.get("pass", ""),
+        "user": creds["user"],
+        "pass": creds["pass"],
         "direction": direction
     }
     try:
@@ -382,8 +714,8 @@ def nudge_camera_ptz(cam, direction):
         time.sleep(PTZ_STEP_DURATION)
         http_json("POST", PTZ_API_STOP, payload={
             "url": cam.get("ip"),
-            "user": cam.get("user", ""),
-            "pass": cam.get("pass", "")
+            "user": creds["user"],
+            "pass": creds["pass"]
         }, timeout=3)
         return True
     except Exception:
@@ -444,32 +776,37 @@ def save_thumbnail(frame, filepath):
     return False
 
 
-def start_recording(cam, duration=RECORD_DURATION):
-    """Start FFmpeg recording for the given camera and return (filename, filepath, process)."""
+def start_recording(cam, source_url, duration=RECORD_DURATION):
+    """Start FFmpeg recording from OUTPUT stream and return (filename, filepath, process)."""
     cam_id = cam["id"]
-    rtsp_url = build_rtsp_url(cam)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     cam_name = cam.get("name", cam_id).replace(" ", "_").replace("/", "_")
     filename = f"{cam_name}_{timestamp}.mp4"
     filepath = os.path.join(RECORDINGS_DIR, filename)
+    if not source_url:
+        print(f"[REC] {cam_name}: output stream URL unavailable, recording skipped.")
+        return None, None, None
 
     cmd = [
         "ffmpeg", "-y",
-        "-hwaccel", "cuda",
-        "-i", rtsp_url,
+        "-fflags", "+genpts",
+        "-analyzeduration", "1000000",
+        "-probesize", "1000000",
+        "-i", source_url,
         "-t", str(duration),
         "-c:v", "h264_nvenc",
-        "-preset", "p1",
+        "-preset", "p3",
         "-b:v", "2M",
         "-an",
         "-movflags", "+faststart",
         filepath
     ]
 
-    print(f"[REC] Starting recording for {cam_name}: {filename}")
+    print(f"[REC] Starting OUTPUT recording for {cam_name}: {filename}")
     try:
         log_file = open(f"{filepath}.log", "w")
         process = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=log_file)
+        log_file.close()
         return filename, filepath, process
     except Exception as e:
         print(f"[REC] Error starting recording process: {e}")
@@ -479,8 +816,12 @@ def start_recording(cam, duration=RECORD_DURATION):
 def monitor_camera(cam):
     """Main monitoring loop for a single camera."""
     cam_id = cam["id"]
-    rtsp_url = build_rtsp_url(cam)
+    output_stream_url, fusion_main_url, fusion_sub_url = build_output_stream_url(cam)
+    monitor_rtsp_url = output_stream_url or fusion_sub_url or fusion_main_url
     cam_name = cam.get("name", cam_id)
+    if not monitor_rtsp_url:
+        print(f"[MON] {cam_name}: no monitor source available, camera thread disabled.")
+        return
 
     # Assign device
     global device_round_robin
@@ -502,16 +843,35 @@ def monitor_camera(cam):
         "motion_source": "camera-events",
         "last_motion": False,
         "motion_healthy": False,
+        "soft_motion_score": 0.0,
+        "soft_motion_cyclic": False,
+        "soft_motion_active": False,
+        "soft_last_motion_ts": 0.0,
+        "soft_motion_scores": deque(maxlen=120),
+        "soft_prev_gray": None,
         "last_wall_check": 0,
         "wall_suspect_count": 0,
         "wall_like": False,
         "scene_metrics": {},
         "scan_index": 0,
-        "last_ptz_adjust": 0
+        "last_ptz_adjust": 0,
+        "active_process": None,
+        "monitor_source_url": monitor_rtsp_url,
+        "output_stream_url": output_stream_url,
+        "fusion_main_url": fusion_main_url,
+        "fusion_sub_url": fusion_sub_url
     }
 
-    prev_frame = None
-    print(f"[MON] Monitoring camera: {cam_name} ({rtsp_url})")
+    reader_transport = DETECTOR_MONITOR_TRANSPORT
+    reader = PersistentFFmpegReader(
+        monitor_rtsp_url,
+        width=MONITOR_FRAME_WIDTH,
+        height=MONITOR_FRAME_HEIGHT,
+        transport=reader_transport
+    )
+    is_rtsp_monitor = isinstance(monitor_rtsp_url, str) and monitor_rtsp_url.startswith("rtsp://")
+    read_failures = 0
+    print(f"[MON] Monitoring camera: {cam_name} (monitor={monitor_rtsp_url}, output={output_stream_url})")
 
     while True:
         try:
@@ -552,7 +912,28 @@ def monitor_camera(cam):
                     # Still recording
                     state["status"] = "recording"
                     state["recording_remaining"] = int(state["recording_until"] - now) if state["recording_until"] > 0 else RECORD_DURATION
-                    time.sleep(1)
+                    # Keep low-res socket alive while recording by draining frames.
+                    keepalive_ok, _ = reader.read(timeout_sec=1.2)
+                    if not keepalive_ok:
+                        read_failures += 1
+                        if read_failures >= MONITOR_RESTART_AFTER_FAILS:
+                            if is_rtsp_monitor:
+                                next_transport = "tcp" if reader_transport == "udp" else "udp"
+                                print(
+                                    f"[MON] {cam_name}: monitor keepalive stalled on {reader_transport.upper()} during recording, switching to {next_transport.upper()}",
+                                    flush=True
+                                )
+                                reader_transport = next_transport
+                            else:
+                                print(
+                                    f"[MON] {cam_name}: monitor keepalive stalled on output stream, restarting reader",
+                                    flush=True
+                                )
+                            reader.restart(reader_transport)
+                            read_failures = 0
+                    else:
+                        read_failures = 0
+                    time.sleep(FRAME_INTERVAL)
                     continue
 
             # 2. Handle Cooldown
@@ -565,27 +946,48 @@ def monitor_camera(cam):
             state["detected_objects"] = []
 
             # 3. Capture and Detect Motion
-            frame = grab_frame(rtsp_url)
-            if frame is None:
+            ret, frame = reader.read(timeout_sec=MONITOR_READ_TIMEOUT_SEC)
+            if not ret or frame is None:
+                read_failures += 1
                 state["status"] = "error"
+                if read_failures >= MONITOR_RESTART_AFTER_FAILS:
+                    if is_rtsp_monitor:
+                        next_transport = "tcp" if reader_transport == "udp" else "udp"
+                        print(
+                            f"[MON] {cam_name}: monitor stream stalled on {reader_transport.upper()}, switching to {next_transport.upper()}",
+                            flush=True
+                        )
+                        reader_transport = next_transport
+                    else:
+                        print(
+                            f"[MON] {cam_name}: output monitor stream stalled, restarting reader",
+                            flush=True
+                        )
+                    reader.restart(reader_transport)
+                    read_failures = 0
                 time.sleep(5)
                 continue
+            read_failures = 0
 
             # Resize for faster processing
-            small = cv2.resize(frame, (640, 360))
+            small = cv2.resize(frame, (MONITOR_FRAME_WIDTH, MONITOR_FRAME_HEIGHT))
 
-            # 3a. Camera-native motion trigger (strict: no vision fallback)
-            motion_triggered, motion_source, motion_healthy = get_camera_motion_trigger(cam_id)
+            # 3a. Motion trigger: prefer camera-native events, fallback to lightweight software motion.
+            cam_motion, motion_source, motion_healthy = get_camera_motion_trigger(cam_id)
+            soft_motion, soft_score, soft_cyclic = update_soft_motion_state(state, small)
+            if motion_healthy:
+                motion_triggered = bool(cam_motion)
+                effective_motion_source = motion_source
+            else:
+                motion_triggered = bool(soft_motion)
+                effective_motion_source = "software-motion-cyclic-filter" if soft_cyclic else "software-motion"
 
-            state["motion_source"] = motion_source
+            state["motion_source"] = effective_motion_source
             state["last_motion"] = bool(motion_triggered)
             state["motion_healthy"] = bool(motion_healthy)
-
-            if not motion_healthy:
-                state["status"] = "waiting_motion_events"
-                prev_frame = small
-                time.sleep(FRAME_INTERVAL)
-                continue
+            state["soft_motion_score"] = round(float(soft_score), 4)
+            state["soft_motion_cyclic"] = bool(soft_cyclic)
+            state["soft_motion_active"] = bool(soft_motion)
 
             state["status"] = "monitoring"
 
@@ -614,96 +1016,83 @@ def monitor_camera(cam):
                     state["wall_suspect_count"] = 0
 
             if motion_triggered:
-                # Motion detected! START RECORDING IMMEDIATELY (Pre-record)
-                filename, filepath, process = start_recording(cam, RECORD_DURATION)
+                # Motion detected: start OUTPUT recording immediately. Detection is independent.
+                filename, filepath, process = start_recording(cam, output_stream_url, RECORD_DURATION)
                 if process:
                     state["active_process"] = process
                     state["recording_file"] = filename
                     state["recording_path"] = filepath
                     state["recording_started_at"] = now
-                    state["status"] = "detecting" # Transient state
+                    state["recording_until"] = now + RECORD_DURATION
+                    state["status"] = "recording"
                     
-                    # Now run AI classification on the SAME frame
+                    # Run AI classification on monitor frame without coupling it to recording lifecycle.
                     detections = classify_frame(small, device_id=state["device_id"])
+                    state["detected_objects"] = detections
 
+                    event_ts = datetime.now().isoformat()
+                    categories = sorted(set(d["category"] for d in detections)) if detections else []
+                    labels = [d["label"] for d in detections]
                     if detections:
-                        # TARGET FOUND - CONFIRM RECORDING
-                        state["detected_objects"] = detections
-                        state["status"] = "recording"
-                        event_ts = datetime.now().isoformat()
                         state["last_detection"] = event_ts
-                        state["recording_until"] = now + RECORD_DURATION
-                        
-                        # Save thumbnail
-                        thumb_path = filepath.replace(".mp4", ".jpg")
-                        save_thumbnail(small, thumb_path)
+                    thumb_path = filepath.replace(".mp4", ".jpg")
+                    save_thumbnail(small, thumb_path)
 
-                        categories = list(set(d["category"] for d in detections))
-                        labels = [d["label"] for d in detections]
+                    event_type = "ai_detection" if detections else "motion"
+                    event = {
+                        "timestamp": event_ts,
+                        "camera": cam_name,
+                        "camera_id": cam_id,
+                        "type": event_type,
+                        "categories": categories,
+                        "objects": labels,
+                        "recording": filename,
+                        "thumbnail": filename.replace(".mp4", ".jpg"),
+                        "motion_source": state.get("motion_source"),
+                        "motion_healthy": state.get("motion_healthy", False)
+                    }
+                    events_log.append(event)
+                    if len(events_log) > 100:
+                        events_log.pop(0)
 
-                        event = {
-                            "timestamp": event_ts,
-                            "camera": cam_name,
-                            "camera_id": cam_id,
-                            "type": "detection",
-                            "categories": categories,
-                            "objects": labels,
-                            "recording": filename,
-                            "thumbnail": filename.replace(".mp4", ".jpg")
-                        }
-                        events_log.append(event)
-                        if len(events_log) > 100: events_log.pop(0)
-
-                        # Persist searchable metadata for this recording
-                        confidences = [d.get("confidence", 0) for d in detections]
-                        metadata = {
-                            "schema_version": 1,
-                            "filename": filename,
-                            "camera_id": cam_id,
-                            "camera_name": cam_name,
-                            "event_type": "ai_detection",
-                            "event_time": event_ts,
-                            "recording_started_at": event_ts,
-                            "recording_completed_at": None,
-                            "duration_seconds": RECORD_DURATION,
-                            "status": "recording_in_progress",
-                            "categories": categories,
-                            "objects": labels,
-                            "detections_count": len(detections),
-                            "top_confidence": round(max(confidences), 2) if confidences else 0,
-                            "motion_source": state.get("motion_source"),
-                            "motion_healthy": state.get("motion_healthy", False),
-                            "wall_like": state.get("wall_like", False),
-                            "scene_metrics": state.get("scene_metrics", {}),
-                            "thumbnail": filename.replace(".mp4", ".jpg"),
-                            "tags": sorted(set(categories + labels)),
-                            "created_at": event_ts
-                        }
-                        state["pending_metadata"] = metadata
-                        upsert_recording_metadata(metadata)
-
-                        print(f"[DET] {cam_name}: {', '.join(labels)} -> CONFIRMED Recording 60s")
+                    confidences = [d.get("confidence", 0) for d in detections]
+                    metadata = {
+                        "schema_version": 1,
+                        "filename": filename,
+                        "camera_id": cam_id,
+                        "camera_name": cam_name,
+                        "event_type": event_type,
+                        "event_time": event_ts,
+                        "recording_started_at": event_ts,
+                        "recording_completed_at": None,
+                        "duration_seconds": RECORD_DURATION,
+                        "status": "recording_in_progress",
+                        "categories": categories,
+                        "objects": labels,
+                        "detections_count": len(detections),
+                        "top_confidence": round(max(confidences), 2) if confidences else 0,
+                        "motion_source": state.get("motion_source"),
+                        "motion_healthy": state.get("motion_healthy", False),
+                        "wall_like": state.get("wall_like", False),
+                        "scene_metrics": state.get("scene_metrics", {}),
+                        "thumbnail": filename.replace(".mp4", ".jpg"),
+                        "tags": sorted(set(categories + labels + [event_type])),
+                        "created_at": event_ts,
+                        "recording_source": "reconstructor-output",
+                        "output_stream_url": output_stream_url,
+                        "fusion_main_url": fusion_main_url,
+                        "fusion_sub_url": fusion_sub_url
+                    }
+                    state["pending_metadata"] = metadata
+                    upsert_recording_metadata(metadata)
+                    if detections:
+                        print(f"[DET] {cam_name}: {', '.join(labels)} -> recording output {RECORD_DURATION}s")
                     else:
-                        # MOTION BUT NO TARGET - DISCARD RECORDING
-                        print(f"[CDN] {cam_name}: Motion without targets, discarding recording.")
-                        process.terminate() # Stop FFmpeg
-                        try:
-                            # Wait a bit for file to be released, then delete
-                            time.sleep(1)
-                            if os.path.exists(filepath): os.remove(filepath)
-                            if os.path.exists(filepath + ".log"): os.remove(filepath + ".log")
-                        except: pass
-                        
-                        state["active_process"] = None
-                        state["recording_file"] = None
-                        state["recording_path"] = None
-                        state["recording_started_at"] = None
-                        state["pending_metadata"] = None
-                        remove_recording_metadata(filename)
-                        state["status"] = "cooldown"
-                        state["cooldown_until"] = now + COOLDOWN_DURATION
+                        print(f"[DET] {cam_name}: motion-only trigger -> recording output {RECORD_DURATION}s")
+                else:
+                    state["status"] = "recording_error"
+                    state["cooldown_until"] = now + COOLDOWN_DURATION
 
-            prev_frame = small
             time.sleep(FRAME_INTERVAL)
 
         except Exception as e:
@@ -729,8 +1118,13 @@ def get_status():
                 "motion_source": s.get("motion_source"),
                 "last_motion": s.get("last_motion", False),
                 "motion_healthy": s.get("motion_healthy", False),
+                "soft_motion_score": s.get("soft_motion_score", 0.0),
+                "soft_motion_cyclic": s.get("soft_motion_cyclic", False),
+                "soft_motion_active": s.get("soft_motion_active", False),
                 "wall_like": s.get("wall_like", False),
-                "scene_metrics": s.get("scene_metrics", {})
+                "scene_metrics": s.get("scene_metrics", {}),
+                "monitor_source_url": s.get("monitor_source_url"),
+                "output_stream_url": s.get("output_stream_url")
             }
             for cam_id, s in camera_states.items()
         }

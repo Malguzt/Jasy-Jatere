@@ -45,10 +45,15 @@ const CameraDetailsModal = ({ camera, onClose }) => {
 
         // If it's the combined profile, include ALL rtspUrls
         if (profile.token === 'combined_ai') {
-            payload.type = 'combined';
-            payload.allRtspUrls = details.profiles
+            const candidates = details.profiles
                 .filter(p => p.token !== 'combined_ai' && p.rtspUrl)
-                .map(p => p.rtspUrl);
+                .map((p) => ({
+                    url: p.rtspUrl,
+                    label: `${p.name || 'Canal'} ${p.resolution ? `(${p.resolution})` : ''}`.trim()
+                }));
+            payload.type = 'combined';
+            payload.allRtspUrls = candidates.map((c) => c.url);
+            payload.sourceLabels = candidates.map((c) => c.label);
         }
 
         try {
@@ -59,10 +64,18 @@ const CameraDetailsModal = ({ camera, onClose }) => {
             });
             const data = await res.json();
             if (data.success) {
-                alert('¡Guardada en el Dashboard!');
+                if (data.validation && data.validation.ok === false) {
+                    const validationErrors = (data?.validation?.errors || []).join(' | ');
+                    const detail = validationErrors ? `\nDiagnóstico: ${validationErrors}` : '';
+                    alert('Guardada con advertencias para diagnóstico.' + detail);
+                } else {
+                    alert('¡Guardada en el Dashboard!');
+                }
                 onClose();
             } else {
-                alert('Error al guardar: ' + data.error);
+                const validationErrors = (data?.validation?.errors || []).join(' | ');
+                const detail = validationErrors ? `\nDetalle: ${validationErrors}` : '';
+                alert('Error al guardar: ' + (data.error || 'Error desconocido') + detail);
             }
         } catch (e) {
             alert('Error de red');

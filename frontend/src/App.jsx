@@ -4,7 +4,9 @@ import CameraList from './components/CameraList';
 import CameraDetailsModal from './components/CameraDetailsModal';
 import Dashboard from './components/Dashboard';
 import Recordings from './components/Recordings';
-import { Search, Plus, LayoutDashboard, Radar, Video } from 'lucide-react';
+import ConnectivityMonitor from './components/ConnectivityMonitor';
+import MapView from './components/MapView';
+import { Search, Plus, LayoutDashboard, Radar, Video, Activity, Map as MapIcon } from 'lucide-react';
 import './index.css';
 
 function App() {
@@ -39,7 +41,7 @@ function App() {
       });
   };
 
-  const isDashboard = activeTab === 'dashboard';
+  const isDashboard = activeTab === 'dashboard' || activeTab === 'monitoring' || activeTab === 'map';
 
   return (
     <div className={isDashboard ? 'app-fullscreen' : 'container'}>
@@ -57,6 +59,20 @@ function App() {
               onClick={() => setActiveTab('dashboard')}
             >
               <LayoutDashboard size={13} /> Dashboard
+            </button>
+            <button 
+              className={`toolbar-btn ${activeTab === 'monitoring' ? 'active' : ''}`} 
+              style={{ opacity: activeTab === 'monitoring' ? 1 : 0.5 }}
+              onClick={() => setActiveTab('monitoring')}
+            >
+              <Activity size={13} /> Monitoreo
+            </button>
+            <button
+              className={`toolbar-btn ${activeTab === 'map' ? 'active' : ''}`}
+              style={{ opacity: activeTab === 'map' ? 1 : 0.5 }}
+              onClick={() => setActiveTab('map')}
+            >
+              <MapIcon size={13} /> Mapa
             </button>
             <button 
               className={`toolbar-btn ${activeTab === 'recordings' ? 'active' : ''}`} 
@@ -80,12 +96,22 @@ function App() {
               <button className="btn" style={{ borderColor: activeTab === 'recordings' ? 'var(--accent-color)' : 'rgba(255,255,255,0.2)', color: activeTab === 'recordings' ? 'var(--accent-color)' : '#fff', opacity: activeTab === 'recordings' ? 1 : 0.6 }} onClick={() => setActiveTab('recordings')}>
                   <Video size={18} /> Grabaciones
               </button>
+              <button className="btn" style={{ borderColor: activeTab === 'monitoring' ? 'var(--accent-color)' : 'rgba(255,255,255,0.2)', color: activeTab === 'monitoring' ? 'var(--accent-color)' : '#fff', opacity: activeTab === 'monitoring' ? 1 : 0.6 }} onClick={() => setActiveTab('monitoring')}>
+                  <Activity size={18} /> Monitoreo
+              </button>
+              <button className="btn" style={{ borderColor: activeTab === 'map' ? 'var(--accent-color)' : 'rgba(255,255,255,0.2)', color: activeTab === 'map' ? 'var(--accent-color)' : '#fff', opacity: activeTab === 'map' ? 1 : 0.6 }} onClick={() => setActiveTab('map')}>
+                  <MapIcon size={18} /> Mapa
+              </button>
           </div>
         </header>
       )}
 
       {activeTab === 'dashboard' ? (
           <Dashboard />
+      ) : activeTab === 'monitoring' ? (
+          <ConnectivityMonitor />
+      ) : activeTab === 'map' ? (
+          <MapView />
       ) : activeTab === 'recordings' ? (
           <Recordings />
       ) : (

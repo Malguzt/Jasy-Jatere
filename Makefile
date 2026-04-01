@@ -1,4 +1,4 @@
-.PHONY: run stop logs clean rebuild
+.PHONY: run stop logs clean rebuild map-smoke map-tests map-scenes
 
 run:
 	docker compose up -d
@@ -15,3 +15,13 @@ logs:
 clean: stop
 	docker compose rm -f
 	docker image prune -a -f
+
+map-tests:
+	docker compose run --rm backend npm test
+
+map-scenes:
+	docker compose up -d mapper
+	docker compose exec mapper python scripts/validate_scenes.py --mapper-url http://localhost:5002/generate
+
+map-smoke:
+	./scripts/map_pipeline_smoke.sh

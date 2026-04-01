@@ -3,6 +3,7 @@ const path = require('path');
 const url = require('url');
 const onvif = require('node-onvif');
 const onvifSoap = require('node-onvif/lib/modules/soap');
+const { resolveCameraCredentials } = require('./camera-credentials');
 
 const DATA_FILE = path.join(__dirname, 'data', 'cameras.json');
 const EVENTS_XMLNS = [
@@ -123,14 +124,15 @@ class CameraEventMonitor {
 
         for (const cam of cameras) {
             if (!this.monitors.has(cam.id)) {
+                const creds = resolveCameraCredentials(cam);
                 const state = {
                     camera: cam,
                     stop: false,
                     eventsXaddr: null,
                     subscriptionXaddr: null,
                     timeDiff: 0,
-                    user: cam.user || 'admin',
-                    pass: cam.pass || '',
+                    user: creds.user,
+                    pass: creds.pass,
                     subscriptionExpireAt: 0,
                     topic: null
                 };
@@ -147,9 +149,10 @@ class CameraEventMonitor {
                 this.loopCamera(state);
             } else {
                 const st = this.monitors.get(cam.id);
+                const creds = resolveCameraCredentials(cam);
                 st.camera = cam;
-                st.user = cam.user || 'admin';
-                st.pass = cam.pass || '';
+                st.user = creds.user;
+                st.pass = creds.pass;
             }
         }
 

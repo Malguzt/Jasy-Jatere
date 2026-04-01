@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CroquisMapDocument",
+  "type": "object",
+  "required": ["schemaVersion", "mapId", "createdAt", "quality", "cameras", "objects"],
+  "properties": {
+    "schemaVersion": { "type": "string" },
+    "mapId": { "type": "string" },
+    "createdAt": { "type": "number" },
+    "updatedAt": { "type": "number" },
+    "sourceJobId": { "type": ["string", "null"] },
+    "quality": {
+      "type": "object",
+      "required": ["mode"],
+      "properties": {
+        "mode": { "type": "string" },
+        "score": { "type": "number" },
+        "planUsed": { "type": "string" },
+        "warnings": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "cameras": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "label", "x", "y"],
+        "properties": {
+          "id": { "type": "string" },
+          "label": { "type": "string" },
+          "x": { "type": "number" },
+          "y": { "type": "number" },
+          "yawDeg": { "type": "number" }
+        }
+      }
+    },
+    "objects": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "label", "category", "x", "y"],
+        "properties": {
+          "id": { "type": "string" },
+          "label": { "type": "string" },
+          "category": { "type": "string" },
+          "x": { "type": "number" },
+          "y": { "type": "number" },
+          "confidence": { "type": "number" },
+          "sources": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        }
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "timing": {
+          "type": "object",
+          "properties": {
+            "queuedMs": { "type": "number" },
+            "captureMs": { "type": "number" },
+            "eventsMs": { "type": "number" },
+            "planAMs": { "type": "number" },
+            "fallbackMs": { "type": "number" },
+            "validateMs": { "type": "number" },
+            "publishMs": { "type": "number" },
+            "totalRunMs": { "type": "number" }
+          }
+        }
+      }
+    }
+  }
+}

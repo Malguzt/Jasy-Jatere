@@ -1,0 +1,23 @@
+{
+  "name": "scene_auto_basic",
+  "payload": {
+    "jobId": "scene_auto_basic",
+    "cameras": [
+      { "id": "cam-1", "name": "Camara Patio" },
+      { "id": "cam-2", "name": "Camara Garage" }
+    ],
+    "recentEvents": [
+      {
+        "camera_id": "cam-1",
+        "timestamp": "2026-04-01T00:00:00Z",
+        "objects": ["auto", "arbol"]
+      }
+    ]
+  },
+  "expected": {
+    "min_cameras": 2,
+    "min_objects": 2,
+    "required_labels": ["auto", "arbol"],
+    "plan_one_of": ["A", "C"]
+  }
+}

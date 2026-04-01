@@ -1,0 +1,20 @@
+{
+  "name": "scene_hints_only",
+  "payload": {
+    "jobId": "scene_hints_only",
+    "manualCameraLayout": [
+      { "id": "cam-man-1", "label": "Camara Manual 1", "x": 3, "y": 2, "yawDeg": 45 },
+      { "id": "cam-man-2", "label": "Camara Manual 2", "x": -2, "y": -1, "yawDeg": 225 }
+    ],
+    "objectHints": [
+      { "label": "arbol", "cameraId": "cam-man-1", "x": 1.5, "y": 3.0, "category": "vegetacion" },
+      { "label": "auto", "cameraId": "cam-man-2", "x": -1.8, "y": -0.7, "category": "vehiculo" }
+    ]
+  },
+  "expected": {
+    "min_cameras": 2,
+    "min_objects": 2,
+    "required_labels": ["arbol", "auto"],
+    "plan_one_of": ["C"]
+  }
+}

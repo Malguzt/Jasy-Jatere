@@ -1,0 +1,23 @@
+{
+  "name": "scene_assisted_layout",
+  "payload": {
+    "jobId": "scene_assisted_layout",
+    "cameras": [
+      { "id": "cam-1", "name": "Camara Norte" },
+      { "id": "cam-2", "name": "Camara Sur" }
+    ],
+    "manualCameraLayout": [
+      { "id": "cam-1", "label": "Camara Norte", "x": 6, "y": 4, "yawDeg": 20 },
+      { "id": "cam-2", "label": "Camara Sur", "x": -4, "y": -3, "yawDeg": 210 }
+    ],
+    "objectHints": [
+      { "label": "lavadora", "cameraId": "cam-1", "x": 2.1, "y": 1.0, "category": "electrodomestico" }
+    ]
+  },
+  "expected": {
+    "min_cameras": 2,
+    "min_objects": 1,
+    "required_labels": ["lavadora"],
+    "plan_one_of": ["C"]
+  }
+}

@@ -7,6 +7,20 @@ services:
     volumes:
       - ./backend/data:/app/data
       - ./recordings:/app/recordings
+    environment:
+      - CAMERA_DEFAULT_USER=admin
+      - CAMERA_DEFAULT_PASS=PerroN3gro
+      - CAMERA_KEEPALIVE_ENABLED=0
+      - CAMERA_KEEPALIVE_SYNC_MS=10000
+      - CAMERA_KEEPALIVE_SOURCE_INDEX=1
+      - CAMERA_KEEPALIVE_TRANSPORT=udp
+      - MAPPER_URL=http://localhost:5002
+      - MAP_PLAN_A_ENABLED=1
+      - MAP_PLAN_B_ENABLED=1
+      - MAP_PLAN_C_ENABLED=1
+      - MAP_PLAN_D_ENABLED=1
+      - MAP_APPLY_MANUAL_CORRECTIONS=1
+      - MAP_MAPPER_TIMEOUT_MS=90000
     deploy:
       resources:
         reservations:
@@ -33,6 +47,11 @@ services:
     volumes:
       - ./backend/data:/app/data
       - ./recordings:/app/recordings
+    environment:
+      - CAMERA_DEFAULT_USER=admin
+      - CAMERA_DEFAULT_PASS=PerroN3gro
+      - DETECTOR_OUTPUT_STREAM_BASE=http://localhost:5001/stream
+      - DETECTOR_MONITOR_TRANSPORT=udp
     deploy:
       resources:
         reservations:
@@ -49,6 +68,11 @@ services:
       context: ./reconstructor
     container_name: ipcam-reconstructor
     network_mode: "host"
+    environment:
+      - TEMPORAL_WINDOW_SIZE=7
+      - TEMPORAL_MIN_FRAMES=4
+      - TEMPORAL_DIFF_SIGMA=20.0
+      - TEMPORAL_CURRENT_BIAS=1.5
     volumes:
       - ./backend/data:/app/data
       - ./recordings:/app/recordings
@@ -62,3 +86,10 @@ services:
     restart: unless-stopped
     depends_on:
       - backend
+
+  mapper:
+    build:
+      context: ./mapper
+    container_name: ipcam-mapper
+    network_mode: "host"
+    restart: unless-stopped

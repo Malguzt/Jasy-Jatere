@@ -159,6 +159,13 @@ test('createBackendApp exposes internal worker config and perception ingest APIs
 
         const readyzRes = await fetch(`${baseUrl}/readyz`);
         assert.equal(readyzRes.status, 200);
+
+        const metricsRes = await fetch(`${baseUrl}/metrics`);
+        const metricsText = await metricsRes.text();
+        assert.equal(metricsRes.status, 200);
+        assert.equal(String(metricsRes.headers.get('content-type') || '').includes('text/plain'), true);
+        assert.equal(metricsText.includes('ipcam_monitor_cameras_total'), true);
+        assert.equal(metricsText.includes('ipcam_stream_runtime_streams_total'), true);
     } finally {
         await new Promise((resolve) => server.close(resolve));
     }
@@ -211,6 +218,9 @@ test('createBackendApp degrades readiness when stream proxy mode is required and
         assert.equal(readyzRes.status, 503);
         assert.equal(readyzPayload.success, false);
         assert.ok(readyzPayload.readiness.failures.includes('streamGatewayProxy'));
+
+        const metricsRes = await fetch(`${baseUrl}/metrics`);
+        assert.equal(metricsRes.status, 500);
     } finally {
         await new Promise((resolve) => server.close(resolve));
     }

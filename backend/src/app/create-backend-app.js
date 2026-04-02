@@ -198,7 +198,10 @@ function createBackendApp({
     app.use('/api/internal/config', createInternalConfigRouter({ workerConfigService }));
     app.use('/api/recordings', createRecordingsRouter({ recordingCatalogService }));
     app.use('/api/perception', createPerceptionRouter({ perceptionIngestService }));
-    app.use('/', createMetricsRouter({ monitoringService }));
+    app.use('/', createMetricsRouter({
+        monitoringService,
+        streamRuntimeService: streamControlProxyService || streamControlService
+    }));
     app.get('/livez', (req, res) => {
         return res.json({
             success: true,

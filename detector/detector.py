@@ -111,6 +111,7 @@ REQUIRE_CONTROL_PLANE_RETENTION_CONFIG = parse_bool_env("REQUIRE_CONTROL_PLANE_R
 RETENTION_CONFIG_TTL_SEC = parse_positive_int_env("RETENTION_CONFIG_TTL_SEC", 60)
 USE_CONTROL_PLANE_PERCEPTION_INGEST = parse_bool_env("USE_CONTROL_PLANE_PERCEPTION_INGEST", True)
 USE_CONTROL_PLANE_RECORDING_CATALOG = parse_bool_env("USE_CONTROL_PLANE_RECORDING_CATALOG", True)
+REQUIRE_CONTROL_PLANE_RECORDING_CATALOG = parse_bool_env("REQUIRE_CONTROL_PLANE_RECORDING_CATALOG", False)
 
 # Classes of interest (COCO dataset IDs)
 PERSON_CLASSES = {0}  # person
@@ -142,6 +143,10 @@ retention_policy_state = {
 }
 
 os.makedirs(RECORDINGS_DIR, exist_ok=True)
+
+
+def use_local_recordings_index():
+    return not USE_CONTROL_PLANE_RECORDING_CATALOG
 
 
 class PersistentFFmpegReader:
@@ -266,6 +271,8 @@ def get_metadata_path_from_mp4(mp4_path):
 
 
 def load_recordings_index():
+    if not use_local_recordings_index():
+        return []
     if not os.path.exists(RECORDINGS_INDEX_FILE):
         return []
     try:
@@ -279,6 +286,8 @@ def load_recordings_index():
 
 
 def save_recordings_index(entries):
+    if not use_local_recordings_index():
+        return
     tmp_file = RECORDINGS_INDEX_FILE + ".tmp"
     try:
         with open(tmp_file, "w") as f:
@@ -319,12 +328,13 @@ def upsert_recording_metadata(metadata):
     except Exception as e:
         print(f"[META] Error writing sidecar {meta_path}: {e}")
 
-    with recordings_index_lock:
-        index = load_recordings_index()
-        index = [m for m in index if m.get("filename") != filename]
-        index.append(metadata)
-        index.sort(key=lambda m: m.get("event_time") or m.get("created_at") or "", reverse=True)
-        save_recordings_index(index)
+    if use_local_recordings_index():
+        with recordings_index_lock:
+            index = load_recordings_index()
+            index = [m for m in index if m.get("filename") != filename]
+            index.append(metadata)
+            index.sort(key=lambda m: m.get("event_time") or m.get("created_at") or "", reverse=True)
+            save_recordings_index(index)
 
     publish_recording_catalog(metadata)
 
@@ -340,11 +350,12 @@ def remove_recording_metadata(filename):
     except Exception as e:
         print(f"[META] Error removing sidecar {meta_path}: {e}")
 
-    with recordings_index_lock:
-        index = load_recordings_index()
-        filtered = [m for m in index if m.get("filename") != filename]
-        if len(filtered) != len(index):
-            save_recordings_index(filtered)
+    if use_local_recordings_index():
+        with recordings_index_lock:
+            index = load_recordings_index()
+            filtered = [m for m in index if m.get("filename") != filename]
+            if len(filtered) != len(index):
+                save_recordings_index(filtered)
 
     delete_recording_catalog_entry(filename)
 
@@ -834,6 +845,26 @@ def delete_recording_catalog_entry(filename):
         http_json("DELETE", f"{CONTROL_PLANE_RECORDINGS_URL}/{safe}", timeout=2)
     except Exception as e:
         print(f"[INGEST] recording metadata delete failed: {e}")
+
+
+def list_recordings_from_control_plane(query):
+    params = {}
+    for key in ("q", "camera_id", "category", "object", "date_from", "date_to"):
+        value = query.get(key)
+        if value is None:
+            continue
+        text = str(value).strip()
+        if text:
+            params[key] = text
+
+    url = CONTROL_PLANE_RECORDINGS_URL
+    if params:
+        url = f"{url}?{urllib.parse.urlencode(params)}"
+
+    payload = http_json("GET", url, timeout=4)
+    if isinstance(payload, dict) and payload.get("success") and isinstance(payload.get("recordings"), list):
+        return payload.get("recordings", [])
+    raise ValueError("Invalid control-plane recordings payload")
 
 
 def get_camera_motion_trigger(cam_id):
@@ -1331,6 +1362,17 @@ def delete_recording(filename):
     if ".." in filename or filename.startswith("/"):
         return jsonify({"success": False, "error": "Invalid filename"}), 400
 
+    if USE_CONTROL_PLANE_RECORDING_CATALOG:
+        try:
+            safe = urllib.parse.quote(str(filename), safe="")
+            payload = http_json("DELETE", f"{CONTROL_PLANE_RECORDINGS_URL}/{safe}", timeout=4)
+            if isinstance(payload, dict):
+                return jsonify(payload)
+            return jsonify({"success": False, "error": "Invalid control-plane response"}), 502
+        except Exception as e:
+            print(f"[INGEST] recording delete via control-plane failed: {e}")
+            return jsonify({"success": False, "error": "Control-plane delete unavailable"}), 502
+
     filepath = os.path.join(RECORDINGS_DIR, filename)
     thumb_path = filepath.replace(".mp4", ".jpg")
     log_path = filepath + ".log"
@@ -1365,6 +1407,16 @@ def delete_recording(filename):
 
 @app.route("/recordings")
 def list_recordings():
+    if USE_CONTROL_PLANE_RECORDING_CATALOG:
+        try:
+            recordings = list_recordings_from_control_plane(request.args or {})
+            return jsonify({"success": True, "recordings": recordings[:50]})
+        except Exception as e:
+            print(f"[INGEST] recordings list via control-plane failed: {e}")
+            if REQUIRE_CONTROL_PLANE_RECORDING_CATALOG:
+                return jsonify({"success": False, "error": "Control-plane recordings unavailable"}), 502
+            print("[INGEST] falling back to local recordings listing.")
+
     files = []
     q = (request.args.get("q") or "").strip().lower()
     camera_id_filter = (request.args.get("camera_id") or "").strip()
@@ -1373,9 +1425,11 @@ def list_recordings():
     date_from = (request.args.get("date_from") or "").strip()
     date_to = (request.args.get("date_to") or "").strip()
 
-    with recordings_index_lock:
-        index = load_recordings_index()
-    index_map = {m.get("filename"): m for m in index if isinstance(m, dict) and m.get("filename")}
+    index_map = {}
+    if use_local_recordings_index():
+        with recordings_index_lock:
+            index = load_recordings_index()
+        index_map = {m.get("filename"): m for m in index if isinstance(m, dict) and m.get("filename")}
 
     def parse_iso(value):
         if not value:

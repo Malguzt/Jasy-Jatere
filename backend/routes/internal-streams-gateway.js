@@ -12,9 +12,21 @@ function sendGatewayError(res, error) {
 }
 
 function createInternalStreamsGatewayRouter({
-    streamControlService
+    streamControlService,
+    runtimeFlags = {}
 } = {}) {
     const router = express.Router();
+
+    router.get('/health', (req, res) => {
+        return res.json({
+            success: true,
+            service: 'stream-gateway',
+            streamRuntimeEnabled: !!runtimeFlags.streamRuntimeEnabled,
+            streamWebSocketGatewayEnabled: !!runtimeFlags.streamWebSocketGatewayEnabled,
+            streamWebRtcEnabled: !!runtimeFlags.streamWebRtcEnabled,
+            streamWebRtcRequireHttps: !!runtimeFlags.streamWebRtcRequireHttps
+        });
+    });
 
     router.get('/runtime', async (req, res) => {
         try {

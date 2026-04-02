@@ -1,0 +1,39 @@
+const express = require('express');
+const { internalError } = require('../src/http/respond');
+
+function createControlPlaneProbesRouter({ platformHealthService }) {
+    const router = express.Router();
+
+    router.get('/livez', (req, res) => {
+        try {
+            return res.json({
+                success: true,
+                liveness: platformHealthService.getLivenessSnapshot()
+            });
+        } catch (error) {
+            return internalError(res, {
+                error: error?.message || String(error)
+            });
+        }
+    });
+
+    router.get('/readyz', async (req, res) => {
+        try {
+            const readiness = await platformHealthService.getReadinessSnapshot();
+            return res.status(readiness.ready ? 200 : 503).json({
+                success: readiness.ready,
+                readiness
+            });
+        } catch (error) {
+            return internalError(res, {
+                error: error?.message || String(error)
+            });
+        }
+    });
+
+    return router;
+}
+
+module.exports = {
+    createControlPlaneProbesRouter
+};

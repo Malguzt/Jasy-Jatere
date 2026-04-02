@@ -10,6 +10,7 @@ const { createContractsRouter } = require('../../routes/contracts');
 const { createStreamsRouter } = require('../../routes/streams');
 const { createCameraMotionRouter } = require('../../routes/camera-motion');
 const { createHealthRouter } = require('../../routes/health');
+const { createControlPlaneProbesRouter } = require('../../routes/control-plane-probes');
 const { createInternalConfigRouter } = require('../../routes/internal-config');
 const { createRecordingsRouter } = require('../../routes/recordings');
 const { createPerceptionRouter } = require('../../routes/perception');
@@ -68,19 +69,7 @@ function createBackendApp({
         monitoringService: services.monitoringService,
         streamRuntimeService: services.streamControlProxyService || services.streamControlService
     }));
-    app.get('/livez', (req, res) => {
-        return res.json({
-            success: true,
-            liveness: services.platformHealthService.getLivenessSnapshot()
-        });
-    });
-    app.get('/readyz', async (req, res) => {
-        const readiness = await services.platformHealthService.getReadinessSnapshot();
-        return res.status(readiness.ready ? 200 : 503).json({
-            success: readiness.ready,
-            readiness
-        });
-    });
+    app.use('/', createControlPlaneProbesRouter({ platformHealthService: services.platformHealthService }));
 
     app.use('/recordings', express.static('/app/recordings'));
 

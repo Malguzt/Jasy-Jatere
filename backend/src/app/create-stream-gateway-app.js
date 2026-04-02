@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const { createInternalStreamsGatewayRouter } = require('../../routes/internal-streams-gateway');
+const { createStreamGatewayProbesRouter } = require('../../routes/stream-gateway-probes');
 const { attachCorrelationId, injectCorrelationIdIntoJson } = require('../http/correlation-id-middleware');
 const { PlatformRuntimeCoordinator } = require('./platform-runtime-coordinator');
 const { createStreamGatewayServices } = require('./create-stream-gateway-services');
@@ -30,44 +31,11 @@ function createStreamGatewayApp({
         streamWebSocketGatewayEnabled: runtimeFlags.streamWebSocketGatewayEnabled
     });
 
-    app.get('/api/internal/streams/health', (req, res) => {
-        return res.json({
-            success: true,
-            service: 'stream-gateway',
-            streamRuntimeEnabled: runtimeFlags.streamRuntimeEnabled,
-            streamWebSocketGatewayEnabled: runtimeFlags.streamWebSocketGatewayEnabled,
-            streamWebRtcEnabled: runtimeFlags.streamWebRtcEnabled,
-            streamWebRtcRequireHttps: runtimeFlags.streamWebRtcRequireHttps
-        });
-    });
-
-    app.get('/livez', (req, res) => {
-        return res.json({
-            success: true,
-            service: 'stream-gateway',
-            status: 'alive'
-        });
-    });
-
-    app.get('/readyz', async (req, res) => {
-        try {
-            await services.streamControlService.getRuntimeSnapshot();
-            return res.json({
-                success: true,
-                service: 'stream-gateway',
-                status: 'ready'
-            });
-        } catch (error) {
-            return res.status(503).json({
-                success: false,
-                service: 'stream-gateway',
-                status: 'degraded',
-                error: error?.message || String(error)
-            });
-        }
-    });
-
     app.use('/api/internal/streams', createInternalStreamsGatewayRouter({
+        streamControlService: services.streamControlService,
+        runtimeFlags
+    }));
+    app.use('/', createStreamGatewayProbesRouter({
         streamControlService: services.streamControlService
     }));
 

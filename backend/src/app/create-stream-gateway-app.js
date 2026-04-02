@@ -1,11 +1,10 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const { createInternalStreamsGatewayRouter } = require('../../routes/internal-streams-gateway');
-const { createStreamGatewayProbesRouter } = require('../../routes/stream-gateway-probes');
 const { attachCorrelationId, injectCorrelationIdIntoJson } = require('../http/correlation-id-middleware');
 const { PlatformRuntimeCoordinator } = require('./platform-runtime-coordinator');
 const { createStreamGatewayServices } = require('./create-stream-gateway-services');
+const { registerStreamGatewayRoutes } = require('./create-stream-gateway-routes');
 const { resolveRuntimeFlags } = require('./runtime-flags');
 
 function createStreamGatewayApp({
@@ -31,13 +30,11 @@ function createStreamGatewayApp({
         streamWebSocketGatewayEnabled: runtimeFlags.streamWebSocketGatewayEnabled
     });
 
-    app.use('/api/internal/streams', createInternalStreamsGatewayRouter({
-        streamControlService: services.streamControlService,
+    registerStreamGatewayRoutes({
+        app,
+        services,
         runtimeFlags
-    }));
-    app.use('/', createStreamGatewayProbesRouter({
-        streamControlService: services.streamControlService
-    }));
+    });
 
     return {
         app,

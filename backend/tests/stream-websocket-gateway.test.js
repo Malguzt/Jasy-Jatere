@@ -6,11 +6,13 @@ const { StreamWebSocketGateway } = require('../src/domains/streams/stream-websoc
 function makeGateway(overrides = {}) {
     return new StreamWebSocketGateway({
         cameraFile: '/tmp/cameras.json',
+        cameraInventoryService: overrides.cameraInventoryService,
         streamManager: overrides.streamManager || { handleConnection: () => {} },
         resolveCameraStreamUrls: overrides.resolveCameraStreamUrls || ((camera) => ({
             rtspUrl: camera.rtspUrl,
             allRtspUrls: camera.allRtspUrls || []
         })),
+        legacyFileFallbackEnabled: overrides.legacyFileFallbackEnabled,
         fsModule: overrides.fsModule || {
             existsSync: () => true,
             readFileSync: () => '[]'
@@ -38,6 +40,32 @@ test('handleConnection closes websocket when camera file is missing', () => {
     let closed = 0;
     let errors = 0;
     const gateway = makeGateway({
+        fsModule: {
+            existsSync: () => false,
+            readFileSync: () => '[]'
+        },
+        logger: {
+            error: () => {
+                errors += 1;
+            }
+        }
+    });
+    const ws = { close: () => { closed += 1; } };
+    gateway.handleConnection(ws, { url: '/stream/cam-1' });
+    assert.equal(closed, 1);
+    assert.equal(errors, 1);
+});
+
+test('handleConnection avoids camera file fallback when legacy fallback is disabled', () => {
+    let closed = 0;
+    let errors = 0;
+    const gateway = makeGateway({
+        legacyFileFallbackEnabled: false,
+        cameraInventoryService: {
+            findCamera: () => {
+                throw new Error('inventory unavailable');
+            }
+        },
         fsModule: {
             existsSync: () => false,
             readFileSync: () => '[]'

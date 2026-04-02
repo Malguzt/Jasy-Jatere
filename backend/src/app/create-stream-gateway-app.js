@@ -79,7 +79,8 @@ function createStreamGatewayApp({
         cameraFile,
         cameraInventoryService,
         streamManager,
-        resolveCameraStreamUrls
+        resolveCameraStreamUrls,
+        legacyFileFallbackEnabled: runtimeFlags.legacyCompatExportsEnabled
     });
 
     const platformRuntimeCoordinator = new PlatformRuntimeCoordinator({

@@ -7,6 +7,7 @@ class StreamWebSocketGateway {
         cameraInventoryService,
         streamManager,
         resolveCameraStreamUrls,
+        legacyFileFallbackEnabled = true,
         fsModule = fs,
         webSocketLib = WebSocket,
         logger = console
@@ -15,6 +16,7 @@ class StreamWebSocketGateway {
         this.cameraInventoryService = cameraInventoryService;
         this.streamManager = streamManager;
         this.resolveCameraStreamUrls = resolveCameraStreamUrls;
+        this.legacyFileFallbackEnabled = legacyFileFallbackEnabled === true;
         this.fs = fsModule;
         this.webSocketLib = webSocketLib;
         this.logger = logger;
@@ -33,7 +35,14 @@ class StreamWebSocketGateway {
                 return { camera, reason: camera ? null : 'camera-not-found' };
             } catch (error) {
                 this.logger.error('[WS] Error cargando inventario de cámaras:', error?.message || error);
+                if (!this.legacyFileFallbackEnabled) {
+                    return { camera: null, reason: 'inventory-unavailable' };
+                }
             }
+        }
+
+        if (!this.legacyFileFallbackEnabled) {
+            return { camera: null, reason: 'inventory-unavailable' };
         }
 
         if (!this.fs.existsSync(this.cameraFile)) {

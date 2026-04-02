@@ -139,6 +139,7 @@ Runtime toggles such as `STREAM_RUNTIME_ENABLED` and `STREAM_WEBSOCKET_GATEWAY_E
 Transport negotiation can be staged with `STREAM_WEBRTC_ENABLED` and `STREAM_WEBRTC_REQUIRE_HTTPS` while keeping JSMpeg fallback enabled.
 Session descriptors (`GET /api/streams/sessions/:cameraId`) let clients consume logical stream session metadata (selected transport + endpoint path/URL) without hardcoding protocol endpoints in UI components.
 When stream runtime is externalized, control-plane stream APIs can proxy to `STREAM_GATEWAY_API_URL` while preserving the same frontend contracts.
+When proxy mode is enabled, backend websocket `/stream/:cameraId` requests can be relayed to the stream-gateway upstream so existing frontend websocket entrypoints remain stable while stream runtime ownership moves out of the control-plane process.
 `STREAM_PUBLIC_BASE_URL` can be set when descriptors should include externally reachable stream URLs directly.
 Proxy mode can be made explicit with `STREAM_PROXY_MODE_ENABLED=1`, which disables local stream runtime ownership and lets readiness enforce upstream gateway availability when `STREAM_PROXY_REQUIRED=1`.
 

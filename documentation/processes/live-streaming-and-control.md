@@ -63,6 +63,7 @@ As an intermediate migration step, the control plane can expose internal stream 
 
 When stream runtime is externalized, the control plane can proxy these APIs to `STREAM_GATEWAY_API_URL`.
 `STREAM_PUBLIC_BASE_URL` can be used to embed externally reachable stream URLs in session descriptors; when omitted, descriptors expose protocol paths and frontend clients can still resolve host/base through `VITE_STREAM_BASE_URL`.
+For incremental cutovers, backend websocket `/stream/:cameraId` can also run in relay mode and tunnel traffic to the stream-gateway upstream so legacy websocket entrypoints remain stable.
 WebRTC policy can be enabled incrementally with `STREAM_WEBRTC_ENABLED` and constrained to secure contexts with `STREAM_WEBRTC_REQUIRE_HTTPS`.
 
 ## Target Outputs

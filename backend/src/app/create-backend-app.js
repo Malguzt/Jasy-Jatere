@@ -25,6 +25,7 @@ const { CameraMotionService } = require('../domains/monitoring/camera-motion-ser
 const { PlatformHealthService } = require('../domains/platform/platform-health-service');
 const { StreamSyncOrchestrator } = require('../domains/streams/stream-sync-orchestrator');
 const { StreamWebSocketGateway } = require('../domains/streams/stream-websocket-gateway');
+const { StreamWebSocketProxyGateway } = require('../domains/streams/stream-websocket-proxy-gateway');
 const { StreamControlService } = require('../domains/streams/stream-control-service');
 const { StreamGatewayProxyService } = require('../domains/streams/stream-gateway-proxy-service');
 const { CameraMetadataRepository } = require('../infrastructure/repositories/camera-metadata-repository');
@@ -155,12 +156,17 @@ function createBackendApp({
         observationRepository,
         recordingCatalogService
     });
-    const streamWebSocketGateway = new StreamWebSocketGateway({
-        cameraFile,
-        cameraInventoryService,
-        streamManager,
-        resolveCameraStreamUrls
-    });
+    const streamWebSocketGateway =
+        runtimeFlags.streamProxyModeEnabled && streamGatewayApiUrl
+            ? new StreamWebSocketProxyGateway({
+                gatewayApiBaseUrl: streamGatewayApiUrl
+            })
+            : new StreamWebSocketGateway({
+                cameraFile,
+                cameraInventoryService,
+                streamManager,
+                resolveCameraStreamUrls
+            });
     const platformRuntimeCoordinator = new PlatformRuntimeCoordinator({
         cameraEventMonitor,
         connectivityMonitor,
@@ -168,7 +174,9 @@ function createBackendApp({
         streamWebSocketGateway,
         recordingRetentionJob,
         streamRuntimeEnabled: runtimeFlags.streamRuntimeEnabled,
-        streamWebSocketGatewayEnabled: runtimeFlags.streamWebSocketGatewayEnabled
+        streamWebSocketGatewayEnabled:
+            runtimeFlags.streamWebSocketGatewayEnabled ||
+            (runtimeFlags.streamProxyModeEnabled && !!streamGatewayApiUrl)
     });
 
     app.use('/api/contracts', createContractsRouter({ contractsService }));

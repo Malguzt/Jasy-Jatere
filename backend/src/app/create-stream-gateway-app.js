@@ -1,18 +1,11 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const streamManager = require('../../stream-manager');
-const { resolveCameraStreamUrls, deriveCompanionRtsp, parseResolutionHint } = require('../../rtsp-utils');
 const { validateBody } = require('../contracts/validator');
 const { attachCorrelationId, injectCorrelationIdIntoJson } = require('../http/correlation-id-middleware');
 const { PlatformRuntimeCoordinator } = require('./platform-runtime-coordinator');
+const { createStreamGatewayServices } = require('./create-stream-gateway-services');
 const { resolveRuntimeFlags } = require('./runtime-flags');
-const { CameraMetadataRepository } = require('../infrastructure/repositories/camera-metadata-repository');
-const { MetadataSqliteStore } = require('../infrastructure/sqlite/metadata-sqlite-store');
-const { CameraInventoryService } = require('../domains/cameras/camera-inventory-service');
-const { StreamSyncOrchestrator } = require('../domains/streams/stream-sync-orchestrator');
-const { StreamWebSocketGateway } = require('../domains/streams/stream-websocket-gateway');
-const { StreamControlService } = require('../domains/streams/stream-control-service');
 const { renderStreamRuntimePrometheusMetrics } = require('../domains/streams/stream-runtime-metrics');
 
 function sendGatewayError(res, error) {
@@ -35,58 +28,14 @@ function createStreamGatewayApp({
     app.use(attachCorrelationId());
     app.use(injectCorrelationIdIntoJson());
 
-    const metadataDriver = String(process.env.METADATA_STORE_DRIVER || 'sqlite').toLowerCase();
-    const sqliteStore = metadataDriver === 'sqlite' ? new MetadataSqliteStore() : null;
-    if (metadataDriver === 'sqlite') {
-        sqliteStore.migrate();
-    }
-
-    const cameraRepository = new CameraMetadataRepository({
-        legacyFile: cameraFile,
-        driver: metadataDriver,
-        sqliteStore,
-        dualWritePrimary: runtimeFlags.legacyCompatExportsEnabled,
-        dualWriteLegacy: runtimeFlags.legacyCompatExportsEnabled,
-        legacyReadFallback: runtimeFlags.legacyCompatExportsEnabled
-    });
-    const cameraInventoryService = new CameraInventoryService({
-        repository: cameraRepository
-    });
-
-    const streamSyncOrchestrator = new StreamSyncOrchestrator({
+    const services = createStreamGatewayServices({
         cameraFile,
-        cameraInventoryService,
-        streamManager,
-        resolveCameraStreamUrls,
-        deriveCompanionRtsp,
-        parseResolutionHint,
-        legacyFileFallbackEnabled: runtimeFlags.legacyCompatExportsEnabled
-    });
-
-    const streamControlService = new StreamControlService({
-        streamManager,
-        cameraInventoryService,
-        streamSyncOrchestrator,
-        streamWebSocketGatewayEnabled: runtimeFlags.streamWebSocketGatewayEnabled,
-        streamWebRtcEnabled: runtimeFlags.streamWebRtcEnabled,
-        streamWebRtcRequireHttps: runtimeFlags.streamWebRtcRequireHttps,
-        streamWebRtcSignalingUrl: runtimeFlags.streamWebRtcSignalingUrl,
-        streamWebRtcIceServersJson: runtimeFlags.streamWebRtcIceServersJson,
-        streamWebRtcSignalingRetries: runtimeFlags.streamWebRtcSignalingRetries,
-        streamPublicBaseUrl: runtimeFlags.streamPublicBaseUrl
-    });
-
-    const streamWebSocketGateway = new StreamWebSocketGateway({
-        cameraFile,
-        cameraInventoryService,
-        streamManager,
-        resolveCameraStreamUrls,
-        legacyFileFallbackEnabled: runtimeFlags.legacyCompatExportsEnabled
+        runtimeFlags
     });
 
     const platformRuntimeCoordinator = new PlatformRuntimeCoordinator({
-        streamSyncOrchestrator,
-        streamWebSocketGateway,
+        streamSyncOrchestrator: services.streamSyncOrchestrator,
+        streamWebSocketGateway: services.streamWebSocketGateway,
         streamRuntimeEnabled: runtimeFlags.streamRuntimeEnabled,
         streamWebSocketGatewayEnabled: runtimeFlags.streamWebSocketGatewayEnabled
     });
@@ -112,7 +61,7 @@ function createStreamGatewayApp({
 
     app.get('/readyz', async (req, res) => {
         try {
-            await streamControlService.getRuntimeSnapshot();
+            await services.streamControlService.getRuntimeSnapshot();
             return res.json({
                 success: true,
                 service: 'stream-gateway',
@@ -130,7 +79,7 @@ function createStreamGatewayApp({
 
     app.get('/api/internal/streams/runtime', async (req, res) => {
         try {
-            const snapshot = await streamControlService.getRuntimeSnapshot();
+            const snapshot = await services.streamControlService.getRuntimeSnapshot();
             return res.json({
                 success: true,
                 ...snapshot
@@ -142,7 +91,7 @@ function createStreamGatewayApp({
 
     app.get('/api/internal/streams/metrics', async (req, res) => {
         try {
-            const snapshot = await streamControlService.getRuntimeSnapshot();
+            const snapshot = await services.streamControlService.getRuntimeSnapshot();
             const metricsText = renderStreamRuntimePrometheusMetrics(snapshot);
             res.set('Content-Type', 'text/plain; version=0.0.4; charset=utf-8');
             return res.send(metricsText);
@@ -155,7 +104,7 @@ function createStreamGatewayApp({
         try {
             return res.json({
                 success: true,
-                capabilities: streamControlService.getCapabilities({
+                capabilities: services.streamControlService.getCapabilities({
                     requestHeaders: req.headers || {}
                 })
             });
@@ -168,7 +117,7 @@ function createStreamGatewayApp({
         try {
             return res.json({
                 success: true,
-                session: streamControlService.getSessionDescriptor({
+                session: services.streamControlService.getSessionDescriptor({
                     cameraId: req.params?.cameraId,
                     requestHeaders: req.headers || {}
                 })
@@ -180,7 +129,7 @@ function createStreamGatewayApp({
 
     app.post('/api/internal/streams/sync', validateBody('jasy-jatere/contracts/stream-sync-request/v1'), async (req, res) => {
         try {
-            const sync = await streamControlService.triggerManualSync(req.body || {});
+            const sync = await services.streamControlService.triggerManualSync(req.body || {});
             return res.json({
                 success: true,
                 sync
@@ -194,7 +143,7 @@ function createStreamGatewayApp({
         try {
             const body = req.body || {};
             const offer = body.offer && typeof body.offer === 'object' ? body.offer : null;
-            const session = await streamControlService.createWebRtcSession({
+            const session = await services.streamControlService.createWebRtcSession({
                 cameraId: body.cameraId,
                 offerSdp: offer?.sdp || body.offerSdp,
                 offerType: offer?.type || body.offerType,
@@ -220,7 +169,7 @@ function createStreamGatewayApp({
             const sdpMLineIndex = typeof rawCandidate === 'object' && rawCandidate ? rawCandidate.sdpMLineIndex : body.sdpMLineIndex;
             const usernameFragment = typeof rawCandidate === 'object' && rawCandidate ? rawCandidate.usernameFragment : body.usernameFragment;
 
-            const result = await streamControlService.submitWebRtcCandidate({
+            const result = await services.streamControlService.submitWebRtcCandidate({
                 sessionId: req.params?.sessionId,
                 cameraId: body.cameraId,
                 candidate,
@@ -241,7 +190,7 @@ function createStreamGatewayApp({
     app.delete('/api/internal/streams/webrtc/sessions/:sessionId', validateBody('jasy-jatere/contracts/stream-webrtc-session-close-request/v1'), async (req, res) => {
         try {
             const body = req.body || {};
-            const result = await streamControlService.closeWebRtcSession({
+            const result = await services.streamControlService.closeWebRtcSession({
                 sessionId: req.params?.sessionId,
                 cameraId: body.cameraId,
                 requestHeaders: req.headers || {}

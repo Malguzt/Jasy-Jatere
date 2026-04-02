@@ -96,3 +96,4 @@ If you want the shortest path through the redesign, use this order:
 - Camera onboarding routes now use composition-injected domain services (`/api/cameras`, `/api/saved-cameras`) so repository/runtime wiring is owned by control-plane bootstrap rather than route-local singletons.
 - Map and detector API routes are also composition-injected (`/api/maps`, `/api/detector`) to keep bootstrap ownership explicit and testable.
 - Backend service wiring is now centralized in a dedicated composition factory (`backend/src/app/create-backend-services.js`) so app bootstrap focuses on HTTP/runtime lifecycle only.
+- Stream-gateway service wiring follows the same pattern via `backend/src/app/create-stream-gateway-services.js`.

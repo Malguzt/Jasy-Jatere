@@ -75,7 +75,9 @@ function createBackendApp({
     });
     const healthSnapshotRepository = new HealthSnapshotRepository({
         driver: metadataDriver,
-        sqliteStore
+        sqliteStore,
+        dualWriteFile: runtimeFlags.legacyCompatExportsEnabled,
+        legacyReadFallback: runtimeFlags.legacyCompatExportsEnabled
     });
     const cameraInventoryService = new CameraInventoryService({
         repository: cameraRepository

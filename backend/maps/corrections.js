@@ -8,7 +8,9 @@ const CORRECTIONS_FILE = path.join(MAPS_DIR, 'manual-corrections.json');
 const MAX_HISTORY = Number(process.env.MAP_CORRECTION_HISTORY_LIMIT || 20);
 const METADATA_DRIVER = String(process.env.METADATA_STORE_DRIVER || 'sqlite').toLowerCase();
 const SQLITE_DB_PATH = process.env.METADATA_SQLITE_PATH || path.join(MAPS_DIR, 'metadata.db');
-const EXPORT_COMPAT_JSON = parseBool(process.env.METADATA_DUAL_WRITE_JSON_EXPORTS, true);
+const LEGACY_COMPAT_EXPORTS_ENABLED = parseBool(process.env.LEGACY_COMPAT_EXPORTS_ENABLED, false);
+const EXPORT_COMPAT_JSON = parseBool(process.env.METADATA_DUAL_WRITE_JSON_EXPORTS, LEGACY_COMPAT_EXPORTS_ENABLED);
+const LEGACY_READ_FALLBACK = parseBool(process.env.METADATA_LEGACY_READ_FALLBACK, LEGACY_COMPAT_EXPORTS_ENABLED);
 
 const DEFAULT_CORRECTIONS = {
     schemaVersion: '1.0',
@@ -86,10 +88,11 @@ function legacyWriteCorrections(data) {
     return safe;
 }
 
-function bootstrapSqliteFromLegacy() {
+function bootstrapSqliteFromLegacy({ force = false } = {}) {
     if (!useSqlite()) return;
     ensureSqliteRepository();
     if (sqliteBootstrapped) return;
+    if (!force && !LEGACY_READ_FALLBACK) return;
 
     if (!sqliteCorrections.exists()) {
         const legacy = legacyReadCorrections();
@@ -116,6 +119,13 @@ function writeCorrections(data) {
         legacyWriteCorrections(safe);
     }
     return safe;
+}
+
+function bootstrapFromLegacy() {
+    if (!useSqlite()) return null;
+    bootstrapSqliteFromLegacy({ force: true });
+    const stored = sqliteCorrections.read(DEFAULT_CORRECTIONS);
+    return sanitizeCorrections(stored);
 }
 
 function toCameraLayout(cameras = []) {
@@ -204,5 +214,6 @@ module.exports = {
     readCorrections,
     writeCorrections,
     upsertFromManualMap,
-    getHintsForGeneration
+    getHintsForGeneration,
+    bootstrapFromLegacy
 };

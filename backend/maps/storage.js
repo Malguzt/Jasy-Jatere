@@ -18,7 +18,9 @@ const DEFAULT_INDEX = {
 
 const METADATA_DRIVER = String(process.env.METADATA_STORE_DRIVER || 'sqlite').toLowerCase();
 const SQLITE_DB_PATH = process.env.METADATA_SQLITE_PATH || path.join(MAPS_DIR, 'metadata.db');
-const EXPORT_COMPAT_JSON = parseBool(process.env.METADATA_DUAL_WRITE_JSON_EXPORTS, true);
+const LEGACY_COMPAT_EXPORTS_ENABLED = parseBool(process.env.LEGACY_COMPAT_EXPORTS_ENABLED, false);
+const EXPORT_COMPAT_JSON = parseBool(process.env.METADATA_DUAL_WRITE_JSON_EXPORTS, LEGACY_COMPAT_EXPORTS_ENABLED);
+const LEGACY_READ_FALLBACK = parseBool(process.env.METADATA_LEGACY_READ_FALLBACK, LEGACY_COMPAT_EXPORTS_ENABLED);
 
 let sqliteStore = null;
 let sqliteMaps = null;
@@ -181,10 +183,11 @@ function legacySaveJobs(jobs) {
     return sorted;
 }
 
-function bootstrapSqliteFromLegacy() {
+function bootstrapSqliteFromLegacy({ force = false } = {}) {
     if (!useSqlite()) return;
     ensureSqliteRepositories();
     if (sqliteBootstrapped) return;
+    if (!force && !LEGACY_READ_FALLBACK) return;
 
     if (sqliteMaps.count() === 0) {
         const legacyIndex = legacyGetIndex();
@@ -229,6 +232,15 @@ function saveIndex(index) {
         legacySaveIndex(nextIndex);
     }
     return nextIndex;
+}
+
+function bootstrapFromLegacy() {
+    if (!useSqlite()) return null;
+    bootstrapSqliteFromLegacy({ force: true });
+    return {
+        maps: sqliteMaps.count(),
+        jobs: sqliteJobs.count()
+    };
 }
 
 function saveMap(mapDoc) {
@@ -310,5 +322,6 @@ module.exports = {
     getLatestMap,
     promoteMap,
     loadJobs,
-    saveJobs
+    saveJobs,
+    bootstrapFromLegacy
 };

@@ -64,6 +64,12 @@ function run({
     if (healthSnapshot) healthRepo.save(healthSnapshot);
 
     // Trigger map/corrections bootstrap from legacy JSON files.
+    if (resolvedMapStorage && typeof resolvedMapStorage.bootstrapFromLegacy === 'function') {
+        resolvedMapStorage.bootstrapFromLegacy();
+    }
+    if (resolvedMapCorrections && typeof resolvedMapCorrections.bootstrapFromLegacy === 'function') {
+        resolvedMapCorrections.bootstrapFromLegacy();
+    }
     const mapsIndex = resolvedMapStorage.getIndex();
     const mapJobs = resolvedMapStorage.loadJobs();
     const corrections = resolvedMapCorrections.readCorrections();

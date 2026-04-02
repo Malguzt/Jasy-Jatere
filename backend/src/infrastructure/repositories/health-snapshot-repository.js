@@ -16,11 +16,13 @@ class HealthSnapshotRepository {
         filePath = DEFAULT_FILE,
         driver = DEFAULT_DRIVER,
         sqliteStore = null,
-        dualWriteFile = true
+        dualWriteFile = true,
+        legacyReadFallback = true
     } = {}) {
         this.filePath = filePath;
         this.driver = String(driver || 'sqlite').toLowerCase();
-        this.dualWriteFile = dualWriteFile !== false;
+        this.dualWriteFile = this.driver === 'sqlite' ? dualWriteFile === true : dualWriteFile !== false;
+        this.legacyReadFallback = this.driver === 'sqlite' ? legacyReadFallback === true : true;
         this.sqlite = this.driver === 'sqlite'
             ? new SqliteHealthSnapshotRepository({
                 store: sqliteStore || new MetadataSqliteStore({
@@ -31,6 +33,7 @@ class HealthSnapshotRepository {
     }
 
     readJsonSnapshot() {
+        if (!this.legacyReadFallback) return null;
         const snapshot = readJsonFile(this.filePath, null);
         return snapshot && typeof snapshot === 'object' ? snapshot : null;
     }

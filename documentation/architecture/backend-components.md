@@ -178,6 +178,7 @@ When snapshot consumption is stable, worker deployments should stop mounting sha
 
 Control-plane domains should persist authoritative state in dedicated metadata repositories.
 Compatibility exports (for example legacy `cameras.json` or recording index files) can remain dual-written temporarily when `LEGACY_COMPAT_EXPORTS_ENABLED=1`, but they are generated outputs, not the source of truth.
+The same compatibility gate applies to map/correction JSON artifacts and health snapshot legacy files; migration utilities can still force one-time bootstrap from legacy JSON when needed.
 
 ### Health engine
 

@@ -25,6 +25,7 @@ services:
       - STREAM_WEBSOCKET_GATEWAY_ENABLED=1
       - STREAM_WEBRTC_ENABLED=0
       - STREAM_WEBRTC_REQUIRE_HTTPS=1
+      - LEGACY_COMPAT_EXPORTS_ENABLED=0
       - RECORDING_RETENTION_ENABLED=0
       - RECORDING_RETENTION_INTERVAL_MS=3600000
       - RECORDING_RETENTION_MAX_AGE_DAYS=${RECORDING_RETENTION_MAX_AGE_DAYS:-}
@@ -77,6 +78,7 @@ services:
       - STREAM_WEBSOCKET_GATEWAY_ENABLED=1
       - STREAM_WEBRTC_ENABLED=0
       - STREAM_WEBRTC_REQUIRE_HTTPS=1
+      - LEGACY_COMPAT_EXPORTS_ENABLED=0
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4100/readyz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 20s

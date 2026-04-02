@@ -43,7 +43,8 @@ function createStreamGatewayApp({
     const cameraRepository = new CameraMetadataRepository({
         legacyFile: cameraFile,
         driver: metadataDriver,
-        sqliteStore
+        sqliteStore,
+        dualWriteLegacy: runtimeFlags.legacyCompatExportsEnabled
     });
     const cameraInventoryService = new CameraInventoryService({
         repository: cameraRepository

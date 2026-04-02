@@ -69,3 +69,20 @@ test('CameraMetadataRepository encrypts credentials at rest when cipher is enabl
     assert.equal(listed[0].id, 'cam-secure-1');
     assert.equal(listed[0].pass, 'super-secret');
 });
+
+test('CameraMetadataRepository can disable legacy compatibility export writes', () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cam-repo-no-legacy-'));
+    const primary = path.join(tmpDir, 'metadata', 'cameras.json');
+    const legacy = path.join(tmpDir, 'cameras.json');
+    const repository = new CameraMetadataRepository({
+        primaryFile: primary,
+        legacyFile: legacy,
+        dualWriteLegacy: false
+    });
+
+    repository.replace([{ id: 'cam-3', name: 'Primary Only' }]);
+
+    assert.equal(fs.existsSync(primary), true);
+    assert.equal(fs.existsSync(legacy), false);
+    assert.equal(repository.findById('cam-3')?.name, 'Primary Only');
+});

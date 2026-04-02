@@ -59,11 +59,13 @@ function createBackendApp({
     const cameraRepository = new CameraMetadataRepository({
         legacyFile: cameraFile,
         driver: metadataDriver,
-        sqliteStore
+        sqliteStore,
+        dualWriteLegacy: runtimeFlags.legacyCompatExportsEnabled
     });
     const recordingCatalogRepository = new RecordingCatalogRepository({
         driver: metadataDriver,
-        sqliteStore
+        sqliteStore,
+        dualWriteLegacy: runtimeFlags.legacyCompatExportsEnabled
     });
     const observationRepository = new ObservationEventRepository({
         driver: metadataDriver,

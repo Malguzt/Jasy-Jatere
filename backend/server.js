@@ -16,12 +16,11 @@ const CameraConnectivityMonitor = require('./camera-connectivity-monitor');
 const { resolveCameraStreamUrls, deriveCompanionRtsp, parseResolutionHint } = require('./rtsp-utils');
 const { loadSchemaSummaries } = require('./src/contracts/schema-registry');
 const { ConnectivityMonitoringService } = require('./src/domains/monitoring/connectivity-monitoring-service');
+const { StreamSyncOrchestrator } = require('./src/domains/streams/stream-sync-orchestrator');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
-const RECONSTRUCTOR_URL = (process.env.RECONSTRUCTOR_URL || 'http://localhost:5001').replace(/\/$/, '');
 const CAMERA_FILE = path.join(__dirname, 'data', 'cameras.json');
-const KEEPALIVE_SYNC_MS = Number(process.env.CAMERA_KEEPALIVE_SYNC_MS || 10000);
 
 app.use(cors());
 app.use(express.json());
@@ -59,92 +58,13 @@ const connectivityMonitor = new CameraConnectivityMonitor({
     cameraEventMonitor
 });
 const monitoringService = new ConnectivityMonitoringService({ connectivityMonitor });
-
-function selectReconstructorPair(cam) {
-    const { rtspUrl, allRtspUrls } = resolveCameraStreamUrls(cam);
-    const labels = Array.isArray(cam?.sourceLabels) ? cam.sourceLabels : [];
-    const raw = [];
-
-    if ((cam?.type || 'single') === 'combined' || rtspUrl === 'combined') {
-        raw.push(...allRtspUrls);
-        if (rtspUrl && rtspUrl !== 'combined') raw.push(rtspUrl);
-    } else {
-        if (rtspUrl && rtspUrl !== 'combined') raw.push(rtspUrl);
-        raw.push(...allRtspUrls);
-    }
-
-    const seen = new Set();
-    const candidates = [];
-    raw.forEach((url, index) => {
-        if (!url) return;
-        let nextUrl = url;
-        if (seen.has(nextUrl)) {
-            const companion = deriveCompanionRtsp(nextUrl);
-            if (companion && !seen.has(companion)) nextUrl = companion;
-        }
-        if (!nextUrl || seen.has(nextUrl)) return;
-        seen.add(nextUrl);
-        const res = parseResolutionHint(labels[index] || '');
-        candidates.push({
-            url: nextUrl,
-            index,
-            pixels: res?.pixels ?? null
-        });
-    });
-
-    if (candidates.length === 0) return null;
-    const withRes = candidates.filter((c) => Number.isFinite(c.pixels));
-    if (withRes.length > 0) {
-        const main = [...withRes].sort((a, b) => b.pixels - a.pixels)[0];
-        const sub = [...withRes].sort((a, b) => a.pixels - b.pixels)[0];
-        return { id: cam.id, main: main.url, sub: sub.url };
-    }
-    const main = candidates[0].url;
-    const sub = (candidates[1] && candidates[1].url) || deriveCompanionRtsp(main) || main;
-    return { id: cam.id, main, sub };
-}
-
-function loadSavedCamerasSafe() {
-    try {
-        if (!fs.existsSync(CAMERA_FILE)) return [];
-        const raw = JSON.parse(fs.readFileSync(CAMERA_FILE, 'utf8'));
-        return Array.isArray(raw) ? raw : [];
-    } catch (e) {
-        console.error('[KEEPALIVE] Error leyendo cameras.json:', e?.message || e);
-        return [];
-    }
-}
-
-async function syncKeepaliveFromSavedCameras() {
-    try {
-        const cameras = loadSavedCamerasSafe();
-        const configs = cameras.map((cam) => {
-            const urls = resolveCameraStreamUrls(cam);
-            return {
-                id: cam.id,
-                type: cam.type || 'single',
-                rtspUrl: urls.rtspUrl,
-                allRtspUrls: urls.allRtspUrls
-            };
-        });
-        streamManager.syncKeepaliveConfigs(configs);
-
-        const reconStreams = cameras
-            .map((cam) => selectReconstructorPair(cam))
-            .filter((v) => !!v && !!v.id && !!v.main && !!v.sub);
-        try {
-            await fetch(`${RECONSTRUCTOR_URL}/configure`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ streams: reconStreams, prune: true })
-            });
-        } catch (reconErr) {
-            console.error('[RECON-SYNC] Error sincronizando sesiones de reconstructor:', reconErr?.message || reconErr);
-        }
-    } catch (e) {
-        console.error('[KEEPALIVE] Sync error:', e?.message || e);
-    }
-}
+const streamSyncOrchestrator = new StreamSyncOrchestrator({
+    cameraFile: CAMERA_FILE,
+    streamManager,
+    resolveCameraStreamUrls,
+    deriveCompanionRtsp,
+    parseResolutionHint
+});
 
 // Routes
 app.get('/api/contracts', (req, res) => {
@@ -190,16 +110,7 @@ const server = app.listen(PORT, '0.0.0.0', () => {
 
 cameraEventMonitor.start();
 connectivityMonitor.start();
-setTimeout(() => {
-    syncKeepaliveFromSavedCameras().catch((e) => {
-        console.error('[SYNC] Initial sync error:', e?.message || e);
-    });
-}, 1500);
-setInterval(() => {
-    syncKeepaliveFromSavedCameras().catch((e) => {
-        console.error('[SYNC] Periodic sync error:', e?.message || e);
-    });
-}, Math.max(3000, KEEPALIVE_SYNC_MS));
+streamSyncOrchestrator.start();
 
 // WebSocket Server for Streams
 const wss = new WebSocket.Server({ server });

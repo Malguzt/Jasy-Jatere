@@ -5,6 +5,7 @@ const os = require('os');
 const path = require('path');
 
 const { CameraMetadataRepository } = require('../src/infrastructure/repositories/camera-metadata-repository');
+const { createCameraCredentialCipher } = require('../src/security/camera-credential-cipher');
 
 test('CameraMetadataRepository falls back to legacy export when primary metadata is missing', () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cam-repo-'));
@@ -38,4 +39,33 @@ test('CameraMetadataRepository replace writes both primary and legacy stores', (
     assert.equal(primaryRaw[0].id, 'cam-2');
     assert.equal(legacyRaw[0].id, 'cam-2');
     assert.equal(repository.findById('cam-2')?.name, 'Primary Cam');
+});
+
+test('CameraMetadataRepository encrypts credentials at rest when cipher is enabled', () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cam-repo-enc-'));
+    const primary = path.join(tmpDir, 'metadata', 'cameras.json');
+    const legacy = path.join(tmpDir, 'cameras.json');
+    const repository = new CameraMetadataRepository({
+        primaryFile: primary,
+        legacyFile: legacy,
+        driver: 'json',
+        credentialCipher: createCameraCredentialCipher({
+            masterKey: 'unit-test-master-key'
+        })
+    });
+
+    repository.replace([{
+        id: 'cam-secure-1',
+        name: 'Secure Cam',
+        user: 'admin',
+        pass: 'super-secret'
+    }]);
+
+    const persisted = JSON.parse(fs.readFileSync(primary, 'utf8'));
+    assert.equal(typeof persisted[0].passEnc, 'string');
+    assert.equal(persisted[0].pass, undefined);
+
+    const listed = repository.list();
+    assert.equal(listed[0].id, 'cam-secure-1');
+    assert.equal(listed[0].pass, 'super-secret');
 });

@@ -3,6 +3,7 @@ const path = require('path');
 const { readJsonFile, writeJsonFile } = require('../metadata/json-file-store');
 const { SqliteCameraRepository } = require('../sqlite/sqlite-camera-repository');
 const { MetadataSqliteStore } = require('../sqlite/metadata-sqlite-store');
+const { createCameraCredentialCipher } = require('../../security/camera-credential-cipher');
 
 const DEFAULT_PRIMARY_FILE = path.join(__dirname, '..', '..', '..', 'data', 'metadata', 'cameras.json');
 const DEFAULT_LEGACY_FILE = path.join(__dirname, '..', '..', '..', 'data', 'cameras.json');
@@ -24,12 +25,14 @@ class CameraMetadataRepository {
         legacyFile = DEFAULT_LEGACY_FILE,
         driver = DEFAULT_DRIVER,
         sqliteStore = null,
-        dualWriteLegacy = true
+        dualWriteLegacy = true,
+        credentialCipher = createCameraCredentialCipher()
     } = {}) {
         this.primaryFile = primaryFile;
         this.legacyFile = legacyFile;
         this.driver = String(driver || 'sqlite').toLowerCase();
         this.dualWriteLegacy = dualWriteLegacy !== false;
+        this.credentialCipher = credentialCipher;
         this.sqlite = this.driver === 'sqlite'
             ? new SqliteCameraRepository({
                 store: sqliteStore || new MetadataSqliteStore({
@@ -39,11 +42,46 @@ class CameraMetadataRepository {
             : null;
     }
 
+    toRuntimeCamera(camera = {}) {
+        const next = { ...camera };
+        if (next.pass === undefined || next.pass === null || next.pass === '') {
+            const decrypted = this.credentialCipher?.decrypt?.(next.passEnc);
+            if (decrypted !== null && decrypted !== undefined) {
+                next.pass = decrypted;
+            }
+        }
+        delete next.passEnc;
+        return next;
+    }
+
+    toPersistedCamera(camera = {}) {
+        const next = { ...camera };
+        const rawPass = next.pass !== undefined ? next.pass : next.password;
+
+        if (this.credentialCipher?.isEnabled?.()) {
+            const encrypted = this.credentialCipher.encrypt(rawPass);
+            if (encrypted) {
+                next.passEnc = encrypted;
+                delete next.pass;
+                delete next.password;
+            }
+        }
+        return next;
+    }
+
+    toRuntimeCameraList(value) {
+        return normalizeCameraList(value).map((camera) => this.toRuntimeCamera(camera));
+    }
+
+    toPersistedCameraList(value) {
+        return normalizeCameraList(value).map((camera) => this.toPersistedCamera(camera));
+    }
+
     readJsonPrimaryOrLegacy() {
         if (fs.existsSync(this.primaryFile)) {
-            return normalizeCameraList(readJsonFile(this.primaryFile, []));
+            return this.toRuntimeCameraList(readJsonFile(this.primaryFile, []));
         }
-        return normalizeCameraList(readJsonFile(this.legacyFile, []));
+        return this.toRuntimeCameraList(readJsonFile(this.legacyFile, []));
     }
 
     ensureSqliteBootstrapped() {
@@ -52,13 +90,13 @@ class CameraMetadataRepository {
         if (current.length > 0) return;
         const legacy = this.readJsonPrimaryOrLegacy();
         if (legacy.length === 0) return;
-        this.sqlite.replace(legacy);
+        this.sqlite.replace(this.toPersistedCameraList(legacy));
     }
 
     list() {
         if (this.sqlite) {
             this.ensureSqliteBootstrapped();
-            const sqliteItems = normalizeCameraList(this.sqlite.list());
+            const sqliteItems = this.toRuntimeCameraList(this.sqlite.list());
             if (sqliteItems.length > 0) return sqliteItems;
         }
         return this.readJsonPrimaryOrLegacy();
@@ -71,13 +109,14 @@ class CameraMetadataRepository {
     }
 
     replace(nextCameras = []) {
-        const normalized = normalizeCameraList(nextCameras);
+        const normalized = this.toRuntimeCameraList(nextCameras);
+        const persisted = this.toPersistedCameraList(normalized);
         if (this.sqlite) {
-            this.sqlite.replace(normalized);
+            this.sqlite.replace(persisted);
         }
-        writeJsonFile(this.primaryFile, normalized);
+        writeJsonFile(this.primaryFile, persisted);
         if (this.dualWriteLegacy) {
-            writeJsonFile(this.legacyFile, normalized);
+            writeJsonFile(this.legacyFile, persisted);
         }
         return normalized;
     }

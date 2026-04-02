@@ -18,7 +18,7 @@ Each phase should produce a working system and avoid a large-bang rewrite.
 - Phase 6: in progress with health and monitoring APIs modularized under dedicated services and connectivity snapshots persisted through repository adapters.
 - Phase 7: in progress with map job persistence in metadata store, map queue inputs sourced from repository-backed camera and observation metadata, local backend fallback gated behind `MAP_LOCAL_FALLBACK_ENABLED`, and detector-event fallback gated behind `MAP_USE_DETECTOR_EVENTS_FALLBACK`.
 - Phase 8: in progress with a typed frontend API client and migration of major UI domains away from ad hoc `fetch` calls.
-- Phase 9: in progress with compose networking moved from host-network coupling to explicit service networking and health checks, plus worker runtime decoupling from shared `backend/data` mounts where control-plane snapshots are enforced.
+- Phase 9: in progress with compose networking moved from host-network coupling to explicit service networking and health checks, worker runtime decoupling from shared `backend/data` mounts where control-plane snapshots are enforced, and optional at-rest camera credential encryption via `CAMERA_CREDENTIALS_MASTER_KEY`.
 
 ## Starting Point Summary
 

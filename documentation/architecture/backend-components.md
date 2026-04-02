@@ -104,6 +104,8 @@ The camera registry is the only place that owns:
 - encrypted credentials,
 - desired processing capabilities.
 
+At-rest credential encryption can be enabled with `CAMERA_CREDENTIALS_MASTER_KEY`, allowing repositories to persist encrypted secrets while domains continue to consume decrypted credentials in-memory.
+
 During migration, camera-control and discovery APIs should converge under `/api/cameras/*` as the canonical namespace.
 
 ### Discovery coordinator

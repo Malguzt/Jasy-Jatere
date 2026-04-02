@@ -1,7 +1,12 @@
 FROM node:20-slim
 
-# Instalar ffmpeg para conversiones RTSP -> MPEG WebSocket
-RUN apt-get update && apt-get install -y ffmpeg && rm -rf /var/lib/apt/lists/*
+# Instalar ffmpeg y toolchain mínima para dependencias nativas (por ejemplo SQLite bindings)
+RUN apt-get update && apt-get install -y \
+    ffmpeg \
+    python3 \
+    make \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 

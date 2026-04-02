@@ -1,12 +1,10 @@
-const fs = require('fs');
-const path = require('path');
 const storage = require('./storage');
 const corrections = require('./corrections');
 const { validateMapDocument } = require('./validate-map');
 const { buildFallbackCroquis } = require('./fallback-generator');
+const { CameraMetadataRepository } = require('../src/infrastructure/repositories/camera-metadata-repository');
+const { ObservationEventRepository } = require('../src/infrastructure/repositories/observation-event-repository');
 
-const CAMERA_FILE = path.join(__dirname, '..', 'data', 'cameras.json');
-const OBSERVATIONS_FILE = path.join(__dirname, '..', 'data', 'metadata', 'observations.json');
 const MAPPER_URL = (process.env.MAPPER_URL || 'http://localhost:5002').replace(/\/$/, '');
 const MAPPER_TIMEOUT_MS = Number(process.env.MAP_MAPPER_TIMEOUT_MS || 90000);
 const DETECTOR_URL = (process.env.DETECTOR_URL || 'http://localhost:5000').replace(/\/$/, '');
@@ -16,6 +14,9 @@ const PLAN_B_ENABLED = parseBool(process.env.MAP_PLAN_B_ENABLED, true);
 const PLAN_C_ENABLED = parseBool(process.env.MAP_PLAN_C_ENABLED, true);
 const PLAN_D_ENABLED = parseBool(process.env.MAP_PLAN_D_ENABLED, true);
 const APPLY_MANUAL_CORRECTIONS = parseBool(process.env.MAP_APPLY_MANUAL_CORRECTIONS, true);
+const LOCAL_FALLBACK_ENABLED = parseBool(process.env.MAP_LOCAL_FALLBACK_ENABLED, true);
+const cameraRepository = new CameraMetadataRepository();
+const observationRepository = new ObservationEventRepository();
 
 function parseBool(value, fallback = true) {
     if (value === undefined || value === null || value === '') return fallback;
@@ -33,10 +34,8 @@ function makeJobId() {
 
 function loadSavedCamerasSafe() {
     try {
-        if (!fs.existsSync(CAMERA_FILE)) return [];
-        const data = JSON.parse(fs.readFileSync(CAMERA_FILE, 'utf8'));
-        if (!Array.isArray(data)) return [];
-        return data;
+        const data = cameraRepository.list();
+        return Array.isArray(data) ? data : [];
     } catch (error) {
         return [];
     }
@@ -44,10 +43,10 @@ function loadSavedCamerasSafe() {
 
 function loadObservationEventsSafe(limit = 60) {
     try {
-        if (!fs.existsSync(OBSERVATIONS_FILE)) return [];
-        const data = JSON.parse(fs.readFileSync(OBSERVATIONS_FILE, 'utf8'));
+        const safeLimit = Math.max(1, Number(limit) || 60);
+        const data = observationRepository.list(safeLimit);
         if (!Array.isArray(data)) return [];
-        return data.slice(-Math.max(1, Number(limit) || 60));
+        return data.slice(-safeLimit);
     } catch (error) {
         return [];
     }
@@ -109,7 +108,8 @@ class MapJobQueue {
                 C: PLAN_C_ENABLED,
                 D: PLAN_D_ENABLED
             },
-            applyManualCorrections: APPLY_MANUAL_CORRECTIONS
+            applyManualCorrections: APPLY_MANUAL_CORRECTIONS,
+            localFallbackEnabled: LOCAL_FALLBACK_ENABLED
         };
     }
 
@@ -441,6 +441,9 @@ class MapJobQueue {
                         'warn',
                         `Mapper fallback falló, usando fallback local: ${mapperFallbackError?.message || mapperFallbackError}`
                     );
+                    if (!LOCAL_FALLBACK_ENABLED) {
+                        throw new Error(`Mapper fallback unavailable and MAP_LOCAL_FALLBACK_ENABLED=0: ${mapperFallbackError?.message || mapperFallbackError}`);
+                    }
                     mapDoc = buildFallbackCroquis({
                         jobId: job.id,
                         cameras,
@@ -509,6 +512,9 @@ class MapJobQueue {
                         'warn',
                         `Mapper fallback de validación falló, usando fallback local: ${mapperValidationFallbackError?.message || mapperValidationFallbackError}`
                     );
+                    if (!LOCAL_FALLBACK_ENABLED) {
+                        throw new Error(`Mapper validation fallback unavailable and MAP_LOCAL_FALLBACK_ENABLED=0: ${mapperValidationFallbackError?.message || mapperValidationFallbackError}`);
+                    }
                     mapDoc = buildFallbackCroquis({
                         jobId: job.id,
                         cameras,

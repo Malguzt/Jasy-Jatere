@@ -1,9 +1,14 @@
 const fs = require('fs');
 const path = require('path');
 const { MAPS_DIR } = require('./storage');
+const { MetadataSqliteStore } = require('../src/infrastructure/sqlite/metadata-sqlite-store');
+const { SqliteMapCorrectionsRepository } = require('../src/infrastructure/sqlite/sqlite-map-corrections-repository');
 
 const CORRECTIONS_FILE = path.join(MAPS_DIR, 'manual-corrections.json');
 const MAX_HISTORY = Number(process.env.MAP_CORRECTION_HISTORY_LIMIT || 20);
+const METADATA_DRIVER = String(process.env.METADATA_STORE_DRIVER || 'sqlite').toLowerCase();
+const SQLITE_DB_PATH = process.env.METADATA_SQLITE_PATH || path.join(MAPS_DIR, 'metadata.db');
+const EXPORT_COMPAT_JSON = parseBool(process.env.METADATA_DUAL_WRITE_JSON_EXPORTS, true);
 
 const DEFAULT_CORRECTIONS = {
     schemaVersion: '1.0',
@@ -14,16 +19,40 @@ const DEFAULT_CORRECTIONS = {
     history: []
 };
 
-function ensureFile() {
+let sqliteStore = null;
+let sqliteCorrections = null;
+let sqliteBootstrapped = false;
+
+function parseBool(value, fallback = true) {
+    if (value === undefined || value === null || value === '') return fallback;
+    const normalized = String(value).trim().toLowerCase();
+    if (['1', 'true', 'yes', 'on'].includes(normalized)) return true;
+    if (['0', 'false', 'no', 'off'].includes(normalized)) return false;
+    return fallback;
+}
+
+function useSqlite() {
+    return METADATA_DRIVER === 'sqlite';
+}
+
+function ensureSqliteRepository() {
+    if (!useSqlite()) return;
+    if (sqliteCorrections) return;
+    sqliteStore = sqliteStore || new MetadataSqliteStore({ dbPath: SQLITE_DB_PATH });
+    sqliteStore.migrate();
+    sqliteCorrections = new SqliteMapCorrectionsRepository({ store: sqliteStore });
+}
+
+function ensureLegacyFile() {
     fs.mkdirSync(MAPS_DIR, { recursive: true });
     if (!fs.existsSync(CORRECTIONS_FILE)) {
         fs.writeFileSync(CORRECTIONS_FILE, `${JSON.stringify(DEFAULT_CORRECTIONS, null, 2)}\n`);
     }
 }
 
-function readCorrections() {
+function legacyReadCorrections() {
     try {
-        ensureFile();
+        ensureLegacyFile();
         const raw = JSON.parse(fs.readFileSync(CORRECTIONS_FILE, 'utf8'));
         if (!raw || typeof raw !== 'object') return { ...DEFAULT_CORRECTIONS };
         return {
@@ -39,9 +68,8 @@ function readCorrections() {
     }
 }
 
-function writeCorrections(data) {
-    ensureFile();
-    const safe = {
+function sanitizeCorrections(data) {
+    return {
         schemaVersion: data?.schemaVersion || '1.0',
         updatedAt: data?.updatedAt || Date.now(),
         lastManualMapId: data?.lastManualMapId || null,
@@ -49,7 +77,44 @@ function writeCorrections(data) {
         objectHints: Array.isArray(data?.objectHints) ? data.objectHints : [],
         history: Array.isArray(data?.history) ? data.history.slice(0, Math.max(1, MAX_HISTORY)) : []
     };
+}
+
+function legacyWriteCorrections(data) {
+    ensureLegacyFile();
+    const safe = sanitizeCorrections(data);
     fs.writeFileSync(CORRECTIONS_FILE, `${JSON.stringify(safe, null, 2)}\n`);
+    return safe;
+}
+
+function bootstrapSqliteFromLegacy() {
+    if (!useSqlite()) return;
+    ensureSqliteRepository();
+    if (sqliteBootstrapped) return;
+
+    if (!sqliteCorrections.exists()) {
+        const legacy = legacyReadCorrections();
+        sqliteCorrections.write(legacy);
+    }
+
+    sqliteBootstrapped = true;
+}
+
+function readCorrections() {
+    if (!useSqlite()) return legacyReadCorrections();
+    bootstrapSqliteFromLegacy();
+    const stored = sqliteCorrections.read(DEFAULT_CORRECTIONS);
+    return sanitizeCorrections(stored);
+}
+
+function writeCorrections(data) {
+    const safe = sanitizeCorrections(data);
+    if (useSqlite()) {
+        bootstrapSqliteFromLegacy();
+        sqliteCorrections.write(safe);
+    }
+    if (!useSqlite() || EXPORT_COMPAT_JSON) {
+        legacyWriteCorrections(safe);
+    }
     return safe;
 }
 

@@ -26,6 +26,10 @@ const { StreamSyncOrchestrator } = require('../domains/streams/stream-sync-orche
 const { StreamWebSocketGateway } = require('../domains/streams/stream-websocket-gateway');
 const { StreamControlService } = require('../domains/streams/stream-control-service');
 const { CameraMetadataRepository } = require('../infrastructure/repositories/camera-metadata-repository');
+const { RecordingCatalogRepository } = require('../infrastructure/repositories/recording-catalog-repository');
+const { ObservationEventRepository } = require('../infrastructure/repositories/observation-event-repository');
+const { HealthSnapshotRepository } = require('../infrastructure/repositories/health-snapshot-repository');
+const { MetadataSqliteStore } = require('../infrastructure/sqlite/metadata-sqlite-store');
 const { CameraInventoryService } = require('../domains/cameras/camera-inventory-service');
 const { WorkerConfigService } = require('../domains/platform/worker-config-service');
 const { RecordingCatalogService } = require('../domains/recordings/recording-catalog-service');
@@ -42,8 +46,28 @@ function createBackendApp({
     app.use(attachCorrelationId());
     app.use(injectCorrelationIdIntoJson());
 
+    const metadataDriver = String(process.env.METADATA_STORE_DRIVER || 'sqlite').toLowerCase();
+    const sqliteStore = metadataDriver === 'sqlite' ? new MetadataSqliteStore() : null;
+    if (metadataDriver === 'sqlite') {
+        sqliteStore.migrate();
+    }
+
     const cameraRepository = new CameraMetadataRepository({
-        legacyFile: cameraFile
+        legacyFile: cameraFile,
+        driver: metadataDriver,
+        sqliteStore
+    });
+    const recordingCatalogRepository = new RecordingCatalogRepository({
+        driver: metadataDriver,
+        sqliteStore
+    });
+    const observationRepository = new ObservationEventRepository({
+        driver: metadataDriver,
+        sqliteStore
+    });
+    const healthSnapshotRepository = new HealthSnapshotRepository({
+        driver: metadataDriver,
+        sqliteStore
     });
     const cameraInventoryService = new CameraInventoryService({
         repository: cameraRepository
@@ -58,7 +82,10 @@ function createBackendApp({
         cameraEventMonitor,
         cameraInventoryService
     });
-    const monitoringService = new ConnectivityMonitoringService({ connectivityMonitor });
+    const monitoringService = new ConnectivityMonitoringService({
+        connectivityMonitor,
+        healthSnapshotRepository
+    });
     const streamSyncOrchestrator = new StreamSyncOrchestrator({
         cameraFile,
         cameraInventoryService,
@@ -84,8 +111,11 @@ function createBackendApp({
         cameraInventoryService,
         streamSyncOrchestrator
     });
-    const recordingCatalogService = new RecordingCatalogService();
+    const recordingCatalogService = new RecordingCatalogService({
+        repository: recordingCatalogRepository
+    });
     const perceptionIngestService = new PerceptionIngestService({
+        observationRepository,
         recordingCatalogService
     });
     const streamWebSocketGateway = new StreamWebSocketGateway({

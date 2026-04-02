@@ -7,26 +7,54 @@ const {
 
 test('getConnectivitySnapshot proxies monitor snapshot', () => {
     const snapshot = { success: true, summary: { cameras: 3, online: 2, offline: 1 } };
+    const saved = [];
     const service = new ConnectivityMonitoringService({
         connectivityMonitor: {
             getSnapshot: () => snapshot
+        },
+        healthSnapshotRepository: {
+            save: (next) => saved.push(next)
         }
     });
 
     assert.deepEqual(service.getConnectivitySnapshot(), snapshot);
+    assert.equal(saved.length, 1);
+    assert.deepEqual(saved[0], snapshot);
 });
 
 test('forceConnectivityProbe returns monitor forced snapshot', async () => {
     const forcedSnapshot = { success: true, running: false, summary: { cameras: 1 } };
+    const saved = [];
     const service = new ConnectivityMonitoringService({
         connectivityMonitor: {
             getSnapshot: () => forcedSnapshot,
             forceProbe: async () => forcedSnapshot
+        },
+        healthSnapshotRepository: {
+            save: (next) => saved.push(next)
         }
     });
 
     const result = await service.forceConnectivityProbe();
     assert.deepEqual(result, forcedSnapshot);
+    assert.equal(saved.length, 1);
+    assert.deepEqual(saved[0], forcedSnapshot);
+});
+
+test('snapshot persistence failures do not break monitoring responses', () => {
+    const snapshot = { success: true, summary: { cameras: 1, online: 1, offline: 0 } };
+    const service = new ConnectivityMonitoringService({
+        connectivityMonitor: {
+            getSnapshot: () => snapshot
+        },
+        healthSnapshotRepository: {
+            save: () => {
+                throw new Error('disk full');
+            }
+        }
+    });
+
+    assert.deepEqual(service.getConnectivitySnapshot(), snapshot);
 });
 
 test('renderPrometheusMetrics includes expected metrics and escaped labels', () => {

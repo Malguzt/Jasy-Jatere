@@ -1,5 +1,8 @@
 const fs = require('fs');
 const path = require('path');
+const { MetadataSqliteStore } = require('../src/infrastructure/sqlite/metadata-sqlite-store');
+const { SqliteMapVersionRepository } = require('../src/infrastructure/sqlite/sqlite-map-version-repository');
+const { SqliteMapJobRepository } = require('../src/infrastructure/sqlite/sqlite-map-job-repository');
 
 const MAPS_DIR = process.env.MAPS_DATA_DIR
     ? path.resolve(process.env.MAPS_DATA_DIR)
@@ -12,6 +15,36 @@ const DEFAULT_INDEX = {
     activeMapId: null,
     maps: []
 };
+
+const METADATA_DRIVER = String(process.env.METADATA_STORE_DRIVER || 'sqlite').toLowerCase();
+const SQLITE_DB_PATH = process.env.METADATA_SQLITE_PATH || path.join(MAPS_DIR, 'metadata.db');
+const EXPORT_COMPAT_JSON = parseBool(process.env.METADATA_DUAL_WRITE_JSON_EXPORTS, true);
+
+let sqliteStore = null;
+let sqliteMaps = null;
+let sqliteJobs = null;
+let sqliteBootstrapped = false;
+
+function parseBool(value, fallback = true) {
+    if (value === undefined || value === null || value === '') return fallback;
+    const normalized = String(value).trim().toLowerCase();
+    if (['1', 'true', 'yes', 'on'].includes(normalized)) return true;
+    if (['0', 'false', 'no', 'off'].includes(normalized)) return false;
+    return fallback;
+}
+
+function useSqlite() {
+    return METADATA_DRIVER === 'sqlite';
+}
+
+function ensureSqliteRepositories() {
+    if (!useSqlite()) return;
+    if (sqliteMaps && sqliteJobs) return;
+    sqliteStore = sqliteStore || new MetadataSqliteStore({ dbPath: SQLITE_DB_PATH });
+    sqliteStore.migrate();
+    sqliteMaps = sqliteMaps || new SqliteMapVersionRepository({ store: sqliteStore });
+    sqliteJobs = sqliteJobs || new SqliteMapJobRepository({ store: sqliteStore });
+}
 
 function ensureStorage() {
     fs.mkdirSync(MAPS_DIR, { recursive: true });
@@ -53,7 +86,11 @@ function toSummary(mapDoc) {
     };
 }
 
-function getIndex() {
+function getMapPath(mapId) {
+    return path.join(MAPS_DIR, `${mapId}.json`);
+}
+
+function legacyGetIndex() {
     ensureStorage();
     const raw = readJsonSafe(INDEX_FILE, DEFAULT_INDEX);
     const maps = Array.isArray(raw?.maps) ? raw.maps : [];
@@ -64,7 +101,7 @@ function getIndex() {
     };
 }
 
-function saveIndex(index) {
+function legacySaveIndex(index) {
     ensureStorage();
     const next = {
         schemaVersion: index?.schemaVersion || '1.0',
@@ -75,11 +112,7 @@ function saveIndex(index) {
     return next;
 }
 
-function getMapPath(mapId) {
-    return path.join(MAPS_DIR, `${mapId}.json`);
-}
-
-function saveMap(mapDoc) {
+function legacySaveMap(mapDoc) {
     ensureStorage();
     if (!mapDoc || !mapDoc.mapId) {
         throw new Error('mapDoc/mapId is required');
@@ -89,8 +122,8 @@ function saveMap(mapDoc) {
     writeJsonAtomic(mapPath, mapDoc);
 
     const summary = toSummary(mapDoc);
-    const index = getIndex();
-    const withoutCurrent = index.maps.filter((m) => m.mapId !== summary.mapId);
+    const index = legacyGetIndex();
+    const withoutCurrent = index.maps.filter((map) => map.mapId !== summary.mapId);
     const nextMaps = [summary, ...withoutCurrent].sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
 
     const nextIndex = {
@@ -98,53 +131,169 @@ function saveMap(mapDoc) {
         maps: nextMaps,
         activeMapId: index.activeMapId || summary.mapId
     };
-    saveIndex(nextIndex);
+    legacySaveIndex(nextIndex);
     return summary;
 }
 
-function getMap(mapId) {
+function legacyGetMap(mapId) {
     ensureStorage();
     if (!mapId) return null;
     const filePath = getMapPath(mapId);
     return readJsonSafe(filePath, null);
 }
 
-function listMapSummaries() {
-    return getIndex().maps;
+function legacyListMapSummaries() {
+    return legacyGetIndex().maps;
 }
 
-function getLatestMap() {
-    const index = getIndex();
+function legacyGetLatestMap() {
+    const index = legacyGetIndex();
     if (index.activeMapId) {
-        const active = getMap(index.activeMapId);
+        const active = legacyGetMap(index.activeMapId);
         if (active) return active;
     }
     const latest = index.maps[0];
     if (!latest) return null;
-    return getMap(latest.mapId);
+    return legacyGetMap(latest.mapId);
 }
 
-function promoteMap(mapId) {
-    const doc = getMap(mapId);
+function legacyPromoteMap(mapId) {
+    const doc = legacyGetMap(mapId);
     if (!doc) return null;
-    const index = getIndex();
+    const index = legacyGetIndex();
     index.activeMapId = mapId;
-    saveIndex(index);
+    legacySaveIndex(index);
     return toSummary(doc);
 }
 
-function loadJobs() {
+function legacyLoadJobs() {
     ensureStorage();
     const jobs = readJsonSafe(JOBS_FILE, []);
     if (!Array.isArray(jobs)) return [];
     return jobs.sort((a, b) => Number(b.requestedAt || 0) - Number(a.requestedAt || 0));
 }
 
-function saveJobs(jobs) {
+function legacySaveJobs(jobs) {
     ensureStorage();
     const safeJobs = Array.isArray(jobs) ? jobs : [];
     const sorted = [...safeJobs].sort((a, b) => Number(b.requestedAt || 0) - Number(a.requestedAt || 0));
     writeJsonAtomic(JOBS_FILE, sorted);
+    return sorted;
+}
+
+function bootstrapSqliteFromLegacy() {
+    if (!useSqlite()) return;
+    ensureSqliteRepositories();
+    if (sqliteBootstrapped) return;
+
+    if (sqliteMaps.count() === 0) {
+        const legacyIndex = legacyGetIndex();
+        const seenMapIds = new Set();
+        legacyIndex.maps.forEach((summary) => {
+            const mapId = String(summary?.mapId || '').trim();
+            if (!mapId || seenMapIds.has(mapId)) return;
+            seenMapIds.add(mapId);
+            const mapDoc = legacyGetMap(mapId);
+            if (!mapDoc || !mapDoc.mapId) return;
+            sqliteMaps.saveMap(mapDoc);
+        });
+        if (legacyIndex.activeMapId) {
+            sqliteMaps.promoteMap(legacyIndex.activeMapId);
+        }
+    }
+
+    if (sqliteJobs.count() === 0) {
+        const legacyJobs = legacyLoadJobs();
+        if (legacyJobs.length > 0) {
+            sqliteJobs.replaceAll(legacyJobs);
+        }
+    }
+
+    sqliteBootstrapped = true;
+}
+
+function getIndex() {
+    if (!useSqlite()) return legacyGetIndex();
+    bootstrapSqliteFromLegacy();
+    return sqliteMaps.getIndex();
+}
+
+function saveIndex(index) {
+    if (!useSqlite()) return legacySaveIndex(index);
+    bootstrapSqliteFromLegacy();
+
+    const nextActiveMapId = index?.activeMapId || null;
+    sqliteMaps.setActiveMapId(nextActiveMapId);
+    const nextIndex = sqliteMaps.getIndex();
+    if (EXPORT_COMPAT_JSON) {
+        legacySaveIndex(nextIndex);
+    }
+    return nextIndex;
+}
+
+function saveMap(mapDoc) {
+    if (!useSqlite()) return legacySaveMap(mapDoc);
+    bootstrapSqliteFromLegacy();
+
+    const summary = sqliteMaps.saveMap(mapDoc);
+    const index = sqliteMaps.getIndex();
+    if (!index.activeMapId) {
+        sqliteMaps.setActiveMapId(summary.mapId);
+    }
+
+    if (EXPORT_COMPAT_JSON) {
+        legacySaveMap(mapDoc);
+    }
+    return summary;
+}
+
+function getMap(mapId) {
+    if (!useSqlite()) return legacyGetMap(mapId);
+    bootstrapSqliteFromLegacy();
+    return sqliteMaps.getMap(mapId);
+}
+
+function listMapSummaries() {
+    if (!useSqlite()) return legacyListMapSummaries();
+    bootstrapSqliteFromLegacy();
+    return sqliteMaps.listMapSummaries();
+}
+
+function getLatestMap() {
+    if (!useSqlite()) return legacyGetLatestMap();
+    bootstrapSqliteFromLegacy();
+    return sqliteMaps.getLatestMap();
+}
+
+function promoteMap(mapId) {
+    if (!useSqlite()) return legacyPromoteMap(mapId);
+    bootstrapSqliteFromLegacy();
+
+    const summary = sqliteMaps.promoteMap(mapId);
+    if (summary && EXPORT_COMPAT_JSON) {
+        const mapDoc = sqliteMaps.getMap(mapId);
+        if (mapDoc) {
+            legacySaveMap(mapDoc);
+        }
+        legacyPromoteMap(mapId);
+    }
+    return summary;
+}
+
+function loadJobs() {
+    if (!useSqlite()) return legacyLoadJobs();
+    bootstrapSqliteFromLegacy();
+    return sqliteJobs.list();
+}
+
+function saveJobs(jobs) {
+    if (!useSqlite()) return legacySaveJobs(jobs);
+    bootstrapSqliteFromLegacy();
+
+    const sorted = sqliteJobs.replaceAll(jobs);
+    if (EXPORT_COMPAT_JSON) {
+        legacySaveJobs(sorted);
+    }
     return sorted;
 }
 

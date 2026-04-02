@@ -29,8 +29,9 @@ function toNumOrNaN(value) {
 }
 
 class ConnectivityMonitoringService {
-    constructor({ connectivityMonitor } = {}) {
+    constructor({ connectivityMonitor, healthSnapshotRepository = null } = {}) {
         this.connectivityMonitor = connectivityMonitor;
+        this.healthSnapshotRepository = healthSnapshotRepository;
     }
 
     ensureMonitor() {
@@ -39,10 +40,21 @@ class ConnectivityMonitoringService {
         }
     }
 
+    persistSnapshot(snapshot) {
+        if (!this.healthSnapshotRepository || typeof this.healthSnapshotRepository.save !== 'function') {
+            return;
+        }
+        try {
+            this.healthSnapshotRepository.save(snapshot);
+        } catch (error) {}
+    }
+
     getConnectivitySnapshot() {
         this.ensureMonitor();
         try {
-            return this.connectivityMonitor.getSnapshot();
+            const snapshot = this.connectivityMonitor.getSnapshot();
+            this.persistSnapshot(snapshot);
+            return snapshot;
         } catch (error) {
             throw monitoringServiceError(
                 500,
@@ -58,7 +70,9 @@ class ConnectivityMonitoringService {
             throw monitoringServiceError(500, 'forceProbe not available on connectivity monitor', 'FORCE_PROBE_UNAVAILABLE');
         }
         try {
-            return await this.connectivityMonitor.forceProbe();
+            const snapshot = await this.connectivityMonitor.forceProbe();
+            this.persistSnapshot(snapshot);
+            return snapshot;
         } catch (error) {
             throw monitoringServiceError(
                 500,

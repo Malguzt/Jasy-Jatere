@@ -11,11 +11,12 @@ Each phase should produce a working system and avoid a large-bang rewrite.
 
 - Phase 0: in progress with schema-validated contracts extended for stream sync, perception ingest, and recording catalog upsert payloads.
 - Phase 1: in progress with backend app composition split into domain services, runtime coordinator, and dedicated routers.
-- Phase 2: in progress with metadata repositories introduced for camera inventory, recording catalog, and observations, plus legacy compatibility exports.
+- Phase 2: in progress with SQLite-backed metadata repositories for camera inventory, recording catalog, observations, map versions, map jobs, and manual map corrections, all with legacy JSON compatibility exports.
 - Phase 3: in progress with worker-facing internal config APIs (`/api/internal/config/*`) and detector camera-config consumption through control-plane snapshots.
 - Phase 4A: in progress with stream orchestration extracted into stream control services and WS gateway modules.
 - Phase 5: in progress with perception ingest and control-plane-owned recording catalog APIs (`/api/perception/*`, `/api/recordings`).
-- Phase 6: in progress with health and monitoring APIs modularized under dedicated services.
+- Phase 6: in progress with health and monitoring APIs modularized under dedicated services and connectivity snapshots persisted through repository adapters.
+- Phase 7: in progress with map job persistence in metadata store and map queue inputs sourced from repository-backed camera and observation metadata.
 - Phase 8: in progress with a typed frontend API client and migration of major UI domains away from ad hoc `fetch` calls.
 - Phase 9: in progress with compose networking moved from host-network coupling to explicit service networking and health checks.
 

@@ -6,13 +6,16 @@
   "scripts": {
     "test": "node --test tests/*.test.js",
     "test:maps": "node --test tests/maps-modules.test.js",
-    "contracts:check": "node scripts/check-contract-schemas.js"
+    "contracts:check": "node scripts/check-contract-schemas.js",
+    "db:migrate": "node scripts/db-migrate.js",
+    "db:import-legacy": "node scripts/import-legacy-to-sqlite.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "better-sqlite3": "^11.8.1",
     "cors": "^2.8.6",
     "express": "^5.2.1",
     "node-onvif": "^0.1.7",

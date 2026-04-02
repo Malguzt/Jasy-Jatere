@@ -50,7 +50,28 @@ test('createBackendApp serves canonical camera API namespace and retires legacy 
 
 test('createBackendApp exposes internal worker config and perception ingest APIs', async () => {
     const built = createBackendApp({
-        cameraFile: '/tmp/non-existent-cameras.json'
+        cameraFile: '/tmp/non-existent-cameras.json',
+        runtimeFlags: {
+            streamGatewayApiUrl: '',
+            streamProxyModeEnabled: false,
+            streamProxyRequired: false,
+            streamRuntimeEnabled: true,
+            streamWebSocketGatewayEnabled: true,
+            streamWebRtcEnabled: false,
+            streamWebRtcRequireHttps: true,
+            streamWebRtcSignalingUrl: '',
+            streamWebRtcIceServersJson: '',
+            streamWebRtcSignalingRetries: 1,
+            streamPublicBaseUrl: '',
+            legacyCompatExportsEnabled: false,
+            recordingRetentionEnabled: false,
+            recordingRetentionIntervalMs: 60000,
+            recordingRetentionMaxAgeDays: null,
+            recordingRetentionMaxEntries: null,
+            recordingsMaxSizeGb: 50,
+            recordingsDeleteOldestBatch: 100,
+            observationMaxEntries: 2500
+        }
     });
 
     const server = await new Promise((resolve, reject) => {

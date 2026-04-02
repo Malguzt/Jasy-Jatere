@@ -144,8 +144,16 @@ function validateNode(schema, value, path, errors) {
         }
     }
 
+    const supportsObjectKeywords =
+        Array.isArray(schema.required)
+        || (schema.properties && typeof schema.properties === 'object')
+        || schema.additionalProperties !== undefined
+        || schema.minProperties !== undefined
+        || schema.maxProperties !== undefined;
     const supportsObject =
-        schema.type === 'object' || (Array.isArray(schema.type) && schema.type.includes('object'));
+        schema.type === 'object'
+        || (Array.isArray(schema.type) && schema.type.includes('object'))
+        || (schema.type === undefined && supportsObjectKeywords);
     if (supportsObject && value && typeof value === 'object' && !Array.isArray(value)) {
         if (Array.isArray(schema.required)) {
             schema.required.forEach((key) => {

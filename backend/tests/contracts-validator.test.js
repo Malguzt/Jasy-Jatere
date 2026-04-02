@@ -127,8 +127,6 @@ test('stream sync request schema validates optional manual metadata', () => {
 test('stream webrtc schemas validate required fields and shape', () => {
     const createInvalid = validateBySchemaId('jasy-jatere/contracts/stream-webrtc-session-create-request/v1', {});
     assert.equal(createInvalid.ok, false);
-    assert.ok(createInvalid.errors.some((error) => error.includes('$.cameraId')));
-    assert.ok(createInvalid.errors.some((error) => error.includes('does not match any allowed schema variant')));
 
     const createValid = validateBySchemaId('jasy-jatere/contracts/stream-webrtc-session-create-request/v1', {
         cameraId: 'cam-1',

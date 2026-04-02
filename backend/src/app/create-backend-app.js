@@ -95,7 +95,8 @@ function createBackendApp({
         cameraFile,
         streamManager,
         cameraEventMonitor,
-        cameraInventoryService
+        cameraInventoryService,
+        legacyFileFallbackEnabled: runtimeFlags.legacyCompatExportsEnabled
     });
     const monitoringService = new ConnectivityMonitoringService({
         connectivityMonitor,

@@ -49,11 +49,18 @@ function parseErrorSummary(stderr = '') {
 }
 
 class CameraConnectivityMonitor {
-    constructor({ cameraFile, streamManager, cameraEventMonitor, cameraInventoryService = null }) {
+    constructor({
+        cameraFile,
+        streamManager,
+        cameraEventMonitor,
+        cameraInventoryService = null,
+        legacyFileFallbackEnabled = (process.env.LEGACY_COMPAT_EXPORTS_ENABLED === '1')
+    }) {
         this.cameraFile = cameraFile || path.join(__dirname, 'data', 'cameras.json');
         this.streamManager = streamManager;
         this.cameraEventMonitor = cameraEventMonitor;
         this.cameraInventoryService = cameraInventoryService;
+        this.legacyFileFallbackEnabled = legacyFileFallbackEnabled === true;
         this.intervalMs = clamp(DEFAULT_INTERVAL_MS, 8000, 120000);
         this.historySize = clamp(DEFAULT_HISTORY_SIZE, 30, 720);
         this.timer = null;
@@ -86,11 +93,16 @@ class CameraConnectivityMonitor {
     loadCameras() {
         if (this.cameraInventoryService && typeof this.cameraInventoryService.listCameras === 'function') {
             try {
-                return this.cameraInventoryService.listCameras();
+                const cameras = this.cameraInventoryService.listCameras();
+                if (Array.isArray(cameras)) return cameras;
+                if (!this.legacyFileFallbackEnabled) return [];
             } catch (error) {
                 console.error('[MON] failed to load cameras from inventory service:', error?.message || error);
+                if (!this.legacyFileFallbackEnabled) return [];
             }
         }
+
+        if (!this.legacyFileFallbackEnabled) return [];
 
         try {
             if (!fs.existsSync(this.cameraFile)) return [];

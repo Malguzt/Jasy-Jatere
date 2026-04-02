@@ -3,8 +3,8 @@ const cors = require('cors');
 const path = require('path');
 const { createCameraRouter } = require('../../routes/camera');
 const { createSavedCamerasRouter } = require('../../routes/saved-cameras');
-const mapsRoutes = require('../../routes/maps');
-const detectorRoutes = require('../../routes/detector');
+const { createMapsRouter } = require('../../routes/maps');
+const { createDetectorRouter } = require('../../routes/detector');
 const { createMonitoringApiRouter, createMetricsRouter } = require('../../routes/monitoring');
 const { createContractsRouter } = require('../../routes/contracts');
 const { createStreamsRouter } = require('../../routes/streams');
@@ -40,6 +40,8 @@ const { WorkerConfigService } = require('../domains/platform/worker-config-servi
 const { RecordingCatalogService } = require('../domains/recordings/recording-catalog-service');
 const { RecordingRetentionJob } = require('../domains/recordings/recording-retention-job');
 const { PerceptionIngestService } = require('../domains/perception/perception-ingest-service');
+const { DetectorProxyService } = require('../domains/perception/detector-proxy-service');
+const { MapsService } = require('../domains/maps/maps-service');
 const { attachCorrelationId, injectCorrelationIdIntoJson } = require('../http/correlation-id-middleware');
 
 function createBackendApp({
@@ -195,13 +197,15 @@ function createBackendApp({
             runtimeFlags.streamWebSocketGatewayEnabled ||
             (runtimeFlags.streamProxyModeEnabled && !!streamGatewayApiUrl)
     });
+    const mapsService = new MapsService();
+    const detectorProxyService = new DetectorProxyService();
 
     app.use('/api/contracts', createContractsRouter({ contractsService }));
 
     app.use('/api/cameras', createCameraRouter({ cameraService: onvifCameraService }));
     app.use('/api/saved-cameras', createSavedCamerasRouter({ savedCamerasService }));
-    app.use('/api/maps', mapsRoutes);
-    app.use('/api/detector', detectorRoutes);
+    app.use('/api/maps', createMapsRouter({ mapsService }));
+    app.use('/api/detector', createDetectorRouter({ detectorProxyService }));
     app.use('/api/monitoring', createMonitoringApiRouter({ monitoringService }));
     app.use('/api/streams', createStreamsRouter({
         streamControlService,

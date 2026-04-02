@@ -29,6 +29,7 @@ function resolveRuntimeFlags(env = process.env) {
     const streamGatewayApiUrl = String(env.STREAM_GATEWAY_API_URL || '').trim();
     const streamPublicBaseUrl = String(env.STREAM_PUBLIC_BASE_URL || '').trim();
     const streamWebRtcSignalingUrl = String(env.STREAM_WEBRTC_SIGNALING_URL || '').trim();
+    const streamWebRtcIceServersJson = String(env.STREAM_WEBRTC_ICE_SERVERS_JSON || '').trim();
     const streamProxyModeEnabled = parseBoolEnv(env.STREAM_PROXY_MODE_ENABLED, !!streamGatewayApiUrl);
     const streamProxyRequired = parseBoolEnv(env.STREAM_PROXY_REQUIRED, streamProxyModeEnabled);
 
@@ -36,6 +37,8 @@ function resolveRuntimeFlags(env = process.env) {
         streamGatewayApiUrl,
         streamPublicBaseUrl,
         streamWebRtcSignalingUrl,
+        streamWebRtcIceServersJson,
+        streamWebRtcSignalingRetries: parsePositiveIntEnv(env.STREAM_WEBRTC_SIGNALING_RETRIES, 1),
         streamProxyModeEnabled,
         streamProxyRequired,
         streamRuntimeEnabled: streamProxyModeEnabled

@@ -58,6 +58,7 @@ As an intermediate migration step, the control plane can expose internal stream 
 - `GET /api/streams/capabilities` for transport negotiation policy (WebRTC optional, JSMpeg fallback).
 - `GET /api/streams/sessions/:cameraId` for a logical session descriptor (selected transport + protocol endpoints).
 - `POST /api/streams/webrtc/sessions` for WebRTC offer/answer exchange with the signaling backend.
+- `POST /api/streams/webrtc/sessions/:sessionId/candidates` for trickle ICE candidate forwarding.
 - `GET /api/streams/runtime` for current stream and keepalive runtime state.
 - `POST /api/streams/sync` for operator-triggered keepalive and reconstructor resynchronization.
 - `GET /api/internal/config/streams` for worker-consumable stream snapshots.
@@ -67,6 +68,7 @@ When stream runtime is externalized, the control plane can proxy these APIs to `
 For incremental cutovers, backend websocket `/stream/:cameraId` can also run in relay mode and tunnel traffic to the stream-gateway upstream so legacy websocket entrypoints remain stable.
 WebRTC policy can be enabled incrementally with `STREAM_WEBRTC_ENABLED` and constrained to secure contexts with `STREAM_WEBRTC_REQUIRE_HTTPS`.
 WebRTC signaling can be integrated incrementally by pointing `STREAM_WEBRTC_SIGNALING_URL` to a signaling service that receives `{cameraId, offer}` and returns an answer payload.
+Retries for signaling requests can be tuned with `STREAM_WEBRTC_SIGNALING_RETRIES`, and fallback ICE server configuration can be provided with `STREAM_WEBRTC_ICE_SERVERS_JSON`.
 
 ## Target Outputs
 

@@ -173,6 +173,43 @@ class StreamGatewayProxyService {
         }
         return payload.session;
     }
+
+    async submitWebRtcCandidate({
+        sessionId,
+        cameraId,
+        candidate,
+        sdpMid = null,
+        sdpMLineIndex = null,
+        usernameFragment = null,
+        requestHeaders = {}
+    } = {}) {
+        const normalizedSessionId = String(sessionId || '').trim();
+        const normalizedCandidate = String(candidate || '').trim();
+        if (!normalizedSessionId) {
+            throw streamControlError(400, 'sessionId is required', 'STREAM_WEBRTC_SESSION_ID_REQUIRED');
+        }
+        if (!normalizedCandidate) {
+            throw streamControlError(400, 'candidate is required', 'STREAM_WEBRTC_CANDIDATE_REQUIRED');
+        }
+
+        const payload = await this.requestJson(`/webrtc/sessions/${encodeURIComponent(normalizedSessionId)}/candidates`, {
+            method: 'POST',
+            headers: this.buildForwardHeaders(requestHeaders),
+            body: {
+                sessionId: normalizedSessionId,
+                cameraId: cameraId ? String(cameraId) : null,
+                candidate: normalizedCandidate,
+                sdpMid,
+                sdpMLineIndex,
+                usernameFragment
+            }
+        });
+
+        if (!payload?.success || !payload?.result) {
+            throw streamControlError(502, 'Invalid WebRTC candidate payload from stream gateway', 'STREAM_GATEWAY_INVALID_WEBRTC_CANDIDATE');
+        }
+        return payload.result;
+    }
 }
 
 module.exports = {

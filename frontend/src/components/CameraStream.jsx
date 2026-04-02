@@ -25,7 +25,8 @@ const CameraStream = ({ camera }) => {
         movePtz,
         takeSnapshot: requestSnapshot,
         toggleLight: toggleLightState,
-        createWebRtcSession
+        createWebRtcSession,
+        submitWebRtcCandidate
     } = useCameraStreamData(camera);
 
     const resolveSelectedTransport = async () => {
@@ -105,6 +106,7 @@ const CameraStream = ({ camera }) => {
 
         const pc = new window.RTCPeerConnection();
         peerConnectionRef.current = pc;
+        let sessionId = null;
 
         const mediaStream = new window.MediaStream();
         if (videoRef.current) {
@@ -120,21 +122,44 @@ const CameraStream = ({ camera }) => {
             setError(null);
             setRetryCount(0);
         };
+        pc.onicecandidate = (event) => {
+            const candidate = event?.candidate;
+            if (!candidate || !sessionId) return;
+            submitWebRtcCandidate(sessionId, {
+                cameraId,
+                candidate: {
+                    candidate: candidate.candidate,
+                    sdpMid: candidate.sdpMid,
+                    sdpMLineIndex: candidate.sdpMLineIndex,
+                    usernameFragment: candidate.usernameFragment || null
+                }
+            }).catch((error) => {
+                console.warn('WebRTC candidate submit failed:', error);
+            });
+        };
 
         const offer = await pc.createOffer({
             offerToReceiveVideo: true,
             offerToReceiveAudio: false
         });
         await pc.setLocalDescription(offer);
-
-        const payload = await createWebRtcSession({
+        const signalingPayload = await createWebRtcSession({
             cameraId,
             offer: {
                 type: offer.type,
                 sdp: offer.sdp
             }
         });
-        const answer = payload?.session?.answer || null;
+        const session = signalingPayload?.session || null;
+        sessionId = session?.sessionId || null;
+        const iceServers = Array.isArray(session?.iceServers) ? session.iceServers : [];
+        if (iceServers.length > 0 && typeof pc.setConfiguration === 'function') {
+            try {
+                pc.setConfiguration({ iceServers });
+            } catch (error) {}
+        }
+
+        const answer = session?.answer || null;
         const answerSdp = String(answer?.sdp || '').trim();
         const answerType = String(answer?.type || 'answer').trim().toLowerCase();
         if (!answerSdp || answerType !== 'answer') {
@@ -151,19 +176,23 @@ const CameraStream = ({ camera }) => {
     const startStream = async () => {
         const resolved = await resolveSelectedTransport();
         if (resolved.transport === 'webrtc' && resolved.webrtcEnabled) {
-            try {
-                setStatus('Conectando WebRTC...');
-                await startWebRtcStream({ cameraId: localCamera.id });
-                return;
-            } catch (webrtcError) {
-                console.error('WebRTC stream failed, falling back to JSMpeg:', webrtcError);
-                if (!resolved.jsmpegEnabled) {
-                    setError('No stream transport available for this client.');
-                    setStatus('Error de transporte de streaming.');
+            let lastWebRtcError = null;
+            for (let attempt = 1; attempt <= 2; attempt += 1) {
+                try {
+                    setStatus(attempt === 1 ? 'Conectando WebRTC...' : 'Reintentando WebRTC...');
+                    await startWebRtcStream({ cameraId: localCamera.id });
                     return;
+                } catch (webrtcError) {
+                    lastWebRtcError = webrtcError;
+                    console.error(`WebRTC stream failed (attempt ${attempt}), falling back to JSMpeg:`, webrtcError);
                 }
-                setStatus('WebRTC no disponible, usando JSMpeg...');
             }
+            if (!resolved.jsmpegEnabled) {
+                setError(lastWebRtcError?.message || 'No stream transport available for this client.');
+                setStatus('Error de transporte de streaming.');
+                return;
+            }
+            setStatus('WebRTC no disponible, usando JSMpeg...');
         }
 
         if (!resolved.jsmpegEnabled) {

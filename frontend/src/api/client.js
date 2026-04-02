@@ -77,6 +77,13 @@ export const apiClient = {
             body: JSON.stringify(payload || {})
         });
     },
+    submitWebRtcCandidate(sessionId, payload) {
+        return apiFetch(`/api/streams/webrtc/sessions/${encodeURIComponent(String(sessionId || ''))}/candidates`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload || {})
+        });
+    },
     listRecordings(query = {}) {
         const params = new URLSearchParams();
         Object.entries(query || {}).forEach(([key, value]) => {

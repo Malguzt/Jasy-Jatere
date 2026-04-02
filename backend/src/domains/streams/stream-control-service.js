@@ -20,6 +20,18 @@ function toWebSocketBaseUrl(value = '') {
     return '';
 }
 
+function parseIceServers(value) {
+    if (!value) return [];
+    if (Array.isArray(value)) return value;
+    try {
+        const parsed = JSON.parse(String(value));
+        if (!Array.isArray(parsed)) return [];
+        return parsed;
+    } catch (error) {
+        return [];
+    }
+}
+
 class StreamControlService {
     constructor({
         streamManager,
@@ -29,6 +41,8 @@ class StreamControlService {
         streamWebRtcEnabled = false,
         streamWebRtcRequireHttps = true,
         streamWebRtcSignalingUrl = process.env.STREAM_WEBRTC_SIGNALING_URL || '',
+        streamWebRtcIceServersJson = process.env.STREAM_WEBRTC_ICE_SERVERS_JSON || '',
+        streamWebRtcSignalingRetries = Number(process.env.STREAM_WEBRTC_SIGNALING_RETRIES || 1),
         fetchImpl = fetch,
         webrtcSignalingTimeoutMs = Number(process.env.STREAM_WEBRTC_SIGNALING_TIMEOUT_MS || 7000),
         streamPublicBaseUrl = process.env.STREAM_PUBLIC_BASE_URL || '',
@@ -41,6 +55,10 @@ class StreamControlService {
         this.streamWebRtcEnabled = streamWebRtcEnabled === true;
         this.streamWebRtcRequireHttps = streamWebRtcRequireHttps !== false;
         this.streamWebRtcSignalingUrl = String(streamWebRtcSignalingUrl || '').trim();
+        this.streamWebRtcIceServers = parseIceServers(streamWebRtcIceServersJson);
+        this.streamWebRtcSignalingRetries = Number.isFinite(Number(streamWebRtcSignalingRetries))
+            ? Math.max(1, Number(streamWebRtcSignalingRetries))
+            : 1;
         this.fetchImpl = fetchImpl;
         this.webrtcSignalingTimeoutMs = Number.isFinite(Number(webrtcSignalingTimeoutMs))
             ? Math.max(1000, Number(webrtcSignalingTimeoutMs))
@@ -48,6 +66,14 @@ class StreamControlService {
         this.streamPublicBaseUrl = String(streamPublicBaseUrl || '').trim();
         this.now = now;
         this.lastManualSync = null;
+        this.webrtcSessionStats = {
+            attempts: 0,
+            success: 0,
+            failed: 0,
+            lastAttemptAt: null,
+            lastSuccessAt: null,
+            lastError: null
+        };
     }
 
     getCapabilities({ requestHeaders = {} } = {}) {
@@ -185,20 +211,141 @@ class StreamControlService {
         }
 
         this.ensureWebRtcSessionAvailable({ requestHeaders });
+        this.webrtcSessionStats.attempts += 1;
+        this.webrtcSessionStats.lastAttemptAt = this.now();
+
+        const maxAttempts = this.streamWebRtcSignalingRetries;
+        let lastError = null;
+        for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), this.webrtcSignalingTimeoutMs);
+            try {
+                const response = await this.fetchImpl(this.streamWebRtcSignalingUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        cameraId: normalizedCameraId,
+                        offer: {
+                            type: 'offer',
+                            sdp: normalizedOfferSdp
+                        }
+                    }),
+                    signal: controller.signal
+                });
+                let payload = null;
+                try {
+                    payload = await response.json();
+                } catch (error) {}
+
+                if (!response.ok) {
+                    throw streamControlError(
+                        502,
+                        payload?.error || `WebRTC signaling responded with ${response.status}`,
+                        'STREAM_WEBRTC_SIGNALING_UPSTREAM_ERROR',
+                        { status: response.status, payload: payload || null, attempt, maxAttempts }
+                    );
+                }
+
+                const answerSdp = String(payload?.answer?.sdp || payload?.answerSdp || '').trim();
+                const answerType = String(payload?.answer?.type || payload?.answerType || 'answer').trim().toLowerCase();
+                if (!answerSdp) {
+                    throw streamControlError(502, 'WebRTC signaling returned empty answer SDP', 'STREAM_WEBRTC_SIGNALING_INVALID_ANSWER');
+                }
+                if (answerType !== 'answer') {
+                    throw streamControlError(502, 'WebRTC signaling returned unsupported answer type', 'STREAM_WEBRTC_SIGNALING_INVALID_ANSWER_TYPE');
+                }
+
+                this.webrtcSessionStats.success += 1;
+                this.webrtcSessionStats.lastSuccessAt = this.now();
+                this.webrtcSessionStats.lastError = null;
+
+                return {
+                    cameraId: normalizedCameraId,
+                    sessionId: payload?.sessionId || null,
+                    answer: {
+                        type: 'answer',
+                        sdp: answerSdp
+                    },
+                    iceServers: Array.isArray(payload?.iceServers) ? payload.iceServers : this.streamWebRtcIceServers
+                };
+            } catch (error) {
+                if (error?.name === 'AbortError') {
+                    lastError = streamControlError(504, 'WebRTC signaling request timeout', 'STREAM_WEBRTC_SIGNALING_TIMEOUT', {
+                        attempt,
+                        maxAttempts
+                    });
+                } else if (error?.status) {
+                    lastError = error;
+                } else {
+                    lastError = streamControlError(
+                        502,
+                        error?.message || String(error),
+                        'STREAM_WEBRTC_SIGNALING_UNREACHABLE'
+                    );
+                }
+            } finally {
+                clearTimeout(timeout);
+            }
+        }
+
+        this.webrtcSessionStats.failed += 1;
+        this.webrtcSessionStats.lastError = {
+            code: lastError?.code || null,
+            message: lastError?.message || 'Unknown WebRTC signaling error',
+            at: this.now()
+        };
+        throw lastError;
+    }
+
+    resolveSignalingCandidateUrl(sessionId) {
+        const normalizedSessionId = String(sessionId || '').trim();
+        if (!normalizedSessionId) return '';
+        const base = String(this.streamWebRtcSignalingUrl || '').trim().replace(/\/+$/, '');
+        if (!base) return '';
+        return `${base}/${encodeURIComponent(normalizedSessionId)}/candidates`;
+    }
+
+    async submitWebRtcCandidate({
+        sessionId,
+        candidate,
+        sdpMid = null,
+        sdpMLineIndex = null,
+        usernameFragment = null,
+        cameraId = null,
+        requestHeaders = {}
+    } = {}) {
+        const normalizedSessionId = String(sessionId || '').trim();
+        if (!normalizedSessionId) {
+            throw streamControlError(400, 'sessionId is required', 'STREAM_WEBRTC_SESSION_ID_REQUIRED');
+        }
+        const normalizedCandidate = String(candidate || '').trim();
+        if (!normalizedCandidate) {
+            throw streamControlError(400, 'candidate is required', 'STREAM_WEBRTC_CANDIDATE_REQUIRED');
+        }
+        this.ensureWebRtcSessionAvailable({ requestHeaders });
+        const signalingCandidateUrl = this.resolveSignalingCandidateUrl(normalizedSessionId);
+        if (!signalingCandidateUrl) {
+            throw streamControlError(500, 'WebRTC signaling URL is not configured', 'STREAM_WEBRTC_SIGNALING_URL_MISSING');
+        }
 
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), this.webrtcSignalingTimeoutMs);
         try {
-            const response = await this.fetchImpl(this.streamWebRtcSignalingUrl, {
+            const response = await this.fetchImpl(signalingCandidateUrl, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    cameraId: normalizedCameraId,
-                    offer: {
-                        type: 'offer',
-                        sdp: normalizedOfferSdp
+                    sessionId: normalizedSessionId,
+                    cameraId: cameraId ? String(cameraId) : null,
+                    candidate: {
+                        candidate: normalizedCandidate,
+                        sdpMid,
+                        sdpMLineIndex,
+                        usernameFragment
                     }
                 }),
                 signal: controller.signal
@@ -207,43 +354,27 @@ class StreamControlService {
             try {
                 payload = await response.json();
             } catch (error) {}
-
             if (!response.ok) {
                 throw streamControlError(
                     502,
-                    payload?.error || `WebRTC signaling responded with ${response.status}`,
-                    'STREAM_WEBRTC_SIGNALING_UPSTREAM_ERROR',
+                    payload?.error || `WebRTC candidate signaling responded with ${response.status}`,
+                    'STREAM_WEBRTC_CANDIDATE_SIGNALING_UPSTREAM_ERROR',
                     { status: response.status, payload: payload || null }
                 );
             }
-
-            const answerSdp = String(payload?.answer?.sdp || payload?.answerSdp || '').trim();
-            const answerType = String(payload?.answer?.type || payload?.answerType || 'answer').trim().toLowerCase();
-            if (!answerSdp) {
-                throw streamControlError(502, 'WebRTC signaling returned empty answer SDP', 'STREAM_WEBRTC_SIGNALING_INVALID_ANSWER');
-            }
-            if (answerType !== 'answer') {
-                throw streamControlError(502, 'WebRTC signaling returned unsupported answer type', 'STREAM_WEBRTC_SIGNALING_INVALID_ANSWER_TYPE');
-            }
-
             return {
-                cameraId: normalizedCameraId,
-                sessionId: payload?.sessionId || null,
-                answer: {
-                    type: 'answer',
-                    sdp: answerSdp
-                },
-                iceServers: Array.isArray(payload?.iceServers) ? payload.iceServers : []
+                sessionId: normalizedSessionId,
+                accepted: payload?.accepted !== false
             };
         } catch (error) {
             if (error?.name === 'AbortError') {
-                throw streamControlError(504, 'WebRTC signaling request timeout', 'STREAM_WEBRTC_SIGNALING_TIMEOUT');
+                throw streamControlError(504, 'WebRTC candidate signaling request timeout', 'STREAM_WEBRTC_CANDIDATE_SIGNALING_TIMEOUT');
             }
             if (error?.status) throw error;
             throw streamControlError(
                 502,
                 error?.message || String(error),
-                'STREAM_WEBRTC_SIGNALING_UNREACHABLE'
+                'STREAM_WEBRTC_CANDIDATE_SIGNALING_UNREACHABLE'
             );
         } finally {
             clearTimeout(timeout);
@@ -273,7 +404,10 @@ class StreamControlService {
             summary,
             streamStats,
             syncRuntime,
-            lastManualSync: this.lastManualSync
+            lastManualSync: this.lastManualSync,
+            webrtc: {
+                ...this.webrtcSessionStats
+            }
         };
     }
 

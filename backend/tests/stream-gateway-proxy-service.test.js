@@ -178,3 +178,37 @@ test('createWebRtcSession proxies signaling payload through stream gateway API',
     assert.equal(calls.length, 1);
     assert.equal(calls[0].url, 'http://stream-gateway:4100/api/internal/streams/webrtc/sessions');
 });
+
+test('submitWebRtcCandidate proxies candidate payload through stream gateway API', async () => {
+    const calls = [];
+    const service = new StreamGatewayProxyService({
+        gatewayApiBaseUrl: 'http://stream-gateway:4100/api/internal/streams',
+        fetchImpl: async (url, init = {}) => {
+            calls.push({ url, init });
+            return {
+                ok: true,
+                status: 200,
+                json: async () => ({
+                    success: true,
+                    result: {
+                        sessionId: 'sess-4',
+                        accepted: true
+                    }
+                })
+            };
+        }
+    });
+
+    const result = await service.submitWebRtcCandidate({
+        sessionId: 'sess-4',
+        cameraId: 'cam-4',
+        candidate: 'candidate:1 1 UDP 2122252543 192.168.1.2 54400 typ host',
+        requestHeaders: {
+            origin: 'https://dashboard.local'
+        }
+    });
+    assert.equal(result.sessionId, 'sess-4');
+    assert.equal(result.accepted, true);
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].url, 'http://stream-gateway:4100/api/internal/streams/webrtc/sessions/sess-4/candidates');
+});

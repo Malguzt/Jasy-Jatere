@@ -69,6 +69,8 @@ function createStreamGatewayApp({
         streamWebRtcEnabled: runtimeFlags.streamWebRtcEnabled,
         streamWebRtcRequireHttps: runtimeFlags.streamWebRtcRequireHttps,
         streamWebRtcSignalingUrl: runtimeFlags.streamWebRtcSignalingUrl,
+        streamWebRtcIceServersJson: runtimeFlags.streamWebRtcIceServersJson,
+        streamWebRtcSignalingRetries: runtimeFlags.streamWebRtcSignalingRetries,
         streamPublicBaseUrl: runtimeFlags.streamPublicBaseUrl
     });
 
@@ -187,6 +189,35 @@ function createStreamGatewayApp({
             return res.json({
                 success: true,
                 session
+            });
+        } catch (error) {
+            return sendGatewayError(res, error);
+        }
+    });
+
+    app.post('/api/internal/streams/webrtc/sessions/:sessionId/candidates', async (req, res) => {
+        try {
+            const body = req.body || {};
+            const rawCandidate = body.candidate;
+            const candidate = typeof rawCandidate === 'object' && rawCandidate
+                ? rawCandidate.candidate
+                : rawCandidate;
+            const sdpMid = typeof rawCandidate === 'object' && rawCandidate ? rawCandidate.sdpMid : body.sdpMid;
+            const sdpMLineIndex = typeof rawCandidate === 'object' && rawCandidate ? rawCandidate.sdpMLineIndex : body.sdpMLineIndex;
+            const usernameFragment = typeof rawCandidate === 'object' && rawCandidate ? rawCandidate.usernameFragment : body.usernameFragment;
+
+            const result = await streamControlService.submitWebRtcCandidate({
+                sessionId: req.params?.sessionId,
+                cameraId: body.cameraId,
+                candidate,
+                sdpMid,
+                sdpMLineIndex,
+                usernameFragment,
+                requestHeaders: req.headers || {}
+            });
+            return res.json({
+                success: true,
+                result
             });
         } catch (error) {
             return sendGatewayError(res, error);

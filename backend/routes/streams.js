@@ -109,6 +109,39 @@ function createStreamsRouter({ streamControlService, streamControlProxyService =
         }
     });
 
+    router.post('/webrtc/sessions/:sessionId/candidates', async (req, res) => {
+        try {
+            const service = resolveStreamsService(streamControlService, streamControlProxyService);
+            if (!service || typeof service.submitWebRtcCandidate !== 'function') {
+                throw new Error('Streams WebRTC candidate service not configured');
+            }
+            const body = req.body || {};
+            const rawCandidate = body.candidate;
+            const candidate = typeof rawCandidate === 'object' && rawCandidate
+                ? rawCandidate.candidate
+                : rawCandidate;
+            const sdpMid = typeof rawCandidate === 'object' && rawCandidate ? rawCandidate.sdpMid : body.sdpMid;
+            const sdpMLineIndex = typeof rawCandidate === 'object' && rawCandidate ? rawCandidate.sdpMLineIndex : body.sdpMLineIndex;
+            const usernameFragment = typeof rawCandidate === 'object' && rawCandidate ? rawCandidate.usernameFragment : body.usernameFragment;
+
+            const result = await service.submitWebRtcCandidate({
+                sessionId: req.params?.sessionId,
+                cameraId: body.cameraId,
+                candidate,
+                sdpMid,
+                sdpMLineIndex,
+                usernameFragment,
+                requestHeaders: req.headers || {}
+            });
+            return res.json({
+                success: true,
+                result
+            });
+        } catch (error) {
+            return sendStreamsError(res, error, 'Failed to submit WebRTC ICE candidate');
+        }
+    });
+
     router.post('/sync', validateBody('jasy-jatere/contracts/stream-sync-request/v1'), async (req, res) => {
         try {
             const service = resolveStreamsService(streamControlService, streamControlProxyService);

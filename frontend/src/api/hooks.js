@@ -598,6 +598,13 @@ export function useCameraStreamData(camera) {
         return apiClient.createWebRtcSession(payload);
     };
 
+    const submitWebRtcCandidate = async (sessionId, payload = {}) => {
+        if (!sessionId) {
+            return { success: false, error: 'Missing WebRTC session id' };
+        }
+        return apiClient.submitWebRtcCandidate(sessionId, payload);
+    };
+
     const stopPtz = async () => {
         try {
             await apiClient.stopPtz({
@@ -672,6 +679,7 @@ export function useCameraStreamData(camera) {
         stopPtz,
         takeSnapshot,
         toggleLight,
-        createWebRtcSession
+        createWebRtcSession,
+        submitWebRtcCandidate
     };
 }

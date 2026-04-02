@@ -117,6 +117,8 @@ function createBackendApp({
         streamWebRtcEnabled: runtimeFlags.streamWebRtcEnabled,
         streamWebRtcRequireHttps: runtimeFlags.streamWebRtcRequireHttps,
         streamWebRtcSignalingUrl: runtimeFlags.streamWebRtcSignalingUrl,
+        streamWebRtcIceServersJson: runtimeFlags.streamWebRtcIceServersJson,
+        streamWebRtcSignalingRetries: runtimeFlags.streamWebRtcSignalingRetries,
         streamPublicBaseUrl: runtimeFlags.streamPublicBaseUrl
     });
     const streamGatewayApiUrl = String(runtimeFlags.streamGatewayApiUrl || '').trim();

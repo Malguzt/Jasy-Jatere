@@ -181,6 +181,7 @@ test('createWebRtcSession exchanges offer/answer with signaling endpoint', async
         streamWebRtcEnabled: true,
         streamWebRtcRequireHttps: false,
         streamWebRtcSignalingUrl: 'http://signaling.internal/webrtc/sessions',
+        streamWebRtcIceServersJson: '[{"urls":"stun:stun.example.com:3478"}]',
         fetchImpl: async (url, init = {}) => {
             assert.equal(url, 'http://signaling.internal/webrtc/sessions');
             const parsedBody = JSON.parse(init.body);
@@ -211,4 +212,74 @@ test('createWebRtcSession exchanges offer/answer with signaling endpoint', async
     assert.equal(session.cameraId, 'cam-9');
     assert.equal(session.sessionId, 'sess-1');
     assert.equal(session.answer.type, 'answer');
+    assert.equal(Array.isArray(session.iceServers), true);
+});
+
+test('createWebRtcSession retries signaling on transient failure', async () => {
+    let calls = 0;
+    const service = new StreamControlService({
+        cameraInventoryService: { findCamera: () => ({ id: 'cam-2' }) },
+        streamManager: { getStatsSnapshot: () => ({}) },
+        streamSyncOrchestrator: { getRuntimeState: () => ({}) },
+        streamWebSocketGatewayEnabled: true,
+        streamWebRtcEnabled: true,
+        streamWebRtcRequireHttps: false,
+        streamWebRtcSignalingUrl: 'http://signaling.internal/webrtc/sessions',
+        streamWebRtcSignalingRetries: 2,
+        fetchImpl: async () => {
+            calls += 1;
+            if (calls === 1) {
+                return {
+                    ok: false,
+                    status: 502,
+                    json: async () => ({ error: 'upstream unavailable' })
+                };
+            }
+            return {
+                ok: true,
+                status: 200,
+                json: async () => ({
+                    sessionId: 'sess-2',
+                    answer: { type: 'answer', sdp: 'v=0\\n...' }
+                })
+            };
+        }
+    });
+
+    const session = await service.createWebRtcSession({
+        cameraId: 'cam-2',
+        offerSdp: 'v=0\\n...',
+        offerType: 'offer',
+        requestHeaders: {}
+    });
+    assert.equal(session.sessionId, 'sess-2');
+    assert.equal(calls, 2);
+});
+
+test('submitWebRtcCandidate forwards candidate to signaling endpoint', async () => {
+    const service = new StreamControlService({
+        cameraInventoryService: { findCamera: () => ({ id: 'cam-3' }) },
+        streamManager: { getStatsSnapshot: () => ({}) },
+        streamSyncOrchestrator: { getRuntimeState: () => ({}) },
+        streamWebSocketGatewayEnabled: true,
+        streamWebRtcEnabled: true,
+        streamWebRtcRequireHttps: false,
+        streamWebRtcSignalingUrl: 'http://signaling.internal/webrtc/sessions',
+        fetchImpl: async (url) => {
+            assert.equal(url, 'http://signaling.internal/webrtc/sessions/sess-3/candidates');
+            return {
+                ok: true,
+                status: 200,
+                json: async () => ({ accepted: true })
+            };
+        }
+    });
+
+    const result = await service.submitWebRtcCandidate({
+        sessionId: 'sess-3',
+        cameraId: 'cam-3',
+        candidate: 'candidate:1 1 UDP 2122252543 192.168.1.2 54400 typ host'
+    });
+    assert.equal(result.sessionId, 'sess-3');
+    assert.equal(result.accepted, true);
 });

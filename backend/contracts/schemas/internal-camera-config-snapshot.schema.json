@@ -1,0 +1,46 @@
+{
+  "$id": "jasy-jatere/internal-camera-config-snapshot",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Internal Camera Config Snapshot",
+  "type": "object",
+  "required": [
+    "success",
+    "snapshotAt",
+    "cameraCount",
+    "cameras"
+  ],
+  "properties": {
+    "success": {
+      "type": "boolean"
+    },
+    "snapshotAt": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "cameraCount": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "cameras": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "correlationId": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "additionalProperties": true
+}

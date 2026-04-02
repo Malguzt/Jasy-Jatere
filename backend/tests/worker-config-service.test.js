@@ -49,3 +49,37 @@ test('getStreamSnapshot resolves reconstructor pair for combined camera sources'
     assert.ok(snapshot.streams[0].reconstructor.sub.endsWith('/onvif2'));
     assert.equal(snapshot.runtime.ok, true);
 });
+
+test('getRetentionSnapshot returns control-plane and detector retention policies', () => {
+    const service = new WorkerConfigService({
+        runtimeFlags: {
+            recordingRetentionEnabled: true,
+            recordingRetentionIntervalMs: 120000,
+            recordingRetentionMaxAgeDays: 21,
+            recordingRetentionMaxEntries: 400,
+            recordingsMaxSizeGb: 64.5,
+            recordingsDeleteOldestBatch: 80,
+            observationMaxEntries: 6000
+        },
+        now: () => 9001
+    });
+
+    const snapshot = service.getRetentionSnapshot();
+    assert.equal(snapshot.snapshotAt, 9001);
+    assert.deepEqual(snapshot.retention.recordingCatalog, {
+        enabled: true,
+        intervalMs: 120000,
+        maxAgeDays: 21,
+        maxEntries: 400
+    });
+    assert.deepEqual(snapshot.retention.detectorRecycle, {
+        recordingsMaxSizeGb: 64.5,
+        deleteOldestBatch: 80
+    });
+    assert.deepEqual(snapshot.retention.observation, {
+        maxEntries: 6000
+    });
+    assert.equal(snapshot.retention.recordingsMaxSizeGb, 64.5);
+    assert.equal(snapshot.retention.deleteOldestBatch, 80);
+    assert.equal(snapshot.retention.observationMaxEntries, 6000);
+});

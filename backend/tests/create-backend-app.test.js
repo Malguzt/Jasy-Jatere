@@ -2,6 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 const { createBackendApp } = require('../src/app/create-backend-app');
+const { validateBySchemaId } = require('../src/contracts/validator');
 
 test('createBackendApp returns express app and runtime coordinator', () => {
     const built = createBackendApp({
@@ -67,6 +68,34 @@ test('createBackendApp exposes internal worker config and perception ingest APIs
         assert.equal(camerasCfg.status, 200);
         assert.equal(camerasPayload.success, true);
         assert.ok(Array.isArray(camerasPayload.cameras));
+        const cameraConfigShape = validateBySchemaId(
+            'jasy-jatere/internal-camera-config-snapshot',
+            camerasPayload
+        );
+        assert.equal(cameraConfigShape.ok, true, cameraConfigShape.errors?.join('; '));
+
+        const streamsCfg = await fetch(`${baseUrl}/api/internal/config/streams`);
+        const streamsPayload = await streamsCfg.json();
+        assert.equal(streamsCfg.status, 200);
+        assert.equal(streamsPayload.success, true);
+        const streamConfigShape = validateBySchemaId(
+            'jasy-jatere/internal-stream-config-snapshot',
+            streamsPayload
+        );
+        assert.equal(streamConfigShape.ok, true, streamConfigShape.errors?.join('; '));
+
+        const retentionCfg = await fetch(`${baseUrl}/api/internal/config/retention`);
+        const retentionPayload = await retentionCfg.json();
+        assert.equal(retentionCfg.status, 200);
+        assert.equal(retentionPayload.success, true);
+        assert.equal(typeof retentionPayload.retention?.recordingsMaxSizeGb, 'number');
+        assert.equal(typeof retentionPayload.retention?.deleteOldestBatch, 'number');
+        assert.equal(typeof retentionPayload.retention?.recordingCatalog?.enabled, 'boolean');
+        const retentionConfigShape = validateBySchemaId(
+            'jasy-jatere/internal-retention-config-snapshot',
+            retentionPayload
+        );
+        assert.equal(retentionConfigShape.ok, true, retentionConfigShape.errors?.join('; '));
 
         const invalidObservation = await fetch(`${baseUrl}/api/perception/observations`, {
             method: 'POST',

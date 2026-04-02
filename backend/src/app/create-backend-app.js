@@ -69,7 +69,8 @@ function createBackendApp({
     });
     const observationRepository = new ObservationEventRepository({
         driver: metadataDriver,
-        sqliteStore
+        sqliteStore,
+        maxEntries: runtimeFlags.observationMaxEntries
     });
     const healthSnapshotRepository = new HealthSnapshotRepository({
         driver: metadataDriver,
@@ -119,7 +120,8 @@ function createBackendApp({
     const contractsService = new ContractsService();
     const workerConfigService = new WorkerConfigService({
         cameraInventoryService,
-        streamSyncOrchestrator
+        streamSyncOrchestrator,
+        runtimeFlags
     });
     const recordingCatalogService = new RecordingCatalogService({
         repository: recordingCatalogRepository

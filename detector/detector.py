@@ -34,13 +34,38 @@ def parse_bool_env(name, default=True):
         return False
     return bool(default)
 
+
+def parse_positive_int_env(name, default):
+    raw = os.getenv(name)
+    if raw is None or str(raw).strip() == "":
+        return int(default)
+    try:
+        value = int(raw)
+        if value > 0:
+            return value
+    except Exception:
+        pass
+    return int(default)
+
+
+def parse_positive_float_env(name, default):
+    raw = os.getenv(name)
+    if raw is None or str(raw).strip() == "":
+        return float(default)
+    try:
+        value = float(raw)
+        if value > 0:
+            return value
+    except Exception:
+        pass
+    return float(default)
+
 # --- Configuration ---
 DATA_FILE = "/app/data/cameras.json"
 RECORDINGS_DIR = "/app/recordings"
 RECORDINGS_INDEX_FILE = os.path.join(RECORDINGS_DIR, "recordings-index.json")
-MAX_RECORDINGS_SIZE_GB = 50
-MAX_RECORDINGS_SIZE_BYTES = int(MAX_RECORDINGS_SIZE_GB * 1024 * 1024 * 1024)
-DELETE_OLDEST_BATCH = 100
+DEFAULT_RECORDINGS_MAX_SIZE_GB = parse_positive_float_env("RECORDINGS_MAX_SIZE_GB", 50)
+DEFAULT_DELETE_OLDEST_BATCH = parse_positive_int_env("RECORDINGS_DELETE_OLDEST_BATCH", 100)
 FRAME_INTERVAL = 0.5          # Capture 1 frame every 500ms (2 FPS)
 MOTION_THRESHOLD = 25          # Pixel diff threshold for motion
 MOTION_MIN_AREA = 0.01         # Min % of frame with motion to trigger
@@ -75,11 +100,15 @@ SOFT_MOTION_HOLD_SECONDS = 2.0
 SOFT_MOTION_CYCLE_CORR_THRESHOLD = 0.86
 CONTROL_PLANE_URL = (os.getenv("CONTROL_PLANE_URL", "http://localhost:4000") or "http://localhost:4000").rstrip("/")
 CONTROL_PLANE_CAMERA_CONFIG_URL = f"{CONTROL_PLANE_URL}/api/internal/config/cameras"
+CONTROL_PLANE_RETENTION_CONFIG_URL = f"{CONTROL_PLANE_URL}/api/internal/config/retention"
 CONTROL_PLANE_RECORDINGS_URL = f"{CONTROL_PLANE_URL}/api/recordings"
 CONTROL_PLANE_PERCEPTION_OBSERVATIONS_URL = f"{CONTROL_PLANE_URL}/api/perception/observations"
 CONTROL_PLANE_PERCEPTION_RECORDINGS_URL = f"{CONTROL_PLANE_URL}/api/perception/recordings"
 USE_CONTROL_PLANE_CAMERA_CONFIG = parse_bool_env("USE_CONTROL_PLANE_CAMERA_CONFIG", True)
 REQUIRE_CONTROL_PLANE_CAMERA_CONFIG = parse_bool_env("REQUIRE_CONTROL_PLANE_CAMERA_CONFIG", False)
+USE_CONTROL_PLANE_RETENTION_CONFIG = parse_bool_env("USE_CONTROL_PLANE_RETENTION_CONFIG", True)
+REQUIRE_CONTROL_PLANE_RETENTION_CONFIG = parse_bool_env("REQUIRE_CONTROL_PLANE_RETENTION_CONFIG", False)
+RETENTION_CONFIG_TTL_SEC = parse_positive_int_env("RETENTION_CONFIG_TTL_SEC", 60)
 USE_CONTROL_PLANE_PERCEPTION_INGEST = parse_bool_env("USE_CONTROL_PLANE_PERCEPTION_INGEST", True)
 USE_CONTROL_PLANE_RECORDING_CATALOG = parse_bool_env("USE_CONTROL_PLANE_RECORDING_CATALOG", True)
 
@@ -103,6 +132,14 @@ device_round_robin = 0
 device_lock = threading.Lock()
 motion_cache = {}   # cam_id -> {"ts": epoch, "motion": bool, "healthy": bool}
 recordings_index_lock = threading.Lock()
+retention_policy_lock = threading.Lock()
+retention_policy_state = {
+    "recordings_max_size_gb": float(DEFAULT_RECORDINGS_MAX_SIZE_GB),
+    "delete_oldest_batch": int(DEFAULT_DELETE_OLDEST_BATCH),
+    "last_fetch_ts": 0.0,
+    "last_success_ts": 0.0,
+    "source": "defaults"
+}
 
 os.makedirs(RECORDINGS_DIR, exist_ok=True)
 
@@ -334,8 +371,9 @@ def delete_recording_family(mp4_path):
 
 
 def recycle_recordings_if_needed():
+    max_size_bytes, delete_oldest_batch, max_size_gb = get_active_retention_policy()
     total_bytes = get_recordings_dir_size_bytes()
-    if total_bytes <= MAX_RECORDINGS_SIZE_BYTES:
+    if total_bytes <= max_size_bytes:
         return
 
     candidates = []
@@ -354,7 +392,7 @@ def recycle_recordings_if_needed():
             continue
 
     candidates.sort(key=lambda item: item[1])  # Older first
-    to_delete = candidates[:DELETE_OLDEST_BATCH]
+    to_delete = candidates[:delete_oldest_batch]
     if not to_delete:
         print("[RECYCLE] Size exceeded but no .mp4 candidates were found.")
         return
@@ -367,8 +405,8 @@ def recycle_recordings_if_needed():
 
     new_total = get_recordings_dir_size_bytes()
     print(
-        f"[RECYCLE] Triggered at {round(total_bytes / (1024**3), 2)} GB. "
-        f"Deleted {deleted_count} oldest videos. "
+        f"[RECYCLE] Triggered at {round(total_bytes / (1024**3), 2)} GB (limit {round(max_size_gb, 2)} GB). "
+        f"Deleted {deleted_count} oldest videos (batch {delete_oldest_batch}). "
         f"Reclaimed {round(reclaimed / (1024**3), 2)} GB. "
         f"Current size: {round(new_total / (1024**3), 2)} GB."
     )
@@ -411,6 +449,82 @@ def load_cameras():
     except Exception as e:
         print(f"Error loading cameras: {e}")
     return []
+
+
+def load_retention_from_control_plane():
+    try:
+        payload = http_json("GET", CONTROL_PLANE_RETENTION_CONFIG_URL, timeout=4)
+        retention = payload.get("retention") if isinstance(payload, dict) else None
+        if payload.get("success") and isinstance(retention, dict):
+            return retention
+    except Exception as e:
+        print(f"[CFG] Control-plane retention config unavailable: {e}")
+    return None
+
+
+def retention_snapshot_to_policy(retention):
+    if not isinstance(retention, dict):
+        return None
+    detector_recycle = retention.get("detectorRecycle")
+    max_size_gb = None
+    delete_batch = None
+    if isinstance(detector_recycle, dict):
+        max_size_gb = detector_recycle.get("recordingsMaxSizeGb")
+        delete_batch = detector_recycle.get("deleteOldestBatch")
+    if max_size_gb is None:
+        max_size_gb = retention.get("recordingsMaxSizeGb")
+    if delete_batch is None:
+        delete_batch = retention.get("deleteOldestBatch")
+
+    try:
+        max_size_gb = float(max_size_gb)
+    except Exception:
+        max_size_gb = 0.0
+    try:
+        delete_batch = int(delete_batch)
+    except Exception:
+        delete_batch = 0
+
+    if max_size_gb <= 0 or delete_batch <= 0:
+        return None
+    return {
+        "recordings_max_size_gb": max_size_gb,
+        "delete_oldest_batch": delete_batch
+    }
+
+
+def refresh_retention_policy(force=False):
+    if not USE_CONTROL_PLANE_RETENTION_CONFIG:
+        return False
+
+    now = time.time()
+    with retention_policy_lock:
+        last_fetch = float(retention_policy_state.get("last_fetch_ts", 0.0))
+    if not force and (now - last_fetch) < float(RETENTION_CONFIG_TTL_SEC):
+        return True
+
+    retention = load_retention_from_control_plane()
+    policy = retention_snapshot_to_policy(retention)
+    with retention_policy_lock:
+        retention_policy_state["last_fetch_ts"] = now
+        if policy:
+            retention_policy_state.update(policy)
+            retention_policy_state["last_success_ts"] = now
+            retention_policy_state["source"] = "control-plane"
+            return True
+
+        if REQUIRE_CONTROL_PLANE_RETENTION_CONFIG and retention_policy_state.get("last_success_ts", 0.0) <= 0:
+            print("[CFG] Control-plane retention config is required but unavailable; continuing with detector defaults.")
+        return False
+
+
+def get_active_retention_policy():
+    refresh_retention_policy()
+    with retention_policy_lock:
+        max_size_gb = float(retention_policy_state.get("recordings_max_size_gb", DEFAULT_RECORDINGS_MAX_SIZE_GB))
+        delete_batch = int(retention_policy_state.get("delete_oldest_batch", DEFAULT_DELETE_OLDEST_BATCH))
+    max_size_bytes = int(max_size_gb * 1024 * 1024 * 1024)
+    return max_size_bytes, delete_batch, max_size_gb
 
 
 def resolve_camera_credentials(cam):
@@ -1353,6 +1467,15 @@ def main():
         print("[INIT] Waiting for camera database...")
         while not os.path.exists(DATA_FILE):
             time.sleep(2)
+
+    if USE_CONTROL_PLANE_RETENTION_CONFIG:
+        print(f"[INIT] Retention config source: control-plane API ({CONTROL_PLANE_RETENTION_CONFIG_URL})")
+        refresh_retention_policy(force=True)
+    else:
+        print("[INIT] Retention config source: detector local defaults/env")
+
+    _, delete_batch, max_size_gb = get_active_retention_policy()
+    print(f"[INIT] Active recycle policy: {round(max_size_gb, 2)} GB limit, delete batch {delete_batch}")
 
     cameras = load_cameras()
     print(f"[INIT] Found {len(cameras)} cameras.")

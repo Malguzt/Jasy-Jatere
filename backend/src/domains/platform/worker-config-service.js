@@ -8,14 +8,35 @@ function workerConfigError(status, message, code = null, details = null) {
     return error;
 }
 
+function asPositiveNumber(value, fallback) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed) && parsed > 0) return parsed;
+    return fallback;
+}
+
+function asPositiveInt(value, fallback) {
+    const parsed = Number(value);
+    if (Number.isInteger(parsed) && parsed > 0) return parsed;
+    return fallback;
+}
+
+function asOptionalPositiveInt(value) {
+    if (value === undefined || value === null || value === '') return null;
+    const parsed = Number(value);
+    if (Number.isInteger(parsed) && parsed > 0) return parsed;
+    return null;
+}
+
 class WorkerConfigService {
     constructor({
         cameraInventoryService,
         streamSyncOrchestrator,
+        runtimeFlags = {},
         now = () => Date.now()
     } = {}) {
         this.cameraInventoryService = cameraInventoryService;
         this.streamSyncOrchestrator = streamSyncOrchestrator;
+        this.runtimeFlags = runtimeFlags || {};
         this.now = now;
     }
 
@@ -105,12 +126,28 @@ class WorkerConfigService {
     }
 
     getRetentionSnapshot() {
+        const recordingCatalog = {
+            enabled: Boolean(this.runtimeFlags.recordingRetentionEnabled),
+            intervalMs: asPositiveInt(this.runtimeFlags.recordingRetentionIntervalMs, 60 * 60 * 1000),
+            maxAgeDays: asOptionalPositiveInt(this.runtimeFlags.recordingRetentionMaxAgeDays),
+            maxEntries: asOptionalPositiveInt(this.runtimeFlags.recordingRetentionMaxEntries)
+        };
+        const detectorRecycle = {
+            recordingsMaxSizeGb: asPositiveNumber(this.runtimeFlags.recordingsMaxSizeGb, 50),
+            deleteOldestBatch: asPositiveInt(this.runtimeFlags.recordingsDeleteOldestBatch, 100)
+        };
+        const observation = {
+            maxEntries: asPositiveInt(this.runtimeFlags.observationMaxEntries, 2500)
+        };
+
         return {
             snapshotAt: this.now(),
             retention: {
-                recordingsMaxSizeGb: Number(process.env.RECORDINGS_MAX_SIZE_GB || 50),
-                deleteOldestBatch: Number(process.env.RECORDINGS_DELETE_OLDEST_BATCH || 100),
-                observationMaxEntries: Number(process.env.OBSERVATION_MAX_ENTRIES || 2500)
+                ...detectorRecycle,
+                observationMaxEntries: observation.maxEntries,
+                recordingCatalog,
+                detectorRecycle,
+                observation
             }
         };
     }

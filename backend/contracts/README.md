@@ -13,6 +13,7 @@ Current scope:
 - stream control requests
 - perception ingest requests
 - recording catalog ingest requests
+- internal worker-config snapshots (cameras, streams, retention)
 
 Notes:
 

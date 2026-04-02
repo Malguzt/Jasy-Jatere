@@ -170,6 +170,8 @@ During migration the control plane can expose:
 - `GET /api/internal/config/streams`
 - `GET /api/internal/config/retention`
 
+The retention snapshot includes both control-plane catalog policy (`recordingCatalog`) and detector recycle compatibility policy (`detectorRecycle`) so workers can align runtime behavior while legacy local cleanup paths are still active.
+
 When snapshot consumption is stable, worker deployments should stop mounting shared `backend/data` volumes for camera config reads.
 
 ### Metadata repositories and compatibility exports

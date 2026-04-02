@@ -1,0 +1,115 @@
+{
+  "$id": "jasy-jatere/internal-retention-config-snapshot",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Internal Retention Config Snapshot",
+  "type": "object",
+  "required": [
+    "success",
+    "snapshotAt",
+    "retention"
+  ],
+  "properties": {
+    "success": {
+      "type": "boolean"
+    },
+    "snapshotAt": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "retention": {
+      "type": "object",
+      "required": [
+        "recordingsMaxSizeGb",
+        "deleteOldestBatch",
+        "observationMaxEntries",
+        "recordingCatalog",
+        "detectorRecycle",
+        "observation"
+      ],
+      "properties": {
+        "recordingsMaxSizeGb": {
+          "type": "number",
+          "minimum": 0.000001
+        },
+        "deleteOldestBatch": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "observationMaxEntries": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "recordingCatalog": {
+          "type": "object",
+          "required": [
+            "enabled",
+            "intervalMs",
+            "maxAgeDays",
+            "maxEntries"
+          ],
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "intervalMs": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "maxAgeDays": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1
+            },
+            "maxEntries": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1
+            }
+          },
+          "additionalProperties": true
+        },
+        "detectorRecycle": {
+          "type": "object",
+          "required": [
+            "recordingsMaxSizeGb",
+            "deleteOldestBatch"
+          ],
+          "properties": {
+            "recordingsMaxSizeGb": {
+              "type": "number",
+              "minimum": 0.000001
+            },
+            "deleteOldestBatch": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "additionalProperties": true
+        },
+        "observation": {
+          "type": "object",
+          "required": [
+            "maxEntries"
+          ],
+          "properties": {
+            "maxEntries": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": true
+    },
+    "correlationId": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "additionalProperties": true
+}

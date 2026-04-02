@@ -9,16 +9,16 @@ Each phase should produce a working system and avoid a large-bang rewrite.
 
 ## Implementation Progress Snapshot (April 2, 2026)
 
-- Phase 0: in progress with schema-validated contracts extended for stream sync, perception ingest, and recording catalog upsert payloads.
+- Phase 0: in progress with schema-validated contracts extended for stream sync, perception ingest, recording catalog upsert payloads, and internal worker-config snapshots (`/api/internal/config/cameras|streams|retention`).
 - Phase 1: in progress with backend app composition split into domain services, runtime coordinator, and dedicated routers.
 - Phase 2: in progress with SQLite-backed metadata repositories for camera inventory, recording catalog, observations, map versions, map jobs, and manual map corrections, all with legacy JSON compatibility exports.
-- Phase 3: in progress with worker-facing internal config APIs (`/api/internal/config/*`), detector camera-config consumption through control-plane snapshots, and strict no-shared-file mode via `REQUIRE_CONTROL_PLANE_CAMERA_CONFIG`.
+- Phase 3: in progress with worker-facing internal config APIs (`/api/internal/config/*`), detector camera-config and retention-policy consumption through control-plane snapshots, and strict no-shared-file mode via `REQUIRE_CONTROL_PLANE_CAMERA_CONFIG`.
 - Phase 4A: in progress with stream orchestration extracted into stream control services and WS gateway modules, plus lifecycle toggles (`STREAM_RUNTIME_ENABLED`, `STREAM_WEBSOCKET_GATEWAY_ENABLED`), transport capability negotiation (`GET /api/streams/capabilities`, `STREAM_WEBRTC_ENABLED`, `STREAM_WEBRTC_REQUIRE_HTTPS`), and proxy support (`STREAM_GATEWAY_API_URL`) to support gradual runtime separation.
 - Phase 5: in progress with perception ingest and control-plane-owned recording catalog APIs (`/api/perception/*`, `/api/recordings`).
 - Phase 6: in progress with health and monitoring APIs modularized under dedicated services and connectivity snapshots persisted through repository adapters.
 - Phase 7: in progress with map job persistence in metadata store, map queue inputs sourced from repository-backed camera and observation metadata, mapper-first fallback execution (no backend local fallback path in runtime), and detector-event fallback gated behind `MAP_USE_DETECTOR_EVENTS_FALLBACK`.
 - Phase 8: in progress with a typed frontend API client, stream capability-aware live view wiring, and domain query hooks (`frontend/src/api/hooks.js`) replacing component-local polling/fetch logic for recordings, connectivity monitoring, dashboard camera/detector status, map workspace jobs/history/state, and discovery scan state in the onboarding flow.
-- Phase 9: in progress with compose networking moved from host-network coupling to explicit service networking and health checks, worker runtime decoupling from shared `backend/data` mounts where control-plane snapshots are enforced, optional at-rest camera credential encryption via `CAMERA_CREDENTIALS_MASTER_KEY`, explicit liveness/readiness probes (`/livez`, `/readyz`), and control-plane-managed recording retention job wiring (`RECORDING_RETENTION_*`).
+- Phase 9: in progress with compose networking moved from host-network coupling to explicit service networking and health checks, worker runtime decoupling from shared `backend/data` mounts where control-plane snapshots are enforced, optional at-rest camera credential encryption via `CAMERA_CREDENTIALS_MASTER_KEY`, explicit liveness/readiness probes (`/livez`, `/readyz`), control-plane-managed recording retention job wiring (`RECORDING_RETENTION_*`), and centralized retention/recycle knobs (`RECORDINGS_*`, `OBSERVATION_MAX_ENTRIES`) exposed through worker config snapshots.
 - Phase 10: in progress with import-script test coverage for legacy JSON migration into repository-backed SQLite state.
 
 ## Starting Point Summary

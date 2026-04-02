@@ -1,0 +1,91 @@
+{
+  "$id": "jasy-jatere/internal-stream-config-snapshot",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Internal Stream Config Snapshot",
+  "type": "object",
+  "required": [
+    "success",
+    "snapshotAt",
+    "streamCount",
+    "streams"
+  ],
+  "properties": {
+    "success": {
+      "type": "boolean"
+    },
+    "snapshotAt": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "streamCount": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "streams": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "type"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "type": {
+            "type": "string",
+            "minLength": 1
+          },
+          "rtspUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "allRtspUrls": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "reconstructor": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "main": {
+                "type": "string",
+                "minLength": 1
+              },
+              "sub": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "main",
+              "sub"
+            ],
+            "additionalProperties": true
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "runtime": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": true
+    },
+    "correlationId": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "additionalProperties": true
+}

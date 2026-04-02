@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const {
     parseBoolEnv,
     parsePositiveIntEnv,
+    parsePositiveNumberEnv,
     parseOptionalPositiveIntEnv,
     resolveRuntimeFlags
 } = require('../src/app/runtime-flags');
@@ -30,7 +31,10 @@ test('resolveRuntimeFlags returns stream-related runtime toggles', () => {
         RECORDING_RETENTION_ENABLED: '1',
         RECORDING_RETENTION_INTERVAL_MS: '120000',
         RECORDING_RETENTION_MAX_AGE_DAYS: '14',
-        RECORDING_RETENTION_MAX_ENTRIES: '500'
+        RECORDING_RETENTION_MAX_ENTRIES: '500',
+        RECORDINGS_MAX_SIZE_GB: '64.5',
+        RECORDINGS_DELETE_OLDEST_BATCH: '77',
+        OBSERVATION_MAX_ENTRIES: '900'
     });
 
     assert.deepEqual(flags, {
@@ -42,7 +46,10 @@ test('resolveRuntimeFlags returns stream-related runtime toggles', () => {
         recordingRetentionEnabled: true,
         recordingRetentionIntervalMs: 120000,
         recordingRetentionMaxAgeDays: 14,
-        recordingRetentionMaxEntries: 500
+        recordingRetentionMaxEntries: 500,
+        recordingsMaxSizeGb: 64.5,
+        recordingsDeleteOldestBatch: 77,
+        observationMaxEntries: 900
     });
 });
 
@@ -55,4 +62,10 @@ test('parsePositiveIntEnv and parseOptionalPositiveIntEnv normalize retention se
     assert.equal(parseOptionalPositiveIntEnv(''), null);
     assert.equal(parseOptionalPositiveIntEnv('0'), null);
     assert.equal(parseOptionalPositiveIntEnv('bad'), null);
+});
+
+test('parsePositiveNumberEnv normalizes decimal settings', () => {
+    assert.equal(parsePositiveNumberEnv('60.5', 1), 60.5);
+    assert.equal(parsePositiveNumberEnv('0', 42), 42);
+    assert.equal(parsePositiveNumberEnv('bad', 42), 42);
 });

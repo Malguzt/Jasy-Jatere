@@ -69,6 +69,7 @@ The perception service should not read `cameras.json` or infer topology from bac
 During migration, the perception and recording flow can be wired through these APIs:
 
 - `GET /api/internal/config/cameras`
+- `GET /api/internal/config/retention`
 - `POST /api/perception/observations`
 - `GET /api/perception/observations`
 - `POST /api/perception/recordings`
@@ -78,6 +79,7 @@ During migration, the perception and recording flow can be wired through these A
 Legacy detector-local recording endpoints may remain temporarily for compatibility, but frontend and map workflows should move to control-plane-owned catalog APIs.
 
 Operationally, control-plane camera config can be enforced with `REQUIRE_CONTROL_PLANE_CAMERA_CONFIG=1` so detector workers do not fall back to shared `cameras.json` reads when control-plane snapshots are unavailable.
+Retention recycling can also consume control-plane snapshots with `USE_CONTROL_PLANE_RETENTION_CONFIG=1` (and optional strict mode via `REQUIRE_CONTROL_PLANE_RETENTION_CONFIG=1`) so detector-side disk recycling policy is aligned with control-plane runtime settings.
 
 ## Failure Modes
 

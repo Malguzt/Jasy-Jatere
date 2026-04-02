@@ -12,6 +12,12 @@ function parsePositiveIntEnv(value, fallback) {
     return fallback;
 }
 
+function parsePositiveNumberEnv(value, fallback) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed) && parsed > 0) return parsed;
+    return fallback;
+}
+
 function parseOptionalPositiveIntEnv(value) {
     if (value === undefined || value === null || value === '') return null;
     const parsed = Number(value);
@@ -29,13 +35,17 @@ function resolveRuntimeFlags(env = process.env) {
         recordingRetentionEnabled: parseBoolEnv(env.RECORDING_RETENTION_ENABLED, false),
         recordingRetentionIntervalMs: parsePositiveIntEnv(env.RECORDING_RETENTION_INTERVAL_MS, 60 * 60 * 1000),
         recordingRetentionMaxAgeDays: parseOptionalPositiveIntEnv(env.RECORDING_RETENTION_MAX_AGE_DAYS),
-        recordingRetentionMaxEntries: parseOptionalPositiveIntEnv(env.RECORDING_RETENTION_MAX_ENTRIES)
+        recordingRetentionMaxEntries: parseOptionalPositiveIntEnv(env.RECORDING_RETENTION_MAX_ENTRIES),
+        recordingsMaxSizeGb: parsePositiveNumberEnv(env.RECORDINGS_MAX_SIZE_GB, 50),
+        recordingsDeleteOldestBatch: parsePositiveIntEnv(env.RECORDINGS_DELETE_OLDEST_BATCH, 100),
+        observationMaxEntries: parsePositiveIntEnv(env.OBSERVATION_MAX_ENTRIES, 2500)
     };
 }
 
 module.exports = {
     parseBoolEnv,
     parsePositiveIntEnv,
+    parsePositiveNumberEnv,
     parseOptionalPositiveIntEnv,
     resolveRuntimeFlags
 };

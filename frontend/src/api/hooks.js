@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { apiClient } from './client';
 
 export function useRecordingsData() {
@@ -381,5 +381,236 @@ export function useDiscoveryData() {
         error,
         setError,
         startScan
+    };
+}
+
+export function useCameraOnboardingData(camera) {
+    const [user, setUser] = useState('');
+    const [pass, setPass] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [details, setDetails] = useState(null);
+    const [error, setError] = useState('');
+
+    useEffect(() => {
+        setUser('');
+        setPass('');
+        setLoading(false);
+        setDetails(null);
+        setError('');
+    }, [camera?.address]);
+
+    const connect = async () => {
+        setLoading(true);
+        setError('');
+        try {
+            const data = await apiClient.connectCamera({ url: camera?.address, user, pass });
+            if (data?.success) {
+                setDetails(data);
+                return { success: true, details: data };
+            }
+            const nextError = data?.error || 'Error de autenticación. Verifica las credenciales.';
+            setError(nextError);
+            return { success: false, error: nextError };
+        } catch (connectError) {
+            const nextError = 'Error de conexión con el backend.';
+            setError(nextError);
+            return { success: false, error: nextError, details: connectError };
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const saveProfile = async (profile) => {
+        if (!profile?.rtspUrl) {
+            return { success: false, error: 'RTSP no disponible para guardar.' };
+        }
+
+        const payload = {
+            name: `${camera?.name || 'Cámara'} - ${profile.name}`,
+            rtspUrl: profile.rtspUrl,
+            ip: camera?.address,
+            user,
+            pass
+        };
+
+        if (profile.token === 'combined_ai') {
+            const profiles = Array.isArray(details?.profiles) ? details.profiles : [];
+            const candidates = profiles
+                .filter((item) => item.token !== 'combined_ai' && item.rtspUrl)
+                .map((item) => ({
+                    url: item.rtspUrl,
+                    label: `${item.name || 'Canal'} ${item.resolution ? `(${item.resolution})` : ''}`.trim()
+                }));
+            payload.type = 'combined';
+            payload.allRtspUrls = candidates.map((candidate) => candidate.url);
+            payload.sourceLabels = candidates.map((candidate) => candidate.label);
+        }
+
+        try {
+            const data = await apiClient.createSavedCamera(payload);
+            if (!data?.success) {
+                const validationErrors = (data?.validation?.errors || []).join(' | ');
+                const detail = validationErrors ? `\nDetalle: ${validationErrors}` : '';
+                return {
+                    success: false,
+                    error: `Error al guardar: ${data?.error || 'Error desconocido'}${detail}`
+                };
+            }
+
+            if (data?.validation && data.validation.ok === false) {
+                const validationErrors = (data?.validation?.errors || []).join(' | ');
+                const detail = validationErrors ? `\nDiagnóstico: ${validationErrors}` : '';
+                return {
+                    success: true,
+                    warning: `Guardada con advertencias para diagnóstico.${detail}`
+                };
+            }
+            return { success: true, message: '¡Guardada en el Dashboard!' };
+        } catch (saveError) {
+            return { success: false, error: 'Error de red', details: saveError };
+        }
+    };
+
+    return {
+        user,
+        setUser,
+        pass,
+        setPass,
+        loading,
+        details,
+        error,
+        connect,
+        saveProfile
+    };
+}
+
+export function useCameraStreamData(camera) {
+    const [localCamera, setLocalCamera] = useState(camera);
+    const [isPtzAction, setIsPtzAction] = useState(false);
+    const [lightOn, setLightOn] = useState(false);
+    const [lightLoading, setLightLoading] = useState(false);
+    const capabilitiesRef = useRef(null);
+
+    useEffect(() => {
+        setLocalCamera(camera);
+        setIsPtzAction(false);
+        setLightOn(false);
+        setLightLoading(false);
+        capabilitiesRef.current = null;
+    }, [camera?.id]);
+
+    const resolveStreamTransport = async () => {
+        if (!capabilitiesRef.current) {
+            try {
+                const payload = await apiClient.getStreamCapabilities();
+                if (payload?.success && payload.capabilities) {
+                    capabilitiesRef.current = payload.capabilities;
+                }
+            } catch (error) {}
+        }
+
+        const capabilities = capabilitiesRef.current || null;
+        const preferred = String(capabilities?.defaultTransport || 'jsmpeg').toLowerCase();
+        const jsmpegEnabled = capabilities?.transports?.jsmpeg?.enabled !== false;
+        const webrtcFallbackWarning = preferred === 'webrtc' && jsmpegEnabled
+            ? 'WebRTC policy selected. Falling back to JSMpeg transport in this build.'
+            : '';
+
+        return {
+            transport: jsmpegEnabled ? 'jsmpeg' : null,
+            warning: webrtcFallbackWarning
+        };
+    };
+
+    const updateAuthCredentials = async (credentials = {}) => {
+        try {
+            const data = await apiClient.patchSavedCamera(localCamera?.id, {
+                user: credentials.user,
+                pass: credentials.pass
+            });
+            if (!data?.success || !data?.camera) {
+                return { success: false, error: data?.error || 'Error actualizando credenciales' };
+            }
+            setLocalCamera(data.camera);
+            return { success: true, camera: data.camera };
+        } catch (error) {
+            return { success: false, error: 'Error de red al actualizar', details: error };
+        }
+    };
+
+    const stopPtz = async () => {
+        try {
+            await apiClient.stopPtz({
+                url: localCamera?.ip,
+                user: localCamera?.user,
+                pass: localCamera?.pass || ''
+            });
+        } finally {
+            setIsPtzAction(false);
+        }
+    };
+
+    const movePtz = async (direction) => {
+        if (!direction) return;
+        setIsPtzAction(true);
+        try {
+            await apiClient.movePtz({
+                url: localCamera?.ip,
+                user: localCamera?.user,
+                pass: localCamera?.pass || '',
+                direction
+            });
+            setTimeout(() => {
+                stopPtz().catch(() => {});
+            }, 600);
+        } catch (error) {
+            setIsPtzAction(false);
+            throw error;
+        }
+    };
+
+    const takeSnapshot = async () => apiClient.takeCameraSnapshot({
+        url: localCamera?.ip,
+        user: localCamera?.user,
+        pass: localCamera?.pass || ''
+    });
+
+    const toggleLight = async () => {
+        if (!localCamera?.ip || lightLoading) {
+            return { success: false, error: 'Camera does not support light control' };
+        }
+        setLightLoading(true);
+        try {
+            const nextEnabled = !lightOn;
+            const data = await apiClient.toggleCameraLight({
+                url: localCamera.ip,
+                user: localCamera.user,
+                pass: localCamera.pass || '',
+                enabled: nextEnabled
+            });
+            if (!data?.success) {
+                throw new Error(data?.error || 'No se pudo cambiar la luz');
+            }
+            setLightOn(nextEnabled);
+            return { success: true, enabled: nextEnabled };
+        } catch (error) {
+            return { success: false, error: error?.message || 'No se pudo controlar la luz ONVIF en esta cámara.' };
+        } finally {
+            setLightLoading(false);
+        }
+    };
+
+    return {
+        localCamera,
+        isPtzAction,
+        lightOn,
+        lightLoading,
+        setLocalCamera,
+        resolveStreamTransport,
+        updateAuthCredentials,
+        movePtz,
+        stopPtz,
+        takeSnapshot,
+        toggleLight
     };
 }

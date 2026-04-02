@@ -1,43 +1,33 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Loader, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Plus, Minus, Camera as CameraIcon, RefreshCw, Lock, Save, X, Lightbulb, LightbulbOff } from 'lucide-react';
-import { apiClient } from '../api/client';
+import { useCameraStreamData } from '../api/hooks';
 
 const CameraStream = ({ camera }) => {
     const canvasRef = useRef(null);
     const [status, setStatus] = useState('Conectando video...');
-    const [isPtzAction, setIsPtzAction] = useState(false);
     const [isEditingAuth, setIsEditingAuth] = useState(false);
-    const [tempUser, setTempUser] = useState(camera.user || '');
-    const [tempPass, setTempPass] = useState(camera.pass || '');
-    const [localCamera, setLocalCamera] = useState(camera);
+    const [tempUser, setTempUser] = useState('');
+    const [tempPass, setTempPass] = useState('');
     const [showControls, setShowControls] = useState(false);
-    const [lightOn, setLightOn] = useState(false);
-    const [lightLoading, setLightLoading] = useState(false);
-
     const [retryCount, setRetryCount] = useState(0);
     const [error, setError] = useState(null);
     let playerRef = useRef(null);
-    const capabilitiesRef = useRef(null);
+    const {
+        localCamera,
+        isPtzAction,
+        lightOn,
+        lightLoading,
+        resolveStreamTransport,
+        updateAuthCredentials,
+        movePtz,
+        takeSnapshot: requestSnapshot,
+        toggleLight: toggleLightState
+    } = useCameraStreamData(camera);
 
-    const resolveStreamTransport = async () => {
-        if (!capabilitiesRef.current) {
-            try {
-                const payload = await apiClient.getStreamCapabilities();
-                if (payload?.success && payload.capabilities) {
-                    capabilitiesRef.current = payload.capabilities;
-                }
-            } catch (e) {}
-        }
-
-        const capabilities = capabilitiesRef.current || null;
-        const preferred = String(capabilities?.defaultTransport || 'jsmpeg').toLowerCase();
-        const jsmpegEnabled = capabilities?.transports?.jsmpeg?.enabled !== false;
-
-        if (preferred === 'webrtc' && jsmpegEnabled) {
-            setStatus('WebRTC policy selected. Falling back to JSMpeg transport in this build.');
-            return 'jsmpeg';
-        }
-        return jsmpegEnabled ? 'jsmpeg' : null;
+    const resolveSelectedTransport = async () => {
+        const transport = await resolveStreamTransport();
+        if (transport.warning) setStatus(transport.warning);
+        return transport.transport;
     };
 
     const startJsmpegStream = () => {
@@ -77,7 +67,7 @@ const CameraStream = ({ camera }) => {
     };
 
     const startStream = async () => {
-        const selectedTransport = await resolveStreamTransport();
+        const selectedTransport = await resolveSelectedTransport();
         if (selectedTransport !== 'jsmpeg') {
             setError('No stream transport available for this client.');
             setStatus('Error de transporte de streaming.');
@@ -99,23 +89,19 @@ const CameraStream = ({ camera }) => {
 
     const updateAuth = async (e) => {
         e.preventDefault();
-        try {
-            const data = await apiClient.patchSavedCamera(localCamera.id, { user: tempUser, pass: tempPass });
-            if (data.success) {
-                setLocalCamera(data.camera);
-                setIsEditingAuth(false);
-                // El useEffect de localCamera volverá a disparar startStream
-            } else {
-                alert('Error actualizando credenciales');
-            }
-        } catch (e) {
-            alert('Error de red al actualizar');
+        const result = await updateAuthCredentials({ user: tempUser, pass: tempPass });
+        if (result?.success) {
+            setIsEditingAuth(false);
+            setRetryCount(0);
+            return;
         }
+        alert(result?.error || 'Error actualizando credenciales');
     };
 
     useEffect(() => {
-        capabilitiesRef.current = null;
-    }, [localCamera.id]);
+        setTempUser(localCamera?.user || '');
+        setTempPass(localCamera?.pass || '');
+    }, [localCamera?.id, localCamera?.user, localCamera?.pass]);
 
     useEffect(() => {
         startStream();
@@ -127,39 +113,16 @@ const CameraStream = ({ camera }) => {
 
 
     const handlePtz = async (direction) => {
-        setIsPtzAction(true);
         try {
-            await apiClient.movePtz({
-                url: localCamera.ip,
-                user: localCamera.user,
-                pass: localCamera.pass || '',
-                direction
-            });
-            setTimeout(() => stopPtz(), 600);
+            await movePtz(direction);
         } catch (e) {
             console.error('PTZ error', e);
         }
     };
 
-    const stopPtz = async () => {
-        try {
-            await apiClient.stopPtz({
-                url: localCamera.ip,
-                user: localCamera.user,
-                pass: localCamera.pass || ''
-            });
-        } finally {
-            setIsPtzAction(false);
-        }
-    };
-
     const takeSnapshot = async () => {
         try {
-            const blob = await apiClient.takeCameraSnapshot({
-                url: localCamera.ip,
-                user: localCamera.user,
-                pass: localCamera.pass || ''
-            });
+            const blob = await requestSnapshot();
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
@@ -173,22 +136,9 @@ const CameraStream = ({ camera }) => {
     };
 
     const toggleLight = async () => {
-        if (!localCamera?.ip || lightLoading) return;
-        setLightLoading(true);
-        try {
-            const next = !lightOn;
-            const data = await apiClient.toggleCameraLight({
-                url: localCamera.ip,
-                user: localCamera.user,
-                pass: localCamera.pass || '',
-                enabled: next
-            });
-            if (!data.success) throw new Error(data.error || 'No se pudo cambiar la luz');
-            setLightOn(next);
-        } catch (e) {
+        const result = await toggleLightState();
+        if (!result?.success) {
             alert('No se pudo controlar la luz ONVIF en esta cámara.');
-        } finally {
-            setLightLoading(false);
         }
     };
 

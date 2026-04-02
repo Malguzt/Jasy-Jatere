@@ -1,76 +1,41 @@
 import React, { useState } from 'react';
 import './CameraDetailsModal.css';
 import { X, Lock, Unlock, Loader, Video, Settings, Play, Save } from 'lucide-react';
-import { apiClient } from '../api/client';
+import { useCameraOnboardingData } from '../api/hooks';
 
 const CameraDetailsModal = ({ camera, onClose }) => {
-    const [user, setUser] = useState('');
-    const [pass, setPass] = useState('');
-    const [loading, setLoading] = useState(false);
-    const [details, setDetails] = useState(null);
-    const [error, setError] = useState('');
+    const {
+        user,
+        setUser,
+        pass,
+        setPass,
+        loading,
+        details,
+        error,
+        connect,
+        saveProfile
+    } = useCameraOnboardingData(camera);
+    const [savingToken, setSavingToken] = useState('');
 
     const handleConnect = async (e) => {
         e.preventDefault();
-        setLoading(true);
-        setError('');
-        try {
-           const data = await apiClient.connectCamera({ url: camera.address, user, pass });
-           if(data.success) {
-               setDetails(data);
-           } else {
-               setError(data.error || 'Error de autenticación. Verifica las credenciales.');
-           }
-        } catch (err) {
-            setError('Error de conexión con el backend.');
-            console.error(err);
-        }
-        setLoading(false);
+        await connect();
     };
 
     const handleSave = async (profile) => {
-        if (!profile.rtspUrl) return alert("RTSP no disponible para guardar.");
-        
-        const payload = { 
-            name: `${camera.name || 'Cámara'} - ${profile.name}`, 
-            rtspUrl: profile.rtspUrl, 
-            ip: camera.address,
-            user,
-            pass
-        };
-
-        // If it's the combined profile, include ALL rtspUrls
-        if (profile.token === 'combined_ai') {
-            const candidates = details.profiles
-                .filter(p => p.token !== 'combined_ai' && p.rtspUrl)
-                .map((p) => ({
-                    url: p.rtspUrl,
-                    label: `${p.name || 'Canal'} ${p.resolution ? `(${p.resolution})` : ''}`.trim()
-                }));
-            payload.type = 'combined';
-            payload.allRtspUrls = candidates.map((c) => c.url);
-            payload.sourceLabels = candidates.map((c) => c.label);
+        if (!profile?.rtspUrl) {
+            alert('RTSP no disponible para guardar.');
+            return;
         }
-
-        try {
-            const data = await apiClient.createSavedCamera(payload);
-            if (data.success) {
-                if (data.validation && data.validation.ok === false) {
-                    const validationErrors = (data?.validation?.errors || []).join(' | ');
-                    const detail = validationErrors ? `\nDiagnóstico: ${validationErrors}` : '';
-                    alert('Guardada con advertencias para diagnóstico.' + detail);
-                } else {
-                    alert('¡Guardada en el Dashboard!');
-                }
-                onClose();
-            } else {
-                const validationErrors = (data?.validation?.errors || []).join(' | ');
-                const detail = validationErrors ? `\nDetalle: ${validationErrors}` : '';
-                alert('Error al guardar: ' + (data.error || 'Error desconocido') + detail);
-            }
-        } catch (e) {
-            alert('Error de red');
+        setSavingToken(profile.token || profile.name || 'unknown');
+        const result = await saveProfile(profile);
+        setSavingToken('');
+        if (result?.success) {
+            alert(result.warning || result.message || '¡Guardada en el Dashboard!');
+            onClose();
+            return;
         }
+        alert(result?.error || 'Error de red');
     };
 
     return (
@@ -118,8 +83,16 @@ const CameraDetailsModal = ({ camera, onClose }) => {
                                         <div className="rtsp-url-box">
                                             <Play size={14} />
                                             <input readOnly value={prof.rtspUrl || 'No disponible'} onClick={(e) => e.target.select()} />
-                                            <button className="btn" style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }} onClick={() => handleSave(prof)}>
-                                                <Save size={14} /> Guardar
+                                            <button
+                                                className="btn"
+                                                style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}
+                                                onClick={() => handleSave(prof)}
+                                                disabled={savingToken === (prof.token || prof.name || 'unknown')}
+                                            >
+                                                {savingToken === (prof.token || prof.name || 'unknown')
+                                                    ? <Loader className="spin" size={14} />
+                                                    : <Save size={14} />}
+                                                {savingToken === (prof.token || prof.name || 'unknown') ? 'Guardando...' : 'Guardar'}
                                             </button>
                                         </div>
                                      </div>

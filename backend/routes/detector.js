@@ -1,10 +1,8 @@
 const express = require('express');
 const { DetectorProxyService } = require('../src/domains/perception/detector-proxy-service');
-const { RecordingCatalogService } = require('../src/domains/recordings/recording-catalog-service');
 
 const router = express.Router();
 const detectorProxyService = new DetectorProxyService();
-const recordingCatalogService = new RecordingCatalogService();
 
 router.get('/status', async (req, res) => {
     const payload = await detectorProxyService.readStatus();
@@ -16,28 +14,24 @@ router.get('/events', async (req, res) => {
     return res.json(payload);
 });
 
-router.get('/recordings', async (req, res) => {
-    try {
-        const recordings = recordingCatalogService.listRecordings(req.query || {});
-        return res.json({ success: true, recordings });
-    } catch (error) {
-        return res.status(500).json({
-            success: false,
-            error: error?.message || 'Failed to load recordings'
-        });
-    }
+router.get('/recordings', (req, res) => {
+    res.set('x-deprecated-endpoint', '/api/detector/recordings');
+    res.set('x-replacement-endpoint', '/api/recordings');
+    return res.status(410).json({
+        success: false,
+        error: 'Endpoint retired. Use /api/recordings',
+        code: 'DETECTOR_RECORDINGS_ENDPOINT_RETIRED'
+    });
 });
 
-router.delete('/recordings/:filename', async (req, res) => {
-    try {
-        const outcome = recordingCatalogService.removeRecording(req.params.filename);
-        return res.json({ success: true, ...outcome });
-    } catch (error) {
-        return res.status(Number(error?.status) || 500).json({
-            success: false,
-            error: error?.message || 'Failed to delete recording'
-        });
-    }
+router.delete('/recordings/:filename', (req, res) => {
+    res.set('x-deprecated-endpoint', '/api/detector/recordings/:filename');
+    res.set('x-replacement-endpoint', '/api/recordings/:filename');
+    return res.status(410).json({
+        success: false,
+        error: 'Endpoint retired. Use /api/recordings/:filename',
+        code: 'DETECTOR_RECORDING_DELETE_ENDPOINT_RETIRED'
+    });
 });
 
 module.exports = router;

@@ -43,6 +43,12 @@ test('createBackendApp serves canonical camera API namespace and retires legacy 
 
         assert.equal(canonical.status, 400);
         assert.equal(legacy.status, 404);
+
+        const detectorRecordingsLegacy = await fetch(`${baseUrl}/api/detector/recordings`);
+        const detectorRecordingsLegacyPayload = await detectorRecordingsLegacy.json();
+        assert.equal(detectorRecordingsLegacy.status, 410);
+        assert.equal(detectorRecordingsLegacyPayload.success, false);
+        assert.equal(detectorRecordingsLegacyPayload.code, 'DETECTOR_RECORDINGS_ENDPOINT_RETIRED');
     } finally {
         await new Promise((resolve) => server.close(resolve));
     }

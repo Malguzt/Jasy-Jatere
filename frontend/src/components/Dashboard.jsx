@@ -2,25 +2,23 @@ import React, { useEffect, useState } from 'react';
 import CameraStream from './CameraStream';
 import DetectionBadge from './DetectionBadge';
 import { Trash2, ShieldAlert, Star } from 'lucide-react';
-import { apiClient } from '../api/client';
+import { useDetectorStatusData, useSavedCamerasData } from '../api/hooks';
 
 const Dashboard = () => {
-    const [savedCameras, setSavedCameras] = useState([]);
+    const { savedCameras, removeCamera } = useSavedCamerasData();
+    const { detectorStatus } = useDetectorStatusData({ pollMs: 2000 });
     const [featuredIds, setFeaturedIds] = useState([]);
-    const [detectorStatus, setDetectorStatus] = useState({});
 
-    useEffect(() => { fetchCameras(); }, []);
-
-    // Poll detector status every 2 seconds
     useEffect(() => {
-        const poll = setInterval(async () => {
-            try {
-                const data = await apiClient.getDetectorStatus();
-                if (data.cameras) setDetectorStatus(data.cameras);
-            } catch (e) { /* detector offline */ }
-        }, 2000);
-        return () => clearInterval(poll);
-    }, []);
+        if (featuredIds.length > 0) return;
+        if (savedCameras.length >= 2) {
+            setFeaturedIds([savedCameras[0].id, savedCameras[1].id]);
+            return;
+        }
+        if (savedCameras.length === 1) {
+            setFeaturedIds([savedCameras[0].id]);
+        }
+    }, [savedCameras.length, featuredIds.length]);
 
     const markActivity = (camId) => {
         setFeaturedIds(prev => {
@@ -29,27 +27,10 @@ const Dashboard = () => {
         });
     };
 
-    const fetchCameras = async () => {
-        try {
-            const data = await apiClient.listSavedCameras();
-            if (data.success) {
-                setSavedCameras(data.cameras);
-                if (data.cameras.length >= 2 && featuredIds.length === 0) {
-                    setFeaturedIds([data.cameras[0].id, data.cameras[1].id]);
-                } else if (data.cameras.length === 1 && featuredIds.length === 0) {
-                    setFeaturedIds([data.cameras[0].id]);
-                }
-            }
-        } catch (error) {
-            console.error('Error fetching cameras', error);
-        }
-    };
-
     const deleteCamera = async (id) => {
         try {
-            await apiClient.deleteSavedCamera(id);
+            await removeCamera(id);
             setFeaturedIds(prev => prev.filter(fid => fid !== id));
-            fetchCameras();
         } catch (error) {
             console.error('Error deleting', error);
         }

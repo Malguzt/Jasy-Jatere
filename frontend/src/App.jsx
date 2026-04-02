@@ -7,7 +7,7 @@ import Recordings from './components/Recordings';
 import ConnectivityMonitor from './components/ConnectivityMonitor';
 import MapView from './components/MapView';
 import { Search, Plus, LayoutDashboard, Radar, Video, Activity, Map as MapIcon } from 'lucide-react';
-import { apiClient } from './api/client';
+import { useDiscoveryData } from './api/hooks';
 import './index.css';
 
 function App() {
@@ -19,8 +19,7 @@ function App() {
   };
 
   const [activeTab, setActiveTab] = useState(parseTabFromHash);
-  const [cameras, setCameras] = useState([]);
-  const [isScanning, setIsScanning] = useState(false);
+  const { cameras, isScanning, startScan: runDiscoveryScan } = useDiscoveryData();
   const [selectedCamera, setSelectedCamera] = useState(null);
 
   const navigateToTab = (tab) => {
@@ -44,20 +43,11 @@ function App() {
 
   const startScan = async () => {
     navigateToTab('radar');
-    setIsScanning(true);
-    setCameras([]);
-    try {
-      const data = await apiClient.discoverCameras();
-      if(data.success) {
-         setCameras(data.devices);
-      } else {
-         alert('Error scanning: ' + data.error);
-      }
-    } catch (error) {
-       console.error(error);
-       alert('Error de conexión con el backend. Asegúrate de que el servidor está corriendo.');
+    const result = await runDiscoveryScan();
+    if (!result?.success) {
+      const message = result?.error || 'Error de conexión con el backend. Asegúrate de que el servidor está corriendo.';
+      alert(`Error scanning: ${message}`);
     }
-    setIsScanning(false);
   };
 
   const handleManualEntry = () => {

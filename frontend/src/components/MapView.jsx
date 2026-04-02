@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, Camera, CheckCircle2, Clock3, Play, Plus, RefreshCw, Save, Trash2 } from 'lucide-react';
 import MapToolbar from './MapToolbar';
-import { apiClient } from '../api/client';
+import { useMapData } from '../api/hooks';
 
 const CATEGORY_COLORS = {
     vehiculo: '#4dabf7',
@@ -72,63 +72,30 @@ function createEmptyManualObject(defaultCameraId = '') {
 }
 
 const MapView = () => {
-    const [latestMap, setLatestMap] = useState(null);
-    const [history, setHistory] = useState([]);
-    const [activeMapId, setActiveMapId] = useState(null);
-    const [savedCameraCount, setSavedCameraCount] = useState(0);
-    const [savedCameras, setSavedCameras] = useState([]);
-    const [job, setJob] = useState(null);
-    const [loading, setLoading] = useState(true);
-    const [busy, setBusy] = useState(false);
-    const [error, setError] = useState('');
+    const {
+        latestMap,
+        history,
+        activeMapId,
+        savedCameras,
+        savedCameraCount,
+        job,
+        loading,
+        busy,
+        error,
+        setError,
+        refreshMapData,
+        startMapGeneration,
+        retryMapGeneration,
+        cancelMapGeneration,
+        promoteMapVersion,
+        saveManualMapVersion
+    } = useMapData({ pollMs: 1800 });
 
     const [manualMode, setManualMode] = useState(false);
     const [manualCameras, setManualCameras] = useState([]);
     const [manualObjects, setManualObjects] = useState([]);
     const [selectedCameraId, setSelectedCameraId] = useState(null);
     const [selectedObjectId, setSelectedObjectId] = useState(null);
-
-    const fetchMapData = async (silent = false) => {
-        if (!silent) setLoading(true);
-        try {
-            const [latestPayload, historyPayload, savedPayload] = await Promise.all([
-                apiClient.getLatestMap().catch(() => null),
-                apiClient.getMapHistory().catch(() => null),
-                apiClient.listSavedCameras().catch(() => null)
-            ]);
-
-            if (latestPayload && latestPayload.success) {
-                setLatestMap(latestPayload.map || null);
-            } else {
-                setLatestMap(null);
-            }
-
-            if (historyPayload && historyPayload.success) {
-                setHistory(Array.isArray(historyPayload.maps) ? historyPayload.maps : []);
-                setActiveMapId(historyPayload.activeMapId || null);
-            } else {
-                setHistory([]);
-                setActiveMapId(null);
-            }
-
-            if (savedPayload && savedPayload.success) {
-                const cameras = Array.isArray(savedPayload?.cameras) ? savedPayload.cameras : [];
-                setSavedCameras(cameras);
-                setSavedCameraCount(cameras.length);
-            } else {
-                setSavedCameras([]);
-                setSavedCameraCount(0);
-            }
-        } catch (fetchError) {
-            setError(fetchError.message || 'No se pudo cargar mapa');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    useEffect(() => {
-        fetchMapData(false).catch(() => {});
-    }, []);
 
     useEffect(() => {
         if (savedCameras.length > 0 && manualCameras.length === 0) {
@@ -138,28 +105,6 @@ const MapView = () => {
             setManualObjects([createEmptyManualObject(String(savedCameras[0].id))]);
         }
     }, [savedCameras.length]);
-
-    useEffect(() => {
-        if (!job || !['queued', 'running'].includes(job.status)) return undefined;
-        const interval = setInterval(async () => {
-            try {
-                const payload = await apiClient.getMapJob(job.id);
-                const nextJob = payload.job;
-                setJob(nextJob);
-                if (!nextJob || !['queued', 'running'].includes(nextJob.status)) {
-                    await fetchMapData(true);
-                    if (nextJob?.status === 'failed') {
-                        setError(nextJob.error || 'Fallo en generación de mapa');
-                    } else if (nextJob?.status === 'cancelled') {
-                        setError('Generación cancelada');
-                    }
-                }
-            } catch (pollError) {
-                setError(pollError.message || 'Error consultando estado de generación');
-            }
-        }, 1800);
-        return () => clearInterval(interval);
-    }, [job?.id, job?.status]);
 
     const getAssistedPayload = () => {
         const objectHints = manualObjects
@@ -194,27 +139,15 @@ const MapView = () => {
     };
 
     const startGenerate = async (assisted = false) => {
-        setBusy(true);
         setError('');
-        try {
-            const assistedPayload = assisted ? getAssistedPayload() : { objectHints: [], manualCameraLayout: [] };
-            const body = {
-                promote: true,
-                reason: assisted ? 'assisted-manual' : 'manual-refresh',
-                objectHints: assistedPayload.objectHints,
-                manualCameraLayout: assistedPayload.manualCameraLayout,
-                planHint: assisted ? 'C' : null
-            };
-            const payload = await apiClient.createMapJob(body);
-            if (!payload.success) {
-                throw new Error(payload.error || 'No se pudo iniciar la generación');
-            }
-            setJob(payload.job);
-        } catch (startError) {
-            setError(startError.message || 'No se pudo iniciar la generación');
-        } finally {
-            setBusy(false);
-        }
+        const assistedPayload = assisted ? getAssistedPayload() : { objectHints: [], manualCameraLayout: [] };
+        await startMapGeneration({
+            promote: true,
+            reason: assisted ? 'assisted-manual' : 'manual-refresh',
+            objectHints: assistedPayload.objectHints,
+            manualCameraLayout: assistedPayload.manualCameraLayout,
+            planHint: assisted ? 'C' : null
+        });
     };
 
     const retryLastJob = async () => {
@@ -223,62 +156,28 @@ const MapView = () => {
             return;
         }
 
-        setBusy(true);
         setError('');
-        try {
-            const assistedPayload = manualMode ? getAssistedPayload() : { objectHints: [], manualCameraLayout: [] };
-            const payload = await apiClient.retryMapJob(job.id, {
-                promote: true,
-                reason: `manual-retry:${job.id}`,
-                objectHints: assistedPayload.objectHints,
-                manualCameraLayout: assistedPayload.manualCameraLayout,
-                planHint: manualMode ? 'C' : null
-            });
-            if (!payload.success) {
-                throw new Error(payload.error || 'No se pudo reintentar la generación');
-            }
-            setJob(payload.job);
-        } catch (retryError) {
-            setError(retryError.message || 'No se pudo reintentar la generación');
-        } finally {
-            setBusy(false);
-        }
+        const assistedPayload = manualMode ? getAssistedPayload() : { objectHints: [], manualCameraLayout: [] };
+        await retryMapGeneration(job.id, {
+            promote: true,
+            reason: `manual-retry:${job.id}`,
+            objectHints: assistedPayload.objectHints,
+            manualCameraLayout: assistedPayload.manualCameraLayout,
+            planHint: manualMode ? 'C' : null
+        });
     };
 
     const cancelJob = async () => {
         if (!job?.id) return;
-        setBusy(true);
-        try {
-            const payload = await apiClient.cancelMapJob(job.id);
-            if (!payload.success) {
-                throw new Error(payload.error || 'No se pudo cancelar');
-            }
-            setJob(payload.job);
-        } catch (cancelError) {
-            setError(cancelError.message || 'No se pudo cancelar');
-        } finally {
-            setBusy(false);
-        }
+        await cancelMapGeneration(job.id);
     };
 
     const promoteMap = async (mapId) => {
         if (!mapId) return;
-        setBusy(true);
-        try {
-            const payload = await apiClient.promoteMap(mapId);
-            if (!payload.success) {
-                throw new Error(payload.error || 'No se pudo promover el mapa');
-            }
-            await fetchMapData(true);
-        } catch (promoteError) {
-            setError(promoteError.message || 'No se pudo promover el mapa');
-        } finally {
-            setBusy(false);
-        }
+        await promoteMapVersion(mapId);
     };
 
     const saveManualMap = async () => {
-        setBusy(true);
         setError('');
         try {
             const cameras = manualCameras
@@ -314,23 +213,15 @@ const MapView = () => {
                 })
                 .filter(Boolean);
 
-            const payload = await apiClient.saveManualMap({
+            const savedMap = await saveManualMapVersion({
                 promote: true,
                 cameras,
                 objects,
                 qualityScore: 0.45
             });
-            if (!payload.success) {
-                throw new Error(payload.error || 'No se pudo guardar mapa manual');
-            }
-
-            setLatestMap(payload.map || null);
-            await fetchMapData(true);
-            setManualMode(false);
+            if (savedMap) setManualMode(false);
         } catch (manualError) {
             setError(manualError.message || 'No se pudo guardar mapa manual');
-        } finally {
-            setBusy(false);
         }
     };
 
@@ -430,7 +321,7 @@ const MapView = () => {
                 canRetry={canRetry}
                 manualMode={manualMode}
                 onToggleManual={() => setManualMode((prev) => !prev)}
-                onRefresh={() => fetchMapData(true)}
+                onRefresh={() => refreshMapData(true)}
                 onGenerate={() => startGenerate(false)}
                 onRetry={retryLastJob}
                 onCancel={cancelJob}

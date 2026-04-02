@@ -13,7 +13,6 @@ const PLAN_B_ENABLED = parseBool(process.env.MAP_PLAN_B_ENABLED, true);
 const PLAN_C_ENABLED = parseBool(process.env.MAP_PLAN_C_ENABLED, true);
 const PLAN_D_ENABLED = parseBool(process.env.MAP_PLAN_D_ENABLED, true);
 const APPLY_MANUAL_CORRECTIONS = parseBool(process.env.MAP_APPLY_MANUAL_CORRECTIONS, true);
-const LOCAL_FALLBACK_ENABLED = parseBool(process.env.MAP_LOCAL_FALLBACK_ENABLED, true);
 const USE_DETECTOR_EVENTS_FALLBACK = parseBool(process.env.MAP_USE_DETECTOR_EVENTS_FALLBACK, true);
 const cameraRepository = new CameraMetadataRepository();
 const observationRepository = new ObservationEventRepository();
@@ -88,13 +87,6 @@ function toDurationMs(startMs) {
     return Math.max(0, Date.now() - Number(startMs || Date.now()));
 }
 
-function generateLocalFallback(payload) {
-    // Lazy-load so mapper-first environments can disable local fallback cleanly.
-    // eslint-disable-next-line global-require
-    const { buildFallbackCroquis } = require('./fallback-generator');
-    return buildFallbackCroquis(payload);
-}
-
 class MapJobQueue {
     constructor() {
         this.jobs = new Map();
@@ -116,7 +108,6 @@ class MapJobQueue {
                 D: PLAN_D_ENABLED
             },
             applyManualCorrections: APPLY_MANUAL_CORRECTIONS,
-            localFallbackEnabled: LOCAL_FALLBACK_ENABLED,
             useDetectorEventsFallback: USE_DETECTOR_EVENTS_FALLBACK
         };
     }
@@ -444,23 +435,7 @@ class MapJobQueue {
                     ].slice(0, 20);
                     this.log(job, 'info', `Mapper fallback aplicado (plan=${planUsed})`);
                 } catch (mapperFallbackError) {
-                    this.log(
-                        job,
-                        'warn',
-                        `Mapper fallback falló, usando fallback local: ${mapperFallbackError?.message || mapperFallbackError}`
-                    );
-                    if (!LOCAL_FALLBACK_ENABLED) {
-                        throw new Error(`Mapper fallback unavailable and MAP_LOCAL_FALLBACK_ENABLED=0: ${mapperFallbackError?.message || mapperFallbackError}`);
-                    }
-                    mapDoc = generateLocalFallback({
-                        jobId: job.id,
-                        cameras,
-                        recentEvents,
-                        objectHints,
-                        manualCameraLayout: manualLayout,
-                        planUsed: fallbackPlan
-                    });
-                    planUsed = fallbackPlan;
+                    throw new Error(`Mapper fallback unavailable: ${mapperFallbackError?.message || mapperFallbackError}`);
                 }
                 timing.fallbackMs = toDurationMs(fallbackStart);
             }
@@ -515,23 +490,7 @@ class MapJobQueue {
                     mapDoc = mappedFallback.map;
                     planUsed = mappedFallback.planUsed || validationFallbackPlan;
                 } catch (mapperValidationFallbackError) {
-                    this.log(
-                        job,
-                        'warn',
-                        `Mapper fallback de validación falló, usando fallback local: ${mapperValidationFallbackError?.message || mapperValidationFallbackError}`
-                    );
-                    if (!LOCAL_FALLBACK_ENABLED) {
-                        throw new Error(`Mapper validation fallback unavailable and MAP_LOCAL_FALLBACK_ENABLED=0: ${mapperValidationFallbackError?.message || mapperValidationFallbackError}`);
-                    }
-                    mapDoc = generateLocalFallback({
-                        jobId: job.id,
-                        cameras,
-                        recentEvents: [],
-                        objectHints,
-                        manualCameraLayout: manualLayout,
-                        planUsed: validationFallbackPlan
-                    });
-                    planUsed = validationFallbackPlan;
+                    throw new Error(`Mapper validation fallback unavailable: ${mapperValidationFallbackError?.message || mapperValidationFallbackError}`);
                 }
                 const validationC = validateMapDocument(mapDoc);
                 if (!validationC.ok) {

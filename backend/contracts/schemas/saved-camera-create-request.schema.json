@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "jasy-jatere/contracts/saved-camera-create-request/v1",
+  "title": "SavedCameraCreateRequest",
+  "type": "object",
+  "required": [
+    "rtspUrl"
+  ],
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "rtspUrl": {
+      "type": "string",
+      "minLength": 1
+    },
+    "ip": {
+      "type": "string"
+    },
+    "user": {
+      "type": "string"
+    },
+    "pass": {
+      "type": "string"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "single",
+        "combined"
+      ]
+    },
+    "allRtspUrls": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "sourceLabels": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "additionalProperties": false
+}

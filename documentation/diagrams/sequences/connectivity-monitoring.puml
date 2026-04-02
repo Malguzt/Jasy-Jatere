@@ -1,0 +1,46 @@
+@startuml
+title Connectivity Monitoring
+
+actor Operator
+participant Frontend
+participant "Control Plane API" as API
+participant "Health Engine" as Health
+participant "Probe Runners" as Probe
+participant "Stream Gateway" as Gateway
+participant "Perception Service" as Perception
+database "Metadata Store" as Metadata
+participant "Metrics Scraper" as Scraper
+
+loop Scheduled probe cycle
+  Health -> Metadata: Load active camera topology
+  loop Per camera source
+    Health -> Probe: request source probe
+    Probe --> Health: ProbeSample
+  end
+  Health -> Gateway: Read stream session metrics
+  Gateway --> Health: Stream metrics
+  Health -> Perception: Read observation freshness
+  Perception --> Health: Observation freshness
+  Health -> Health: Compute logical health snapshot
+  Health -> Metadata: Persist HealthSnapshot
+end
+
+Operator -> Frontend: Open monitoring tab
+Frontend -> API: GET monitoring snapshot
+API -> Metadata: Read latest HealthSnapshot
+Metadata --> API: Current snapshot
+API --> Frontend: Camera and source health snapshot
+
+Scraper -> API: GET /metrics
+API -> Metadata: Read current snapshot and metric summaries
+API --> Scraper: Prometheus-style metrics
+
+opt Force manual probe
+  Operator -> Frontend: Click "Probe now"
+  Frontend -> API: POST force probe
+  API -> Health: Run immediate probe
+  Health -> Metadata: Persist fresh snapshot
+  API --> Frontend: Fresh snapshot
+end
+
+@enduml

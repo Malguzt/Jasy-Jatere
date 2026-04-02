@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "jasy-jatere/contracts/camera-source/v1",
+  "title": "CameraSource",
+  "type": "object",
+  "required": [
+    "id",
+    "cameraId",
+    "role",
+    "url",
+    "enabled",
+    "createdAt",
+    "updatedAt"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "cameraId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "role": {
+      "type": "string",
+      "enum": [
+        "main",
+        "sub",
+        "monitor",
+        "fallback"
+      ]
+    },
+    "label": {
+      "type": "string"
+    },
+    "url": {
+      "type": "string",
+      "pattern": "^rtsp://"
+    },
+    "transportPolicy": {
+      "type": "string",
+      "enum": [
+        "auto",
+        "tcp",
+        "udp"
+      ],
+      "default": "auto"
+    },
+    "enabled": {
+      "type": "boolean"
+    },
+    "priority": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "createdAt": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "updatedAt": {
+      "type": "integer",
+      "minimum": 0
+    }
+  },
+  "additionalProperties": true
+}

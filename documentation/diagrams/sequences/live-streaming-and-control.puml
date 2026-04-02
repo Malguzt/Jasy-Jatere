@@ -1,0 +1,47 @@
+@startuml
+title Live Streaming and Camera Control
+
+actor Operator
+participant Browser
+participant "Control Plane API" as API
+participant "Stream Orchestrator" as Orchestrator
+participant "Stream Gateway" as Gateway
+participant Reconstructor
+participant "Device Control Service" as Control
+participant "ONVIF Camera" as Camera
+
+Operator -> Browser: Open dashboard tile
+Browser -> API: Request live session capabilities
+API -> Orchestrator: resolve stream policy
+Orchestrator -> Gateway: create or reuse session(cameraId, policy)
+
+alt Direct session is enough
+  Gateway -> Camera: Read selected source
+else New stream needed
+  Gateway -> Reconstructor: Ensure enhanced or fused pipeline
+  Reconstructor -> Camera: Read main and companion RTSP sources
+  Reconstructor --> Gateway: Processed stream feed
+end
+
+Gateway --> Orchestrator: session ready
+Orchestrator --> API: session descriptor
+API --> Browser: preferred transport + fallback transport
+Browser -> Gateway: Connect to live session
+Gateway --> Browser: Video stream
+Browser --> Operator: Render live view
+
+opt PTZ or auxiliary control
+  Operator -> Browser: Move / snapshot / toggle light
+  Browser -> API: Device control request
+  API -> Control: execute command
+  Control -> Camera: ONVIF PTZ / snapshot / auxiliary command
+  Camera --> Control: Result
+  Control --> API: command outcome
+  API --> Browser: Success or error
+end
+
+Browser -> Gateway: Disconnect
+Gateway -> Orchestrator: update session metrics
+Orchestrator -> Gateway: apply idle or keep-warm policy
+
+@enduml

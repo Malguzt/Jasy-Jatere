@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "jasy-jatere/contracts/map-retry-request/v1",
+  "title": "MapRetryRequest",
+  "type": "object",
+  "properties": {
+    "promote": {
+      "type": "boolean"
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1
+    },
+    "objectHints": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    "manualCameraLayout": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    "planHint": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "forceFallback": {
+      "type": "boolean"
+    }
+  },
+  "additionalProperties": false
+}

@@ -14,9 +14,6 @@ recordings/
 __pycache__/
 *.pyc
 
-# Data files (passwords, camera configs)
-backend/data/
-
 # OS files
 .DS_Store
 Thumbs.db
@@ -30,3 +27,15 @@ Thumbs.db
 .env.local
 .codex
 grafana-hardware-dashboard
+
+# Test and tooling artifacts
+coverage/
+.nyc_output/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.log
+
+# Editor temp files
+*.swp
+*~

@@ -1,0 +1,142 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "jasy-jatere/contracts/map-job/v1",
+  "title": "MapJob",
+  "type": "object",
+  "required": [
+    "id",
+    "status",
+    "requestedAt",
+    "options",
+    "progress"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "queued",
+        "running",
+        "done",
+        "failed",
+        "cancelled"
+      ]
+    },
+    "requestedAt": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "startedAt": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "finishedAt": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "mapId": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "planUsed": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "enum": [
+        "A",
+        "B",
+        "C",
+        "D",
+        null
+      ]
+    },
+    "error": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "options": {
+      "type": "object",
+      "properties": {
+        "promote": {
+          "type": "boolean"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "planHint": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "forceFallback": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": true
+    },
+    "progress": {
+      "type": "object",
+      "required": [
+        "stage",
+        "percent"
+      ],
+      "properties": {
+        "stage": {
+          "type": "string"
+        },
+        "percent": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "message": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    },
+    "timing": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "logs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "ts",
+          "level",
+          "message"
+        ],
+        "properties": {
+          "ts": {
+            "type": "integer"
+          },
+          "level": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "additionalProperties": true
+}

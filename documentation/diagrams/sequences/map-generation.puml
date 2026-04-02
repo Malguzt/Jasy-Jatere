@@ -1,0 +1,41 @@
+@startuml
+title Map Generation and Promotion
+
+actor Operator
+participant Frontend
+participant "Control Plane API" as API
+participant "Map Orchestrator" as Orchestrator
+participant "Job Runtime" as Jobs
+participant Mapper
+database "Metadata Store" as Metadata
+database "Media Store" as Media
+
+Operator -> Frontend: Generate map
+Frontend -> API: POST /maps/generate
+API -> Orchestrator: create MapJob
+Orchestrator -> Metadata: store queued job
+API --> Frontend: 202 Accepted + jobId
+
+loop Poll status
+  Frontend -> API: GET /maps/jobs/:jobId
+  API -> Metadata: read job state
+  API --> Frontend: Job state
+end
+
+Orchestrator -> Jobs: execute MapJob
+Jobs -> Metadata: load camera topology + observations + manual hints
+Jobs -> Mapper: submit normalized map request
+Mapper -> Mapper: Choose Plan A, B, or C internally
+Mapper --> Jobs: MapResult
+Jobs -> Orchestrator: validated result candidate
+Orchestrator -> Metadata: store MapVersion and job completion
+Orchestrator -> Media: write immutable map export
+opt Promote after success
+  Orchestrator -> Metadata: update active map pointer
+end
+
+Frontend -> API: GET /maps/latest
+API -> Metadata: read active MapVersion
+API --> Frontend: Active map
+
+@enduml

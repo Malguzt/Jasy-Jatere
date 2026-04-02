@@ -1,0 +1,49 @@
+@startuml
+title Camera Discovery and Onboarding
+
+actor Operator
+participant Frontend
+participant "Control Plane API" as API
+participant "Discovery Coordinator" as Discover
+participant "ONVIF Probe Worker" as Probe
+participant "ONVIF Cameras" as Cameras
+participant "Camera Registry" as Registry
+participant "Credential Service" as Creds
+database "Metadata Store" as Metadata
+
+Operator -> Frontend: Start radar scan
+Frontend -> API: Start discovery session
+API -> Discover: createDiscoverySession()
+Discover -> Probe: run discovery
+
+Probe -> Cameras: WS-Discovery
+alt Devices found
+  Cameras --> Probe: Candidates
+else No devices found
+  Probe -> Cameras: Active subnet and endpoint validation
+  Cameras --> Probe: Reachable ONVIF-like endpoints
+end
+
+Probe --> Discover: Normalized candidates
+Discover --> API: discovery results
+API --> Frontend: Candidate list
+
+Operator -> Frontend: Select device and enter credentials
+Frontend -> API: Validate candidate and credentials
+API -> Registry: probe candidate
+Registry -> Cameras: Read capabilities and stream profiles
+Registry --> API: Normalized sources + capabilities
+API --> Frontend: Device capability summary
+
+Operator -> Frontend: Save chosen profile
+Frontend -> API: Commit camera
+API -> Creds: encrypt credentials
+Creds --> API: credentialRef
+API -> Registry: save camera + sources + credentialRef
+Registry -> Metadata: write Camera and CameraSource records
+Registry --> API: committed camera
+API --> Frontend: Saved camera
+
+API -> API: Publish fresh worker config snapshot
+
+@enduml

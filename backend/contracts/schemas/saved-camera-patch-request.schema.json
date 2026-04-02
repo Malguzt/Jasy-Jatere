@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "jasy-jatere/contracts/saved-camera-patch-request/v1",
+  "title": "SavedCameraPatchRequest",
+  "type": "object",
+  "minProperties": 1,
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "rtspUrl": {
+      "type": "string",
+      "minLength": 1
+    },
+    "user": {
+      "type": "string"
+    },
+    "pass": {
+      "type": "string"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "single",
+        "combined"
+      ]
+    },
+    "allRtspUrls": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "sourceLabels": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "additionalProperties": false
+}

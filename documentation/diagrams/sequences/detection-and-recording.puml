@@ -1,0 +1,31 @@
+@startuml
+title Detection and Recording
+
+participant "Perception Service" as Perception
+participant "Control Plane API" as API
+participant "Stream Gateway" as Gateway
+participant "Recording Worker" as Recorder
+participant YOLO
+database "Metadata Store" as Metadata
+database "Media Store" as Media
+
+API -> Perception: Publish desired camera config snapshot
+loop Per configured camera
+  Perception -> Gateway: Consume normalized stream feed
+  Gateway --> Perception: Frames or stream tap
+  Perception -> Perception: Fuse motion signals and evaluate trigger policy
+
+  alt Trigger conditions met
+    Perception -> YOLO: Classify frame
+    YOLO --> Perception: Labels and confidence
+    Perception -> API: Publish ObservationEvent
+    API -> Metadata: Store observation
+    Perception -> Recorder: Emit RecordingIntent
+    Recorder -> Gateway: Pull or subscribe to recording source
+    Recorder -> Media: Write clip and thumbnail
+    Recorder -> API: Publish RecordingCompleted
+    API -> Metadata: Store recording catalog rows
+  end
+end
+
+@enduml

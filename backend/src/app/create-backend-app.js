@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const cameraRoutes = require('../../routes/camera');
+const { createCameraRouter } = require('../../routes/camera');
 const savedCamerasRoutes = require('../../routes/saved-cameras');
 const mapsRoutes = require('../../routes/maps');
 const detectorRoutes = require('../../routes/detector');
@@ -34,6 +34,7 @@ const { ObservationEventRepository } = require('../infrastructure/repositories/o
 const { HealthSnapshotRepository } = require('../infrastructure/repositories/health-snapshot-repository');
 const { MetadataSqliteStore } = require('../infrastructure/sqlite/metadata-sqlite-store');
 const { CameraInventoryService } = require('../domains/cameras/camera-inventory-service');
+const { OnvifCameraService } = require('../domains/cameras/onvif-camera-service');
 const { WorkerConfigService } = require('../domains/platform/worker-config-service');
 const { RecordingCatalogService } = require('../domains/recordings/recording-catalog-service');
 const { RecordingRetentionJob } = require('../domains/recordings/recording-retention-job');
@@ -86,6 +87,11 @@ function createBackendApp({
     });
     const cameraInventoryService = new CameraInventoryService({
         repository: cameraRepository
+    });
+    const onvifCameraService = new OnvifCameraService({
+        cameraDataFile: cameraFile,
+        cameraInventoryService,
+        legacyFileFallbackEnabled: runtimeFlags.legacyCompatExportsEnabled
     });
     const cameraEventMonitor = new CameraEventMonitor({
         cameraInventoryService,
@@ -188,7 +194,7 @@ function createBackendApp({
 
     app.use('/api/contracts', createContractsRouter({ contractsService }));
 
-    app.use('/api/cameras', cameraRoutes);
+    app.use('/api/cameras', createCameraRouter({ cameraService: onvifCameraService }));
     app.use('/api/saved-cameras', savedCamerasRoutes);
     app.use('/api/maps', mapsRoutes);
     app.use('/api/detector', detectorRoutes);

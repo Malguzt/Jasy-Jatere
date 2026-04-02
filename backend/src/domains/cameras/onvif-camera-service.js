@@ -68,6 +68,8 @@ class OnvifCameraService {
         fetchImpl = fetch,
         resolveUserPassFn = resolveUserPass,
         cameraDataFile = DEFAULT_CAMERA_DATA_FILE,
+        cameraInventoryService = null,
+        legacyFileFallbackEnabled = (process.env.LEGACY_COMPAT_EXPORTS_ENABLED === '1'),
         config = {}
     } = {}) {
         this.onvif = onvifLib;
@@ -79,6 +81,8 @@ class OnvifCameraService {
         this.fetch = fetchImpl;
         this.resolveUserPass = resolveUserPassFn;
         this.cameraDataFile = cameraDataFile;
+        this.cameraInventoryService = cameraInventoryService;
+        this.legacyFileFallbackEnabled = legacyFileFallbackEnabled === true;
         this.config = buildConfig(config);
     }
 
@@ -147,35 +151,56 @@ class OnvifCameraService {
 
     loadKnownIpPrefixes() {
         const out = new Set();
+        if (this.cameraInventoryService && typeof this.cameraInventoryService.listCameras === 'function') {
+            try {
+                const cameras = this.cameraInventoryService.listCameras();
+                if (Array.isArray(cameras) && cameras.length > 0) {
+                    this.collectKnownPrefixesFromCameras(cameras, out);
+                    return out;
+                }
+                if (!this.legacyFileFallbackEnabled) return out;
+            } catch (error) {
+                console.warn('[DISCOVER] No se pudieron leer prefijos de inventario:', error.message || error);
+                if (!this.legacyFileFallbackEnabled) return out;
+            }
+        }
+
+        if (!this.legacyFileFallbackEnabled) return out;
+
         try {
             if (!this.fs.existsSync(this.cameraDataFile)) return out;
             const cameras = JSON.parse(this.fs.readFileSync(this.cameraDataFile, 'utf8'));
-            for (const camera of cameras || []) {
-                const fromRtsp = camera?.rtspUrl && camera.rtspUrl.startsWith('rtsp://')
-                    ? (() => {
-                        try {
-                            return new URL(camera.rtspUrl.replace(/rtsp:\/\/[^@]+@/, 'rtsp://')).hostname;
-                        } catch (error) {
-                            return null;
-                        }
-                    })()
-                    : null;
-                const fromIp = camera?.ip
-                    ? (() => {
-                        try {
-                            return new URL(camera.ip).hostname;
-                        } catch (error) {
-                            return null;
-                        }
-                    })()
-                    : null;
-                const prefixA = this.getPrefixFromIp(fromRtsp);
-                const prefixB = this.getPrefixFromIp(fromIp);
-                if (prefixA) out.add(prefixA);
-                if (prefixB) out.add(prefixB);
-            }
+            this.collectKnownPrefixesFromCameras(cameras || [], out);
         } catch (error) {
             console.warn('[DISCOVER] No se pudieron leer prefijos conocidos:', error.message || error);
+        }
+        return out;
+    }
+
+    collectKnownPrefixesFromCameras(cameras = [], out = new Set()) {
+        for (const camera of cameras || []) {
+            const fromRtsp = camera?.rtspUrl && camera.rtspUrl.startsWith('rtsp://')
+                ? (() => {
+                    try {
+                        return new URL(camera.rtspUrl.replace(/rtsp:\/\/[^@]+@/, 'rtsp://')).hostname;
+                    } catch (error) {
+                        return null;
+                    }
+                })()
+                : null;
+            const fromIp = camera?.ip
+                ? (() => {
+                    try {
+                        return new URL(camera.ip).hostname;
+                    } catch (error) {
+                        return null;
+                    }
+                })()
+                : null;
+            const prefixA = this.getPrefixFromIp(fromRtsp);
+            const prefixB = this.getPrefixFromIp(fromIp);
+            if (prefixA) out.add(prefixA);
+            if (prefixB) out.add(prefixB);
         }
         return out;
     }

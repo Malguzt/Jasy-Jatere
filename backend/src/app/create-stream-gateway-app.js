@@ -59,7 +59,8 @@ function createStreamGatewayApp({
         streamManager,
         resolveCameraStreamUrls,
         deriveCompanionRtsp,
-        parseResolutionHint
+        parseResolutionHint,
+        legacyFileFallbackEnabled: runtimeFlags.legacyCompatExportsEnabled
     });
 
     const streamControlService = new StreamControlService({

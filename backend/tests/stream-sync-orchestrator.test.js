@@ -6,6 +6,7 @@ const { StreamSyncOrchestrator } = require('../src/domains/streams/stream-sync-o
 function makeOrchestrator(overrides = {}) {
     return new StreamSyncOrchestrator({
         cameraFile: '/tmp/cameras.json',
+        cameraInventoryService: overrides.cameraInventoryService,
         streamManager: overrides.streamManager || { syncKeepaliveConfigs: () => {} },
         resolveCameraStreamUrls: overrides.resolveCameraStreamUrls || ((camera) => ({
             rtspUrl: camera.rtspUrl,
@@ -17,6 +18,7 @@ function makeOrchestrator(overrides = {}) {
             if (!match) return null;
             return { pixels: Number(match[1]) * Number(match[2]) };
         }),
+        legacyFileFallbackEnabled: overrides.legacyFileFallbackEnabled,
         fetchImpl: overrides.fetchImpl || (async () => ({ ok: true })),
         fsModule: overrides.fsModule || {
             existsSync: () => true,
@@ -104,6 +106,38 @@ test('syncNow tolerates invalid camera file and still syncs empty config', async
         fsModule: {
             existsSync: () => true,
             readFileSync: () => '{not-json'
+        },
+        logger: {
+            error: () => {
+                loggerCalls += 1;
+            }
+        }
+    });
+
+    const result = await orchestrator.syncNow();
+    assert.equal(result.success, true);
+    assert.equal(result.cameraCount, 0);
+    assert.equal(syncedConfigs.length, 1);
+    assert.deepEqual(syncedConfigs[0], []);
+    assert.ok(loggerCalls >= 1);
+});
+
+test('syncNow avoids camera file fallback when legacy fallback is disabled', async () => {
+    const syncedConfigs = [];
+    let loggerCalls = 0;
+    const orchestrator = makeOrchestrator({
+        legacyFileFallbackEnabled: false,
+        cameraInventoryService: {
+            listCameras: () => {
+                throw new Error('inventory unavailable');
+            }
+        },
+        fsModule: {
+            existsSync: () => true,
+            readFileSync: () => JSON.stringify([{ id: 'cam-1', rtspUrl: 'rtsp://cam-1' }])
+        },
+        streamManager: {
+            syncKeepaliveConfigs: (configs) => syncedConfigs.push(configs)
         },
         logger: {
             error: () => {

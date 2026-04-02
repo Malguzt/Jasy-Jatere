@@ -91,3 +91,4 @@ If you want the shortest path through the redesign, use this order:
 - Detector recycle policy can be synchronized from `GET /api/internal/config/retention` (`USE_CONTROL_PLANE_RETENTION_CONFIG`) to avoid drift with control-plane retention settings.
 - Backend connectivity monitoring now prefers repository-backed camera inventory; direct `cameras.json` fallback is gated by `LEGACY_COMPAT_EXPORTS_ENABLED`.
 - Stream websocket gateways (backend and stream-gateway) now prefer repository-backed camera inventory; direct `cameras.json` fallback is gated by `LEGACY_COMPAT_EXPORTS_ENABLED`.
+- Camera event monitoring and stream-sync orchestration now also prefer repository-backed inventory; direct file fallback is gated by `LEGACY_COMPAT_EXPORTS_ENABLED`.

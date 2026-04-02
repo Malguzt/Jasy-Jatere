@@ -14,6 +14,7 @@ class StreamSyncOrchestrator {
         resolveCameraStreamUrls,
         deriveCompanionRtsp,
         parseResolutionHint,
+        legacyFileFallbackEnabled = true,
         fetchImpl = fetch,
         fsModule = fs,
         logger = console,
@@ -31,6 +32,7 @@ class StreamSyncOrchestrator {
         this.resolveCameraStreamUrls = resolveCameraStreamUrls;
         this.deriveCompanionRtsp = deriveCompanionRtsp;
         this.parseResolutionHint = parseResolutionHint;
+        this.legacyFileFallbackEnabled = legacyFileFallbackEnabled === true;
         this.fetch = fetchImpl;
         this.fs = fsModule;
         this.logger = logger;
@@ -96,11 +98,16 @@ class StreamSyncOrchestrator {
     loadSavedCamerasSafe() {
         if (this.cameraInventoryService && typeof this.cameraInventoryService.listCameras === 'function') {
             try {
-                return this.cameraInventoryService.listCameras();
+                const cameras = this.cameraInventoryService.listCameras();
+                if (Array.isArray(cameras)) return cameras;
+                if (!this.legacyFileFallbackEnabled) return [];
             } catch (error) {
                 this.logger.error('[KEEPALIVE] Error leyendo inventory service:', error?.message || error);
+                if (!this.legacyFileFallbackEnabled) return [];
             }
         }
+
+        if (!this.legacyFileFallbackEnabled) return [];
 
         try {
             if (!this.fs.existsSync(this.cameraFile)) return [];

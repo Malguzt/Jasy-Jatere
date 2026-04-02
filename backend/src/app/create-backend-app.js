@@ -88,7 +88,8 @@ function createBackendApp({
         repository: cameraRepository
     });
     const cameraEventMonitor = new CameraEventMonitor({
-        cameraInventoryService
+        cameraInventoryService,
+        legacyFileFallbackEnabled: runtimeFlags.legacyCompatExportsEnabled
     });
 
     const connectivityMonitor = new CameraConnectivityMonitor({
@@ -108,7 +109,8 @@ function createBackendApp({
         streamManager,
         resolveCameraStreamUrls,
         deriveCompanionRtsp,
-        parseResolutionHint
+        parseResolutionHint,
+        legacyFileFallbackEnabled: runtimeFlags.legacyCompatExportsEnabled
     });
     const streamControlService = new StreamControlService({
         streamManager,

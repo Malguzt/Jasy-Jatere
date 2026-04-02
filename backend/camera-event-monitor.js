@@ -62,8 +62,12 @@ function motionFromNotification(notification) {
 }
 
 class CameraEventMonitor {
-    constructor({ cameraInventoryService = null } = {}) {
+    constructor({
+        cameraInventoryService = null,
+        legacyFileFallbackEnabled = (process.env.LEGACY_COMPAT_EXPORTS_ENABLED === '1')
+    } = {}) {
         this.cameraInventoryService = cameraInventoryService;
+        this.legacyFileFallbackEnabled = legacyFileFallbackEnabled === true;
         this.running = false;
         this.monitors = new Map(); // camId -> monitor state
         this.motion = new Map(); // camId -> { motion, lastMotionAt, lastEventAt, source, healthy, error, topic }
@@ -111,11 +115,16 @@ class CameraEventMonitor {
     loadCameras() {
         if (this.cameraInventoryService && typeof this.cameraInventoryService.listCameras === 'function') {
             try {
-                return this.cameraInventoryService.listCameras();
+                const cameras = this.cameraInventoryService.listCameras();
+                if (Array.isArray(cameras)) return cameras;
+                if (!this.legacyFileFallbackEnabled) return [];
             } catch (error) {
                 console.error('[EVT] Error loading inventory cameras:', error?.message || error);
+                if (!this.legacyFileFallbackEnabled) return [];
             }
         }
+
+        if (!this.legacyFileFallbackEnabled) return [];
 
         try {
             if (!fs.existsSync(DATA_FILE)) return [];

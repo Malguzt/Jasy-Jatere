@@ -84,6 +84,13 @@ export const apiClient = {
             body: JSON.stringify(payload || {})
         });
     },
+    closeWebRtcSession(sessionId, payload) {
+        return apiFetch(`/api/streams/webrtc/sessions/${encodeURIComponent(String(sessionId || ''))}`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload || {})
+        });
+    },
     listRecordings(query = {}) {
         const params = new URLSearchParams();
         Object.entries(query || {}).forEach(([key, value]) => {

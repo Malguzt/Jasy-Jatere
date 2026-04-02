@@ -70,8 +70,12 @@ class StreamControlService {
             attempts: 0,
             success: 0,
             failed: 0,
+            closeAttempts: 0,
+            closeSuccess: 0,
+            closeFailed: 0,
             lastAttemptAt: null,
             lastSuccessAt: null,
+            lastCloseAt: null,
             lastError: null
         };
     }
@@ -307,6 +311,14 @@ class StreamControlService {
         return `${base}/${encodeURIComponent(normalizedSessionId)}/candidates`;
     }
 
+    resolveSignalingSessionUrl(sessionId) {
+        const normalizedSessionId = String(sessionId || '').trim();
+        if (!normalizedSessionId) return '';
+        const base = String(this.streamWebRtcSignalingUrl || '').trim().replace(/\/+$/, '');
+        if (!base) return '';
+        return `${base}/${encodeURIComponent(normalizedSessionId)}`;
+    }
+
     async submitWebRtcCandidate({
         sessionId,
         candidate,
@@ -375,6 +387,71 @@ class StreamControlService {
                 502,
                 error?.message || String(error),
                 'STREAM_WEBRTC_CANDIDATE_SIGNALING_UNREACHABLE'
+            );
+        } finally {
+            clearTimeout(timeout);
+        }
+    }
+
+    async closeWebRtcSession({
+        sessionId,
+        cameraId = null,
+        requestHeaders = {}
+    } = {}) {
+        const normalizedSessionId = String(sessionId || '').trim();
+        if (!normalizedSessionId) {
+            throw streamControlError(400, 'sessionId is required', 'STREAM_WEBRTC_SESSION_ID_REQUIRED');
+        }
+        this.ensureWebRtcSessionAvailable({ requestHeaders });
+        const signalingSessionUrl = this.resolveSignalingSessionUrl(normalizedSessionId);
+        if (!signalingSessionUrl) {
+            throw streamControlError(500, 'WebRTC signaling URL is not configured', 'STREAM_WEBRTC_SIGNALING_URL_MISSING');
+        }
+
+        this.webrtcSessionStats.closeAttempts += 1;
+        this.webrtcSessionStats.lastCloseAt = this.now();
+
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), this.webrtcSignalingTimeoutMs);
+        try {
+            const response = await this.fetchImpl(signalingSessionUrl, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    sessionId: normalizedSessionId,
+                    cameraId: cameraId ? String(cameraId) : null
+                }),
+                signal: controller.signal
+            });
+            let payload = null;
+            try {
+                payload = await response.json();
+            } catch (error) {}
+            if (!response.ok) {
+                throw streamControlError(
+                    502,
+                    payload?.error || `WebRTC close signaling responded with ${response.status}`,
+                    'STREAM_WEBRTC_CLOSE_SIGNALING_UPSTREAM_ERROR',
+                    { status: response.status, payload: payload || null }
+                );
+            }
+            this.webrtcSessionStats.closeSuccess += 1;
+            return {
+                sessionId: normalizedSessionId,
+                closed: payload?.closed !== false
+            };
+        } catch (error) {
+            this.webrtcSessionStats.closeFailed += 1;
+            if (error?.name === 'AbortError') {
+                throw streamControlError(504, 'WebRTC close signaling request timeout', 'STREAM_WEBRTC_CLOSE_SIGNALING_TIMEOUT');
+            }
+            if (error?.status) throw error;
+            throw streamControlError(
+                502,
+                error?.message || String(error),
+                'STREAM_WEBRTC_CLOSE_SIGNALING_UNREACHABLE'
             );
         } finally {
             clearTimeout(timeout);

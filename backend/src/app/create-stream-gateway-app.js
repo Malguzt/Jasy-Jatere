@@ -224,6 +224,23 @@ function createStreamGatewayApp({
         }
     });
 
+    app.delete('/api/internal/streams/webrtc/sessions/:sessionId', async (req, res) => {
+        try {
+            const body = req.body || {};
+            const result = await streamControlService.closeWebRtcSession({
+                sessionId: req.params?.sessionId,
+                cameraId: body.cameraId,
+                requestHeaders: req.headers || {}
+            });
+            return res.json({
+                success: true,
+                result
+            });
+        } catch (error) {
+            return sendGatewayError(res, error);
+        }
+    });
+
     return {
         app,
         platformRuntimeCoordinator

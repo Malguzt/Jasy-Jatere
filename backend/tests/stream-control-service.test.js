@@ -283,3 +283,35 @@ test('submitWebRtcCandidate forwards candidate to signaling endpoint', async () 
     assert.equal(result.sessionId, 'sess-3');
     assert.equal(result.accepted, true);
 });
+
+test('closeWebRtcSession forwards delete to signaling endpoint', async () => {
+    const service = new StreamControlService({
+        cameraInventoryService: { findCamera: () => ({ id: 'cam-4' }) },
+        streamManager: { getStatsSnapshot: () => ({}) },
+        streamSyncOrchestrator: { getRuntimeState: () => ({}) },
+        streamWebSocketGatewayEnabled: true,
+        streamWebRtcEnabled: true,
+        streamWebRtcRequireHttps: false,
+        streamWebRtcSignalingUrl: 'http://signaling.internal/webrtc/sessions',
+        fetchImpl: async (url, init = {}) => {
+            assert.equal(url, 'http://signaling.internal/webrtc/sessions/sess-4');
+            assert.equal(init.method, 'DELETE');
+            return {
+                ok: true,
+                status: 200,
+                json: async () => ({ closed: true })
+            };
+        }
+    });
+
+    const result = await service.closeWebRtcSession({
+        sessionId: 'sess-4',
+        cameraId: 'cam-4'
+    });
+    assert.equal(result.sessionId, 'sess-4');
+    assert.equal(result.closed, true);
+
+    const runtime = service.getRuntimeSnapshot();
+    assert.equal(runtime.webrtc.closeAttempts, 1);
+    assert.equal(runtime.webrtc.closeSuccess, 1);
+});

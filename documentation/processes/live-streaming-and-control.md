@@ -59,6 +59,7 @@ As an intermediate migration step, the control plane can expose internal stream 
 - `GET /api/streams/sessions/:cameraId` for a logical session descriptor (selected transport + protocol endpoints).
 - `POST /api/streams/webrtc/sessions` for WebRTC offer/answer exchange with the signaling backend.
 - `POST /api/streams/webrtc/sessions/:sessionId/candidates` for trickle ICE candidate forwarding.
+- `DELETE /api/streams/webrtc/sessions/:sessionId` for explicit signaling-session teardown.
 - `GET /api/streams/runtime` for current stream and keepalive runtime state.
 - `POST /api/streams/sync` for operator-triggered keepalive and reconstructor resynchronization.
 - `GET /api/internal/config/streams` for worker-consumable stream snapshots.

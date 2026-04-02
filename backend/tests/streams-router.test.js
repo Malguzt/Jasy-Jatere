@@ -53,6 +53,10 @@ test('streams router returns local runtime snapshot when proxy is not configured
                 sessionId: 'sess-local',
                 accepted: true
             }),
+            closeWebRtcSession: async () => ({
+                sessionId: 'sess-local',
+                closed: true
+            }),
             triggerManualSync: async () => ({ result: { success: true } })
         }
     });
@@ -100,6 +104,16 @@ test('streams router returns local runtime snapshot when proxy is not configured
         assert.equal(candidatePayload.success, true);
         assert.equal(candidatePayload.result.sessionId, 'sess-local');
 
+        const closeRes = await fetch(`${baseUrl}/api/streams/webrtc/sessions/sess-local`, {
+            method: 'DELETE',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ cameraId: 'cam-1' })
+        });
+        const closePayload = await closeRes.json();
+        assert.equal(closeRes.status, 200);
+        assert.equal(closePayload.success, true);
+        assert.equal(closePayload.result.closed, true);
+
         const response = await fetch(`${baseUrl}/api/streams/runtime`);
         const payload = await response.json();
         assert.equal(response.status, 200);
@@ -136,6 +150,10 @@ test('streams router prefers proxy service when configured', async () => {
                 localCalled = true;
                 return { sessionId: 'sess-local', accepted: true };
             },
+            closeWebRtcSession: async () => {
+                localCalled = true;
+                return { sessionId: 'sess-local', closed: true };
+            },
             triggerManualSync: async () => ({ result: { success: true } })
         },
         streamControlProxyService: {
@@ -171,6 +189,10 @@ test('streams router prefers proxy service when configured', async () => {
             submitWebRtcCandidate: async () => ({
                 sessionId: 'sess-proxy',
                 accepted: true
+            }),
+            closeWebRtcSession: async () => ({
+                sessionId: 'sess-proxy',
+                closed: true
             }),
             triggerManualSync: async () => ({
                 requestedBy: 'proxy',
@@ -220,6 +242,16 @@ test('streams router prefers proxy service when configured', async () => {
         assert.equal(candidateRes.status, 200);
         assert.equal(candidatePayload.success, true);
         assert.equal(candidatePayload.result.sessionId, 'sess-proxy');
+
+        const closeRes = await fetch(`${baseUrl}/api/streams/webrtc/sessions/sess-proxy`, {
+            method: 'DELETE',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ cameraId: 'cam-proxy' })
+        });
+        const closePayload = await closeRes.json();
+        assert.equal(closeRes.status, 200);
+        assert.equal(closePayload.success, true);
+        assert.equal(closePayload.result.closed, true);
 
         const runtimeRes = await fetch(`${baseUrl}/api/streams/runtime`);
         const runtimePayload = await runtimeRes.json();

@@ -210,6 +210,31 @@ class StreamGatewayProxyService {
         }
         return payload.result;
     }
+
+    async closeWebRtcSession({
+        sessionId,
+        cameraId = null,
+        requestHeaders = {}
+    } = {}) {
+        const normalizedSessionId = String(sessionId || '').trim();
+        if (!normalizedSessionId) {
+            throw streamControlError(400, 'sessionId is required', 'STREAM_WEBRTC_SESSION_ID_REQUIRED');
+        }
+
+        const payload = await this.requestJson(`/webrtc/sessions/${encodeURIComponent(normalizedSessionId)}`, {
+            method: 'DELETE',
+            headers: this.buildForwardHeaders(requestHeaders),
+            body: {
+                sessionId: normalizedSessionId,
+                cameraId: cameraId ? String(cameraId) : null
+            }
+        });
+
+        if (!payload?.success || !payload?.result) {
+            throw streamControlError(502, 'Invalid WebRTC close payload from stream gateway', 'STREAM_GATEWAY_INVALID_WEBRTC_CLOSE');
+        }
+        return payload.result;
+    }
 }
 
 module.exports = {

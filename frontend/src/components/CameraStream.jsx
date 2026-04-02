@@ -6,6 +6,7 @@ const CameraStream = ({ camera }) => {
     const canvasRef = useRef(null);
     const videoRef = useRef(null);
     const peerConnectionRef = useRef(null);
+    const webRtcSessionRef = useRef({ sessionId: null, cameraId: null });
     const [status, setStatus] = useState('Conectando video...');
     const [activeTransport, setActiveTransport] = useState('jsmpeg');
     const [isEditingAuth, setIsEditingAuth] = useState(false);
@@ -26,7 +27,8 @@ const CameraStream = ({ camera }) => {
         takeSnapshot: requestSnapshot,
         toggleLight: toggleLightState,
         createWebRtcSession,
-        submitWebRtcCandidate
+        submitWebRtcCandidate,
+        closeWebRtcSession
     } = useCameraStreamData(camera);
 
     const resolveSelectedTransport = async () => {
@@ -44,6 +46,7 @@ const CameraStream = ({ camera }) => {
             } catch (error) {}
             peerConnectionRef.current = null;
         }
+        webRtcSessionRef.current = { sessionId: null, cameraId: null };
         if (playerRef.current) playerRef.current.destroy();
 
         let url = String(streamUrl || '').trim();
@@ -152,6 +155,12 @@ const CameraStream = ({ camera }) => {
         });
         const session = signalingPayload?.session || null;
         sessionId = session?.sessionId || null;
+        if (sessionId) {
+            webRtcSessionRef.current = {
+                sessionId,
+                cameraId
+            };
+        }
         const iceServers = Array.isArray(session?.iceServers) ? session.iceServers : [];
         if (iceServers.length > 0 && typeof pc.setConfiguration === 'function') {
             try {
@@ -185,6 +194,13 @@ const CameraStream = ({ camera }) => {
                 } catch (webrtcError) {
                     lastWebRtcError = webrtcError;
                     console.error(`WebRTC stream failed (attempt ${attempt}), falling back to JSMpeg:`, webrtcError);
+                    const currentSession = webRtcSessionRef.current;
+                    if (currentSession?.sessionId) {
+                        closeWebRtcSession(currentSession.sessionId, {
+                            cameraId: currentSession.cameraId
+                        }).catch(() => {});
+                        webRtcSessionRef.current = { sessionId: null, cameraId: null };
+                    }
                 }
             }
             if (!resolved.jsmpegEnabled) {
@@ -237,6 +253,13 @@ const CameraStream = ({ camera }) => {
         startStream();
 
         return () => {
+            const currentSession = webRtcSessionRef.current;
+            if (currentSession?.sessionId) {
+                closeWebRtcSession(currentSession.sessionId, {
+                    cameraId: currentSession.cameraId
+                }).catch(() => {});
+                webRtcSessionRef.current = { sessionId: null, cameraId: null };
+            }
             if (playerRef.current) playerRef.current.destroy();
             if (peerConnectionRef.current) {
                 try {

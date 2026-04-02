@@ -133,6 +133,15 @@ test('createBackendApp exposes internal worker config and perception ingest APIs
         assert.equal(candidateRes.status, 400);
         assert.equal(candidatePayload.success, false);
 
+        const closeRes = await fetch(`${baseUrl}/api/streams/webrtc/sessions/sess-missing`, {
+            method: 'DELETE',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ cameraId: 'cam-1' })
+        });
+        const closePayload = await closeRes.json();
+        assert.equal(closeRes.status, 503);
+        assert.equal(closePayload.success, false);
+
         const liveRes = await fetch(`${baseUrl}/api/health/live`);
         const livePayload = await liveRes.json();
         assert.equal(liveRes.status, 200);

@@ -142,6 +142,27 @@ function createStreamsRouter({ streamControlService, streamControlProxyService =
         }
     });
 
+    router.delete('/webrtc/sessions/:sessionId', async (req, res) => {
+        try {
+            const service = resolveStreamsService(streamControlService, streamControlProxyService);
+            if (!service || typeof service.closeWebRtcSession !== 'function') {
+                throw new Error('Streams WebRTC close service not configured');
+            }
+            const body = req.body || {};
+            const result = await service.closeWebRtcSession({
+                sessionId: req.params?.sessionId,
+                cameraId: body.cameraId,
+                requestHeaders: req.headers || {}
+            });
+            return res.json({
+                success: true,
+                result
+            });
+        } catch (error) {
+            return sendStreamsError(res, error, 'Failed to close WebRTC session');
+        }
+    });
+
     router.post('/sync', validateBody('jasy-jatere/contracts/stream-sync-request/v1'), async (req, res) => {
         try {
             const service = resolveStreamsService(streamControlService, streamControlProxyService);

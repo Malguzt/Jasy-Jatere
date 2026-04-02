@@ -115,6 +115,15 @@ test('createBackendApp exposes internal worker config and perception ingest APIs
         assert.equal(streamSessionRes.status, 404);
         assert.equal(streamSessionPayload.success, false);
 
+        const webrtcSessionRes = await fetch(`${baseUrl}/api/streams/webrtc/sessions`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({})
+        });
+        const webrtcSessionPayload = await webrtcSessionRes.json();
+        assert.equal(webrtcSessionRes.status, 400);
+        assert.equal(webrtcSessionPayload.success, false);
+
         const liveRes = await fetch(`${baseUrl}/api/health/live`);
         const livePayload = await liveRes.json();
         assert.equal(liveRes.status, 200);

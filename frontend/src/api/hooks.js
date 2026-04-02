@@ -543,6 +543,9 @@ export function useCameraStreamData(camera) {
                     transport: selected || null,
                     streamUrl: session?.transports?.jsmpeg?.url || null,
                     streamPath: session?.transports?.jsmpeg?.path || null,
+                    jsmpegEnabled: session?.transports?.jsmpeg?.enabled === true,
+                    webrtcEnabled: session?.transports?.webrtc?.enabled === true,
+                    webrtcSignalingPath: session?.transports?.webrtc?.signalingPath || '/api/streams/webrtc/sessions',
                     warning: webrtcFallbackWarning
                 };
             }
@@ -568,6 +571,9 @@ export function useCameraStreamData(camera) {
             transport: jsmpegEnabled ? 'jsmpeg' : null,
             streamUrl: null,
             streamPath: jsmpegEnabled ? `/stream/${encodeURIComponent(String(localCamera?.id || ''))}` : null,
+            jsmpegEnabled,
+            webrtcEnabled: false,
+            webrtcSignalingPath: '/api/streams/webrtc/sessions',
             warning: webrtcFallbackWarning
         };
     };
@@ -586,6 +592,10 @@ export function useCameraStreamData(camera) {
         } catch (error) {
             return { success: false, error: 'Error de red al actualizar', details: error };
         }
+    };
+
+    const createWebRtcSession = async (payload = {}) => {
+        return apiClient.createWebRtcSession(payload);
     };
 
     const stopPtz = async () => {
@@ -661,6 +671,7 @@ export function useCameraStreamData(camera) {
         movePtz,
         stopPtz,
         takeSnapshot,
-        toggleLight
+        toggleLight,
+        createWebRtcSession
     };
 }

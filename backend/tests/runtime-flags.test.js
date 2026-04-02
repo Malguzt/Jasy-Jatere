@@ -25,6 +25,7 @@ test('resolveRuntimeFlags returns stream-related runtime toggles', () => {
     const flags = resolveRuntimeFlags({
         STREAM_GATEWAY_API_URL: 'http://stream-gateway:4100/api/internal/streams',
         STREAM_PUBLIC_BASE_URL: 'https://streams.example.com',
+        STREAM_WEBRTC_SIGNALING_URL: 'http://stream-gateway:4100/webrtc/sessions',
         STREAM_PROXY_MODE_ENABLED: '1',
         STREAM_PROXY_REQUIRED: '1',
         STREAM_RUNTIME_ENABLED: '1',
@@ -44,6 +45,7 @@ test('resolveRuntimeFlags returns stream-related runtime toggles', () => {
     assert.deepEqual(flags, {
         streamGatewayApiUrl: 'http://stream-gateway:4100/api/internal/streams',
         streamPublicBaseUrl: 'https://streams.example.com',
+        streamWebRtcSignalingUrl: 'http://stream-gateway:4100/webrtc/sessions',
         streamProxyModeEnabled: true,
         streamProxyRequired: true,
         streamRuntimeEnabled: false,

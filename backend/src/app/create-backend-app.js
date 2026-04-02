@@ -116,6 +116,7 @@ function createBackendApp({
         streamWebSocketGatewayEnabled: runtimeFlags.streamWebSocketGatewayEnabled,
         streamWebRtcEnabled: runtimeFlags.streamWebRtcEnabled,
         streamWebRtcRequireHttps: runtimeFlags.streamWebRtcRequireHttps,
+        streamWebRtcSignalingUrl: runtimeFlags.streamWebRtcSignalingUrl,
         streamPublicBaseUrl: runtimeFlags.streamPublicBaseUrl
     });
     const streamGatewayApiUrl = String(runtimeFlags.streamGatewayApiUrl || '').trim();

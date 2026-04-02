@@ -131,6 +131,7 @@ During migration, this domain can expose internal operational APIs for control-p
 
 - `GET /api/streams/capabilities`
 - `GET /api/streams/sessions/:cameraId`
+- `POST /api/streams/webrtc/sessions`
 - `GET /api/streams/runtime`
 - `POST /api/streams/sync`
 - `GET /api/internal/config/streams`
@@ -141,6 +142,7 @@ Session descriptors (`GET /api/streams/sessions/:cameraId`) let clients consume 
 When stream runtime is externalized, control-plane stream APIs can proxy to `STREAM_GATEWAY_API_URL` while preserving the same frontend contracts.
 When proxy mode is enabled, backend websocket `/stream/:cameraId` requests can be relayed to the stream-gateway upstream so existing frontend websocket entrypoints remain stable while stream runtime ownership moves out of the control-plane process.
 `STREAM_PUBLIC_BASE_URL` can be set when descriptors should include externally reachable stream URLs directly.
+`STREAM_WEBRTC_SIGNALING_URL` wires the control plane or stream-gateway to an external signaling provider for WebRTC SDP offer/answer exchange.
 Proxy mode can be made explicit with `STREAM_PROXY_MODE_ENABLED=1`, which disables local stream runtime ownership and lets readiness enforce upstream gateway availability when `STREAM_PROXY_REQUIRED=1`.
 
 ### Observation ingest

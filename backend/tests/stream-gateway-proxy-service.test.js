@@ -139,3 +139,42 @@ test('getSessionDescriptor proxies session payload from stream gateway API', asy
     assert.equal(session.selectedTransport, 'jsmpeg');
     assert.equal(session.transports.jsmpeg.path, '/stream/cam-9');
 });
+
+test('createWebRtcSession proxies signaling payload through stream gateway API', async () => {
+    const calls = [];
+    const service = new StreamGatewayProxyService({
+        gatewayApiBaseUrl: 'http://stream-gateway:4100/api/internal/streams',
+        fetchImpl: async (url, init = {}) => {
+            calls.push({ url, init });
+            return {
+                ok: true,
+                status: 200,
+                json: async () => ({
+                    success: true,
+                    session: {
+                        cameraId: 'cam-1',
+                        sessionId: 'abc',
+                        answer: {
+                            type: 'answer',
+                            sdp: 'v=0\\n...'
+                        },
+                        iceServers: []
+                    }
+                })
+            };
+        }
+    });
+
+    const session = await service.createWebRtcSession({
+        cameraId: 'cam-1',
+        offerSdp: 'v=0\\no=- 0 0 IN IP4 127.0.0.1',
+        offerType: 'offer',
+        requestHeaders: {
+            origin: 'https://dashboard.local'
+        }
+    });
+    assert.equal(session.cameraId, 'cam-1');
+    assert.equal(session.answer.type, 'answer');
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].url, 'http://stream-gateway:4100/api/internal/streams/webrtc/sessions');
+});

@@ -86,6 +86,29 @@ function createStreamsRouter({ streamControlService, streamControlProxyService =
         }
     });
 
+    router.post('/webrtc/sessions', async (req, res) => {
+        try {
+            const service = resolveStreamsService(streamControlService, streamControlProxyService);
+            if (!service || typeof service.createWebRtcSession !== 'function') {
+                throw new Error('Streams WebRTC session service not configured');
+            }
+            const body = req.body || {};
+            const offer = body.offer && typeof body.offer === 'object' ? body.offer : null;
+            const session = await service.createWebRtcSession({
+                cameraId: body.cameraId,
+                offerSdp: offer?.sdp || body.offerSdp,
+                offerType: offer?.type || body.offerType,
+                requestHeaders: req.headers || {}
+            });
+            return res.json({
+                success: true,
+                session
+            });
+        } catch (error) {
+            return sendStreamsError(res, error, 'Failed to create WebRTC session');
+        }
+    });
+
     router.post('/sync', validateBody('jasy-jatere/contracts/stream-sync-request/v1'), async (req, res) => {
         try {
             const service = resolveStreamsService(streamControlService, streamControlProxyService);

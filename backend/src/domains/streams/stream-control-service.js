@@ -28,6 +28,9 @@ class StreamControlService {
         streamWebSocketGatewayEnabled = true,
         streamWebRtcEnabled = false,
         streamWebRtcRequireHttps = true,
+        streamWebRtcSignalingUrl = process.env.STREAM_WEBRTC_SIGNALING_URL || '',
+        fetchImpl = fetch,
+        webrtcSignalingTimeoutMs = Number(process.env.STREAM_WEBRTC_SIGNALING_TIMEOUT_MS || 7000),
         streamPublicBaseUrl = process.env.STREAM_PUBLIC_BASE_URL || '',
         now = () => Date.now()
     } = {}) {
@@ -37,6 +40,11 @@ class StreamControlService {
         this.streamWebSocketGatewayEnabled = streamWebSocketGatewayEnabled !== false;
         this.streamWebRtcEnabled = streamWebRtcEnabled === true;
         this.streamWebRtcRequireHttps = streamWebRtcRequireHttps !== false;
+        this.streamWebRtcSignalingUrl = String(streamWebRtcSignalingUrl || '').trim();
+        this.fetchImpl = fetchImpl;
+        this.webrtcSignalingTimeoutMs = Number.isFinite(Number(webrtcSignalingTimeoutMs))
+            ? Math.max(1000, Number(webrtcSignalingTimeoutMs))
+            : 7000;
         this.streamPublicBaseUrl = String(streamPublicBaseUrl || '').trim();
         this.now = now;
         this.lastManualSync = null;
@@ -50,12 +58,19 @@ class StreamControlService {
         const secureContext = secureByOrigin || secureByForwardedProto;
 
         const webrtcConfigured = this.streamWebRtcEnabled;
-        const webrtcEnabled = webrtcConfigured && (!this.streamWebRtcRequireHttps || secureContext);
+        const webrtcSignalingConfigured = !!this.streamWebRtcSignalingUrl;
+        const webrtcEnabled = webrtcConfigured
+            && webrtcSignalingConfigured
+            && (!this.streamWebRtcRequireHttps || secureContext);
         const webrtcReason = webrtcEnabled
             ? null
-            : (webrtcConfigured && this.streamWebRtcRequireHttps && !secureContext
+            : (!webrtcConfigured
+                ? 'webrtc-disabled'
+                : (!webrtcSignalingConfigured
+                    ? 'webrtc-signaling-missing'
+                    : (this.streamWebRtcRequireHttps && !secureContext
                 ? 'webrtc-requires-https'
-                : 'webrtc-disabled');
+                        : 'webrtc-disabled')));
 
         const jsmpegEnabled = this.streamWebSocketGatewayEnabled;
         const defaultTransport = webrtcEnabled ? 'webrtc' : (jsmpegEnabled ? 'jsmpeg' : null);
@@ -66,6 +81,7 @@ class StreamControlService {
             transports: {
                 webrtc: {
                     configured: webrtcConfigured,
+                    signalingConfigured: webrtcSignalingConfigured,
                     enabled: webrtcEnabled,
                     requireHttps: this.streamWebRtcRequireHttps,
                     reason: webrtcReason
@@ -110,7 +126,9 @@ class StreamControlService {
         const jsmpegEnabled = capabilities?.transports?.jsmpeg?.enabled === true;
         const webrtc = capabilities?.transports?.webrtc || {};
         const webrtcEnabled = webrtc.enabled === true;
-        const selectedTransport = jsmpegEnabled ? 'jsmpeg' : (webrtcEnabled ? 'webrtc' : null);
+        const selectedTransport = webrtcEnabled
+            ? 'webrtc'
+            : (jsmpegEnabled ? 'jsmpeg' : null);
 
         if (!selectedTransport) {
             throw streamControlError(503, 'No stream transport available', 'STREAM_TRANSPORT_UNAVAILABLE', {
@@ -129,11 +147,107 @@ class StreamControlService {
                     : { enabled: false, path: null, url: null },
                 webrtc: {
                     enabled: webrtcEnabled,
-                    reason: webrtc.reason || null
+                    reason: webrtc.reason || null,
+                    signalingPath: webrtcEnabled ? '/api/streams/webrtc/sessions' : null
                 }
             },
             capabilities
         };
+    }
+
+    ensureWebRtcSessionAvailable({ requestHeaders = {} } = {}) {
+        const capabilities = this.getCapabilities({ requestHeaders });
+        const webrtc = capabilities?.transports?.webrtc || {};
+        if (webrtc.enabled !== true) {
+            throw streamControlError(503, 'WebRTC transport is not available', 'STREAM_WEBRTC_UNAVAILABLE', {
+                reason: webrtc.reason || 'webrtc-disabled'
+            });
+        }
+        if (typeof this.fetchImpl !== 'function') {
+            throw streamControlError(500, 'Fetch implementation is not available', 'STREAM_WEBRTC_FETCH_UNAVAILABLE');
+        }
+    }
+
+    async createWebRtcSession({
+        cameraId,
+        offerSdp,
+        offerType = 'offer',
+        requestHeaders = {}
+    } = {}) {
+        const normalizedCameraId = this.ensureCameraExists(cameraId);
+        const normalizedOfferSdp = String(offerSdp || '').trim();
+        const normalizedOfferType = String(offerType || 'offer').trim().toLowerCase();
+        if (!normalizedOfferSdp) {
+            throw streamControlError(400, 'offerSdp is required', 'STREAM_WEBRTC_OFFER_REQUIRED');
+        }
+        if (normalizedOfferType !== 'offer') {
+            throw streamControlError(400, 'offerType must be "offer"', 'STREAM_WEBRTC_OFFER_TYPE_INVALID');
+        }
+
+        this.ensureWebRtcSessionAvailable({ requestHeaders });
+
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), this.webrtcSignalingTimeoutMs);
+        try {
+            const response = await this.fetchImpl(this.streamWebRtcSignalingUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    cameraId: normalizedCameraId,
+                    offer: {
+                        type: 'offer',
+                        sdp: normalizedOfferSdp
+                    }
+                }),
+                signal: controller.signal
+            });
+            let payload = null;
+            try {
+                payload = await response.json();
+            } catch (error) {}
+
+            if (!response.ok) {
+                throw streamControlError(
+                    502,
+                    payload?.error || `WebRTC signaling responded with ${response.status}`,
+                    'STREAM_WEBRTC_SIGNALING_UPSTREAM_ERROR',
+                    { status: response.status, payload: payload || null }
+                );
+            }
+
+            const answerSdp = String(payload?.answer?.sdp || payload?.answerSdp || '').trim();
+            const answerType = String(payload?.answer?.type || payload?.answerType || 'answer').trim().toLowerCase();
+            if (!answerSdp) {
+                throw streamControlError(502, 'WebRTC signaling returned empty answer SDP', 'STREAM_WEBRTC_SIGNALING_INVALID_ANSWER');
+            }
+            if (answerType !== 'answer') {
+                throw streamControlError(502, 'WebRTC signaling returned unsupported answer type', 'STREAM_WEBRTC_SIGNALING_INVALID_ANSWER_TYPE');
+            }
+
+            return {
+                cameraId: normalizedCameraId,
+                sessionId: payload?.sessionId || null,
+                answer: {
+                    type: 'answer',
+                    sdp: answerSdp
+                },
+                iceServers: Array.isArray(payload?.iceServers) ? payload.iceServers : []
+            };
+        } catch (error) {
+            if (error?.name === 'AbortError') {
+                throw streamControlError(504, 'WebRTC signaling request timeout', 'STREAM_WEBRTC_SIGNALING_TIMEOUT');
+            }
+            if (error?.status) throw error;
+            throw streamControlError(
+                502,
+                error?.message || String(error),
+                'STREAM_WEBRTC_SIGNALING_UNREACHABLE'
+            );
+        } finally {
+            clearTimeout(timeout);
+        }
     }
 
     getRuntimeSnapshot() {

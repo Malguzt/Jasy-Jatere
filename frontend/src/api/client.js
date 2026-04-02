@@ -70,6 +70,13 @@ export const apiClient = {
     getStreamSession(cameraId) {
         return apiFetch(`/api/streams/sessions/${encodeURIComponent(String(cameraId || ''))}`);
     },
+    createWebRtcSession(payload) {
+        return apiFetch('/api/streams/webrtc/sessions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload || {})
+        });
+    },
     listRecordings(query = {}) {
         const params = new URLSearchParams();
         Object.entries(query || {}).forEach(([key, value]) => {

@@ -68,6 +68,7 @@ function createStreamGatewayApp({
         streamWebSocketGatewayEnabled: runtimeFlags.streamWebSocketGatewayEnabled,
         streamWebRtcEnabled: runtimeFlags.streamWebRtcEnabled,
         streamWebRtcRequireHttps: runtimeFlags.streamWebRtcRequireHttps,
+        streamWebRtcSignalingUrl: runtimeFlags.streamWebRtcSignalingUrl,
         streamPublicBaseUrl: runtimeFlags.streamPublicBaseUrl
     });
 
@@ -167,6 +168,25 @@ function createStreamGatewayApp({
             return res.json({
                 success: true,
                 sync
+            });
+        } catch (error) {
+            return sendGatewayError(res, error);
+        }
+    });
+
+    app.post('/api/internal/streams/webrtc/sessions', async (req, res) => {
+        try {
+            const body = req.body || {};
+            const offer = body.offer && typeof body.offer === 'object' ? body.offer : null;
+            const session = await streamControlService.createWebRtcSession({
+                cameraId: body.cameraId,
+                offerSdp: offer?.sdp || body.offerSdp,
+                offerType: offer?.type || body.offerType,
+                requestHeaders: req.headers || {}
+            });
+            return res.json({
+                success: true,
+                session
             });
         } catch (error) {
             return sendGatewayError(res, error);

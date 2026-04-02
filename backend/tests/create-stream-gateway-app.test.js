@@ -40,6 +40,15 @@ test('createStreamGatewayApp exposes internal health and runtime endpoints', asy
         assert.equal(sessionRes.status, 404);
         assert.equal(sessionPayload.success, false);
 
+        const webrtcRes = await fetch(`${baseUrl}/api/internal/streams/webrtc/sessions`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({})
+        });
+        const webrtcPayload = await webrtcRes.json();
+        assert.equal(webrtcRes.status, 400);
+        assert.equal(webrtcPayload.success, false);
+
         const livezRes = await fetch(`${baseUrl}/livez`);
         const livezPayload = await livezRes.json();
         assert.equal(livezRes.status, 200);

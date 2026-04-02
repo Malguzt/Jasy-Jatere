@@ -42,6 +42,13 @@ test('streams router returns local runtime snapshot when proxy is not configured
                 syncRuntime: null,
                 lastManualSync: null
             }),
+            createWebRtcSession: async () => ({
+                cameraId: 'cam-1',
+                answer: {
+                    type: 'answer',
+                    sdp: 'v=0\\n...'
+                }
+            }),
             triggerManualSync: async () => ({ result: { success: true } })
         }
     });
@@ -60,6 +67,19 @@ test('streams router returns local runtime snapshot when proxy is not configured
         assert.equal(sessionPayload.success, true);
         assert.equal(sessionPayload.session.cameraId, 'cam-1');
         assert.equal(sessionPayload.session.selectedTransport, 'jsmpeg');
+
+        const webrtcRes = await fetch(`${baseUrl}/api/streams/webrtc/sessions`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({
+                cameraId: 'cam-1',
+                offerSdp: 'v=0\\n...'
+            })
+        });
+        const webrtcPayload = await webrtcRes.json();
+        assert.equal(webrtcRes.status, 200);
+        assert.equal(webrtcPayload.success, true);
+        assert.equal(webrtcPayload.session.cameraId, 'cam-1');
 
         const response = await fetch(`${baseUrl}/api/streams/runtime`);
         const payload = await response.json();
@@ -89,6 +109,10 @@ test('streams router prefers proxy service when configured', async () => {
                 localCalled = true;
                 return { summary: { streams: 99 } };
             },
+            createWebRtcSession: async () => {
+                localCalled = true;
+                return { cameraId: 'cam-local' };
+            },
             triggerManualSync: async () => ({ result: { success: true } })
         },
         streamControlProxyService: {
@@ -117,6 +141,10 @@ test('streams router prefers proxy service when configured', async () => {
                     lastManualSync: null
                 };
             },
+            createWebRtcSession: async () => ({
+                cameraId: 'cam-proxy',
+                answer: { type: 'answer', sdp: 'v=0\\n...' }
+            }),
             triggerManualSync: async () => ({
                 requestedBy: 'proxy',
                 result: { success: true }
@@ -137,6 +165,19 @@ test('streams router prefers proxy service when configured', async () => {
         assert.equal(sessionPayload.success, true);
         assert.equal(sessionPayload.session.cameraId, 'cam-proxy');
         assert.equal(sessionPayload.session.preferredTransport, 'webrtc');
+
+        const webrtcRes = await fetch(`${baseUrl}/api/streams/webrtc/sessions`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({
+                cameraId: 'cam-proxy',
+                offerSdp: 'v=0\\n...'
+            })
+        });
+        const webrtcPayload = await webrtcRes.json();
+        assert.equal(webrtcRes.status, 200);
+        assert.equal(webrtcPayload.success, true);
+        assert.equal(webrtcPayload.session.cameraId, 'cam-proxy');
 
         const runtimeRes = await fetch(`${baseUrl}/api/streams/runtime`);
         const runtimePayload = await runtimeRes.json();

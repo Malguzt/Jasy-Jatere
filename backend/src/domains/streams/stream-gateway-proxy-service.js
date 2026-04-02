@@ -138,6 +138,41 @@ class StreamGatewayProxyService {
         }
         return payload.session;
     }
+
+    async createWebRtcSession({
+        cameraId,
+        offerSdp,
+        offerType = 'offer',
+        requestHeaders = {}
+    } = {}) {
+        const normalizedCameraId = String(cameraId || '').trim();
+        const normalizedOfferSdp = String(offerSdp || '').trim();
+        const normalizedOfferType = String(offerType || 'offer').trim().toLowerCase();
+        if (!normalizedCameraId) {
+            throw streamControlError(400, 'cameraId is required', 'STREAM_CAMERA_ID_REQUIRED');
+        }
+        if (!normalizedOfferSdp) {
+            throw streamControlError(400, 'offerSdp is required', 'STREAM_WEBRTC_OFFER_REQUIRED');
+        }
+        if (normalizedOfferType !== 'offer') {
+            throw streamControlError(400, 'offerType must be "offer"', 'STREAM_WEBRTC_OFFER_TYPE_INVALID');
+        }
+
+        const payload = await this.requestJson('/webrtc/sessions', {
+            method: 'POST',
+            headers: this.buildForwardHeaders(requestHeaders),
+            body: {
+                cameraId: normalizedCameraId,
+                offerSdp: normalizedOfferSdp,
+                offerType: 'offer'
+            }
+        });
+
+        if (!payload?.success || !payload?.session) {
+            throw streamControlError(502, 'Invalid WebRTC session payload from stream gateway', 'STREAM_GATEWAY_INVALID_WEBRTC_SESSION');
+        }
+        return payload.session;
+    }
 }
 
 module.exports = {

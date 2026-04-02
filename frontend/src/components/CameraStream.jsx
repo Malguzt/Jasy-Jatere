@@ -4,7 +4,10 @@ import { useCameraStreamData } from '../api/hooks';
 
 const CameraStream = ({ camera }) => {
     const canvasRef = useRef(null);
+    const videoRef = useRef(null);
+    const peerConnectionRef = useRef(null);
     const [status, setStatus] = useState('Conectando video...');
+    const [activeTransport, setActiveTransport] = useState('jsmpeg');
     const [isEditingAuth, setIsEditingAuth] = useState(false);
     const [tempUser, setTempUser] = useState('');
     const [tempPass, setTempPass] = useState('');
@@ -21,7 +24,8 @@ const CameraStream = ({ camera }) => {
         updateAuthCredentials,
         movePtz,
         takeSnapshot: requestSnapshot,
-        toggleLight: toggleLightState
+        toggleLight: toggleLightState,
+        createWebRtcSession
     } = useCameraStreamData(camera);
 
     const resolveSelectedTransport = async () => {
@@ -33,6 +37,12 @@ const CameraStream = ({ camera }) => {
     };
 
     const startJsmpegStream = ({ streamUrl = null, streamPath = null } = {}) => {
+        if (peerConnectionRef.current) {
+            try {
+                peerConnectionRef.current.close();
+            } catch (error) {}
+            peerConnectionRef.current = null;
+        }
         if (playerRef.current) playerRef.current.destroy();
 
         let url = String(streamUrl || '').trim();
@@ -57,6 +67,7 @@ const CameraStream = ({ camera }) => {
                 videoBufferSize: 1024 * 1024,
                 audio: false,
                 onSourceEstablished: () => {
+                    setActiveTransport('jsmpeg');
                     setStatus('');
                     setRetryCount(0);
                     setError(null);
@@ -73,9 +84,89 @@ const CameraStream = ({ camera }) => {
         }
     };
 
+    const startWebRtcStream = async ({ cameraId }) => {
+        if (!window.RTCPeerConnection) {
+            throw new Error('WebRTC is not supported by this browser');
+        }
+        if (!cameraId) {
+            throw new Error('Camera id is required for WebRTC session');
+        }
+
+        if (playerRef.current) {
+            playerRef.current.destroy();
+            playerRef.current = null;
+        }
+        if (peerConnectionRef.current) {
+            try {
+                peerConnectionRef.current.close();
+            } catch (error) {}
+            peerConnectionRef.current = null;
+        }
+
+        const pc = new window.RTCPeerConnection();
+        peerConnectionRef.current = pc;
+
+        const mediaStream = new window.MediaStream();
+        if (videoRef.current) {
+            videoRef.current.srcObject = mediaStream;
+        }
+        pc.ontrack = (event) => {
+            const track = event?.track;
+            if (track) {
+                mediaStream.addTrack(track);
+            }
+            setActiveTransport('webrtc');
+            setStatus('');
+            setError(null);
+            setRetryCount(0);
+        };
+
+        const offer = await pc.createOffer({
+            offerToReceiveVideo: true,
+            offerToReceiveAudio: false
+        });
+        await pc.setLocalDescription(offer);
+
+        const payload = await createWebRtcSession({
+            cameraId,
+            offer: {
+                type: offer.type,
+                sdp: offer.sdp
+            }
+        });
+        const answer = payload?.session?.answer || null;
+        const answerSdp = String(answer?.sdp || '').trim();
+        const answerType = String(answer?.type || 'answer').trim().toLowerCase();
+        if (!answerSdp || answerType !== 'answer') {
+            throw new Error('Invalid WebRTC answer from server');
+        }
+
+        await pc.setRemoteDescription({
+            type: 'answer',
+            sdp: answerSdp
+        });
+        setActiveTransport('webrtc');
+    };
+
     const startStream = async () => {
         const resolved = await resolveSelectedTransport();
-        if (resolved.transport !== 'jsmpeg') {
+        if (resolved.transport === 'webrtc' && resolved.webrtcEnabled) {
+            try {
+                setStatus('Conectando WebRTC...');
+                await startWebRtcStream({ cameraId: localCamera.id });
+                return;
+            } catch (webrtcError) {
+                console.error('WebRTC stream failed, falling back to JSMpeg:', webrtcError);
+                if (!resolved.jsmpegEnabled) {
+                    setError('No stream transport available for this client.');
+                    setStatus('Error de transporte de streaming.');
+                    return;
+                }
+                setStatus('WebRTC no disponible, usando JSMpeg...');
+            }
+        }
+
+        if (!resolved.jsmpegEnabled) {
             setError('No stream transport available for this client.');
             setStatus('Error de transporte de streaming.');
             return;
@@ -118,6 +209,21 @@ const CameraStream = ({ camera }) => {
 
         return () => {
             if (playerRef.current) playerRef.current.destroy();
+            if (peerConnectionRef.current) {
+                try {
+                    peerConnectionRef.current.close();
+                } catch (error) {}
+                peerConnectionRef.current = null;
+            }
+            if (videoRef.current && videoRef.current.srcObject) {
+                const tracks = videoRef.current.srcObject.getTracks?.() || [];
+                tracks.forEach((track) => {
+                    try {
+                        track.stop();
+                    } catch (error) {}
+                });
+                videoRef.current.srcObject = null;
+            }
         };
     }, [localCamera.id, localCamera.rtspUrl, localCamera.user, localCamera.pass, retryCount]);
 
@@ -197,7 +303,28 @@ const CameraStream = ({ camera }) => {
                 </div>
             )}
             
-            <canvas ref={canvasRef} style={{ width: '100%', height: '100%', display: 'block', objectFit: 'contain' }}></canvas>
+            <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted
+                style={{
+                    width: '100%',
+                    height: '100%',
+                    display: activeTransport === 'webrtc' ? 'block' : 'none',
+                    objectFit: 'contain',
+                    background: '#000'
+                }}
+            />
+            <canvas
+                ref={canvasRef}
+                style={{
+                    width: '100%',
+                    height: '100%',
+                    display: activeTransport === 'webrtc' ? 'none' : 'block',
+                    objectFit: 'contain'
+                }}
+            ></canvas>
 
             {/* Controls Overlay */}
             {showControls && !isEditingAuth && (

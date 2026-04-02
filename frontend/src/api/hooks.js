@@ -23,6 +23,22 @@ export function useRecordingsData() {
         }
     };
 
+    const deleteRecording = async (filename) => {
+        try {
+            const data = await apiClient.deleteRecording(filename);
+            if (data?.success) {
+                await refresh();
+                return { success: true };
+            }
+            const nextError = data?.error || 'Error al borrar grabación';
+            setError(new Error(nextError));
+            return { success: false, error: nextError };
+        } catch (deleteError) {
+            setError(deleteError);
+            return { success: false, error: 'Error de red al intentar borrar.', details: deleteError };
+        }
+    };
+
     useEffect(() => {
         refresh();
     }, []);
@@ -32,6 +48,7 @@ export function useRecordingsData() {
         loading,
         error,
         refresh,
+        deleteRecording,
         setRecordings
     };
 }
@@ -50,6 +67,18 @@ export function useConnectivityData({ pollMs = 5000 } = {}) {
             setError(fetchError);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const forceProbe = async () => {
+        try {
+            const data = await apiClient.forceConnectivityProbe();
+            setPayload(data);
+            setError(null);
+            return data;
+        } catch (probeError) {
+            setError(probeError);
+            throw probeError;
         }
     };
 
@@ -75,7 +104,8 @@ export function useConnectivityData({ pollMs = 5000 } = {}) {
         setPayload,
         loading,
         error,
-        refresh
+        refresh,
+        forceProbe
     };
 }
 

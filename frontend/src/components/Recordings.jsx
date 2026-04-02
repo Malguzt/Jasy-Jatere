@@ -1,27 +1,20 @@
 import React, { useState } from 'react';
 import { Play, Trash2, Calendar, Film, Search } from 'lucide-react';
-import { apiClient } from '../api/client';
 import { useRecordingsData } from '../api/hooks';
 
 const Recordings = () => {
-    const { recordings, loading, error, refresh } = useRecordingsData();
+    const { recordings, loading, error, refresh, deleteRecording: removeRecording } = useRecordingsData();
     const [selectedVideo, setSelectedVideo] = useState(null);
     const [confirmDelete, setConfirmDelete] = useState(null); // Track which file is in 'confirm delete' state
     const [searchTerm, setSearchTerm] = useState('');
 
     const deleteRecording = async (filename) => {
-        try {
-            const data = await apiClient.deleteRecording(filename);
-            if (data.success) {
-                // Refresh list
-                refresh();
-                setConfirmDelete(null);
-            } else {
-                alert('Error al borrar: ' + data.error);
-            }
-        } catch (error) {
-            alert('Error de red al intentar borrar.');
+        const result = await removeRecording(filename);
+        if (result?.success) {
+            setConfirmDelete(null);
+            return;
         }
+        alert(result?.error || 'Error de red al intentar borrar.');
     };
 
     if (loading) {

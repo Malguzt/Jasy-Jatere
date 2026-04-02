@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from 'react';
 import { Activity, RefreshCw, Wifi, WifiOff, Gauge, Timer, Server, AlertTriangle } from 'lucide-react';
-import { apiClient } from '../api/client';
 import { useConnectivityData } from '../api/hooks';
 
 const POLL_MS = 5000;
@@ -85,14 +84,13 @@ function Sparkline({ values, color = '#66fcf1', height = 52 }) {
 }
 
 const ConnectivityMonitor = () => {
-    const { payload, setPayload, loading, error, refresh } = useConnectivityData({ pollMs: POLL_MS });
+    const { payload, loading, error, refresh, forceProbe: triggerProbe } = useConnectivityData({ pollMs: POLL_MS });
     const [forcingProbe, setForcingProbe] = useState(false);
 
     const forceProbe = async () => {
         setForcingProbe(true);
         try {
-            const data = await apiClient.forceConnectivityProbe();
-            setPayload(data);
+            await triggerProbe();
         } catch (e) {
             console.error('Force probe failed', e);
         } finally {

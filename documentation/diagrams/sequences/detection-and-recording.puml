@@ -10,6 +10,7 @@ database "Metadata Store" as Metadata
 database "Media Store" as Media
 
 API -> Perception: Publish desired camera config snapshot
+API -> Perception: Publish retention snapshot (/api/internal/config/retention)
 loop Per configured camera
   Perception -> Gateway: Consume normalized stream feed
   Gateway --> Perception: Frames or stream tap
@@ -26,6 +27,12 @@ loop Per configured camera
     Recorder -> API: Publish RecordingCompleted
     API -> Metadata: Store recording catalog rows
   end
+end
+
+loop Retention policy interval
+  API -> Metadata: Evaluate retention policy (max age / max entries)
+  API -> Media: Delete expired or overflow recording artifacts
+  API -> Metadata: Delete catalog rows for removed artifacts
 end
 
 @enduml

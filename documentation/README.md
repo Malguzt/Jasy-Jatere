@@ -95,3 +95,4 @@ If you want the shortest path through the redesign, use this order:
 - ONVIF discovery now prefers repository-backed inventory prefixes in control-plane composition; legacy file prefix fallback is gated by `LEGACY_COMPAT_EXPORTS_ENABLED`.
 - Camera onboarding routes now use composition-injected domain services (`/api/cameras`, `/api/saved-cameras`) so repository/runtime wiring is owned by control-plane bootstrap rather than route-local singletons.
 - Map and detector API routes are also composition-injected (`/api/maps`, `/api/detector`) to keep bootstrap ownership explicit and testable.
+- Backend service wiring is now centralized in a dedicated composition factory (`backend/src/app/create-backend-services.js`) so app bootstrap focuses on HTTP/runtime lifecycle only.

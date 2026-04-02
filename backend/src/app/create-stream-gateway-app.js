@@ -176,7 +176,7 @@ function createStreamGatewayApp({
         }
     });
 
-    app.post('/api/internal/streams/webrtc/sessions', async (req, res) => {
+    app.post('/api/internal/streams/webrtc/sessions', validateBody('jasy-jatere/contracts/stream-webrtc-session-create-request/v1'), async (req, res) => {
         try {
             const body = req.body || {};
             const offer = body.offer && typeof body.offer === 'object' ? body.offer : null;
@@ -195,7 +195,7 @@ function createStreamGatewayApp({
         }
     });
 
-    app.post('/api/internal/streams/webrtc/sessions/:sessionId/candidates', async (req, res) => {
+    app.post('/api/internal/streams/webrtc/sessions/:sessionId/candidates', validateBody('jasy-jatere/contracts/stream-webrtc-candidate-request/v1'), async (req, res) => {
         try {
             const body = req.body || {};
             const rawCandidate = body.candidate;
@@ -224,7 +224,7 @@ function createStreamGatewayApp({
         }
     });
 
-    app.delete('/api/internal/streams/webrtc/sessions/:sessionId', async (req, res) => {
+    app.delete('/api/internal/streams/webrtc/sessions/:sessionId', validateBody('jasy-jatere/contracts/stream-webrtc-session-close-request/v1'), async (req, res) => {
         try {
             const body = req.body || {};
             const result = await streamControlService.closeWebRtcSession({

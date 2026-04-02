@@ -116,6 +116,59 @@ test('stream sync request schema validates optional manual metadata', () => {
     assert.equal(invalid.ok, false);
     assert.ok(invalid.errors.some((error) => error.includes('$.reason')));
     assert.ok(invalid.errors.some((error) => error.includes('unknownField')));
+
+    const tooLongReason = validateBySchemaId('jasy-jatere/contracts/stream-sync-request/v1', {
+        reason: 'x'.repeat(121)
+    });
+    assert.equal(tooLongReason.ok, false);
+    assert.ok(tooLongReason.errors.some((error) => error.includes('length must be <= 120')));
+});
+
+test('stream webrtc schemas validate required fields and shape', () => {
+    const createInvalid = validateBySchemaId('jasy-jatere/contracts/stream-webrtc-session-create-request/v1', {});
+    assert.equal(createInvalid.ok, false);
+    assert.ok(createInvalid.errors.some((error) => error.includes('$.cameraId')));
+    assert.ok(createInvalid.errors.some((error) => error.includes('does not match any allowed schema variant')));
+
+    const createValid = validateBySchemaId('jasy-jatere/contracts/stream-webrtc-session-create-request/v1', {
+        cameraId: 'cam-1',
+        offer: {
+            type: 'offer',
+            sdp: 'v=0\\n...'
+        }
+    });
+    assert.equal(createValid.ok, true);
+
+    const candidateInvalid = validateBySchemaId('jasy-jatere/contracts/stream-webrtc-candidate-request/v1', {
+        cameraId: 'cam-1'
+    });
+    assert.equal(candidateInvalid.ok, false);
+    assert.ok(candidateInvalid.errors.some((error) => error.includes('$.candidate')));
+
+    const candidateShapeInvalid = validateBySchemaId('jasy-jatere/contracts/stream-webrtc-candidate-request/v1', {
+        cameraId: 'cam-1',
+        candidate: {}
+    });
+    assert.equal(candidateShapeInvalid.ok, false);
+    assert.ok(candidateShapeInvalid.errors.some((error) => error.includes('match exactly one schema variant')));
+
+    const candidateValid = validateBySchemaId('jasy-jatere/contracts/stream-webrtc-candidate-request/v1', {
+        cameraId: 'cam-1',
+        candidate: {
+            candidate: 'candidate:1 1 UDP 2122252543 192.168.1.2 54400 typ host',
+            sdpMLineIndex: 0
+        }
+    });
+    assert.equal(candidateValid.ok, true);
+
+    const closeInvalid = validateBySchemaId('jasy-jatere/contracts/stream-webrtc-session-close-request/v1', {});
+    assert.equal(closeInvalid.ok, false);
+    assert.ok(closeInvalid.errors.some((error) => error.includes('$.cameraId')));
+
+    const closeValid = validateBySchemaId('jasy-jatere/contracts/stream-webrtc-session-close-request/v1', {
+        cameraId: 'cam-1'
+    });
+    assert.equal(closeValid.ok, true);
 });
 
 test('perception ingest schemas validate required fields', () => {

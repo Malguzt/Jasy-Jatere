@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "jasy-jatere/contracts/stream-webrtc-session-close-request/v1",
+  "title": "StreamWebRtcSessionCloseRequest",
+  "type": "object",
+  "required": [
+    "cameraId"
+  ],
+  "properties": {
+    "cameraId": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "additionalProperties": false
+}

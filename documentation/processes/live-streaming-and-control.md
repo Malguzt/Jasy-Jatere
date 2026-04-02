@@ -70,6 +70,11 @@ For incremental cutovers, backend websocket `/stream/:cameraId` can also run in 
 WebRTC policy can be enabled incrementally with `STREAM_WEBRTC_ENABLED` and constrained to secure contexts with `STREAM_WEBRTC_REQUIRE_HTTPS`.
 WebRTC signaling can be integrated incrementally by pointing `STREAM_WEBRTC_SIGNALING_URL` to a signaling service that receives `{cameraId, offer}` and returns an answer payload.
 Retries for signaling requests can be tuned with `STREAM_WEBRTC_SIGNALING_RETRIES`, and fallback ICE server configuration can be provided with `STREAM_WEBRTC_ICE_SERVERS_JSON`.
+These WebRTC request bodies are contract-validated through:
+
+- `jasy-jatere/contracts/stream-webrtc-session-create-request/v1`
+- `jasy-jatere/contracts/stream-webrtc-candidate-request/v1`
+- `jasy-jatere/contracts/stream-webrtc-session-close-request/v1`
 
 ## Target Outputs
 

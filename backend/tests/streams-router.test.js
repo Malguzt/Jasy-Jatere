@@ -89,6 +89,16 @@ test('streams router returns local runtime snapshot when proxy is not configured
         assert.equal(webrtcPayload.success, true);
         assert.equal(webrtcPayload.session.cameraId, 'cam-1');
 
+        const invalidWebrtcRes = await fetch(`${baseUrl}/api/streams/webrtc/sessions`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({})
+        });
+        const invalidWebrtcPayload = await invalidWebrtcRes.json();
+        assert.equal(invalidWebrtcRes.status, 400);
+        assert.equal(invalidWebrtcPayload.success, false);
+        assert.equal(invalidWebrtcPayload.code, 'INVALID_REQUEST_BODY');
+
         const candidateRes = await fetch(`${baseUrl}/api/streams/webrtc/sessions/sess-local/candidates`, {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
@@ -104,6 +114,16 @@ test('streams router returns local runtime snapshot when proxy is not configured
         assert.equal(candidatePayload.success, true);
         assert.equal(candidatePayload.result.sessionId, 'sess-local');
 
+        const invalidCandidateRes = await fetch(`${baseUrl}/api/streams/webrtc/sessions/sess-local/candidates`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ cameraId: 'cam-1' })
+        });
+        const invalidCandidatePayload = await invalidCandidateRes.json();
+        assert.equal(invalidCandidateRes.status, 400);
+        assert.equal(invalidCandidatePayload.success, false);
+        assert.equal(invalidCandidatePayload.code, 'INVALID_REQUEST_BODY');
+
         const closeRes = await fetch(`${baseUrl}/api/streams/webrtc/sessions/sess-local`, {
             method: 'DELETE',
             headers: { 'content-type': 'application/json' },
@@ -113,6 +133,16 @@ test('streams router returns local runtime snapshot when proxy is not configured
         assert.equal(closeRes.status, 200);
         assert.equal(closePayload.success, true);
         assert.equal(closePayload.result.closed, true);
+
+        const invalidCloseRes = await fetch(`${baseUrl}/api/streams/webrtc/sessions/sess-local`, {
+            method: 'DELETE',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({})
+        });
+        const invalidClosePayload = await invalidCloseRes.json();
+        assert.equal(invalidCloseRes.status, 400);
+        assert.equal(invalidClosePayload.success, false);
+        assert.equal(invalidClosePayload.code, 'INVALID_REQUEST_BODY');
 
         const response = await fetch(`${baseUrl}/api/streams/runtime`);
         const payload = await response.json();
@@ -228,6 +258,16 @@ test('streams router prefers proxy service when configured', async () => {
         assert.equal(webrtcPayload.success, true);
         assert.equal(webrtcPayload.session.cameraId, 'cam-proxy');
 
+        const invalidWebrtcRes = await fetch(`${baseUrl}/api/streams/webrtc/sessions`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({})
+        });
+        const invalidWebrtcPayload = await invalidWebrtcRes.json();
+        assert.equal(invalidWebrtcRes.status, 400);
+        assert.equal(invalidWebrtcPayload.success, false);
+        assert.equal(invalidWebrtcPayload.code, 'INVALID_REQUEST_BODY');
+
         const candidateRes = await fetch(`${baseUrl}/api/streams/webrtc/sessions/sess-proxy/candidates`, {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
@@ -243,6 +283,16 @@ test('streams router prefers proxy service when configured', async () => {
         assert.equal(candidatePayload.success, true);
         assert.equal(candidatePayload.result.sessionId, 'sess-proxy');
 
+        const invalidCandidateRes = await fetch(`${baseUrl}/api/streams/webrtc/sessions/sess-proxy/candidates`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ cameraId: 'cam-proxy' })
+        });
+        const invalidCandidatePayload = await invalidCandidateRes.json();
+        assert.equal(invalidCandidateRes.status, 400);
+        assert.equal(invalidCandidatePayload.success, false);
+        assert.equal(invalidCandidatePayload.code, 'INVALID_REQUEST_BODY');
+
         const closeRes = await fetch(`${baseUrl}/api/streams/webrtc/sessions/sess-proxy`, {
             method: 'DELETE',
             headers: { 'content-type': 'application/json' },
@@ -252,6 +302,16 @@ test('streams router prefers proxy service when configured', async () => {
         assert.equal(closeRes.status, 200);
         assert.equal(closePayload.success, true);
         assert.equal(closePayload.result.closed, true);
+
+        const invalidCloseRes = await fetch(`${baseUrl}/api/streams/webrtc/sessions/sess-proxy`, {
+            method: 'DELETE',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({})
+        });
+        const invalidClosePayload = await invalidCloseRes.json();
+        assert.equal(invalidCloseRes.status, 400);
+        assert.equal(invalidClosePayload.success, false);
+        assert.equal(invalidClosePayload.code, 'INVALID_REQUEST_BODY');
 
         const runtimeRes = await fetch(`${baseUrl}/api/streams/runtime`);
         const runtimePayload = await runtimeRes.json();

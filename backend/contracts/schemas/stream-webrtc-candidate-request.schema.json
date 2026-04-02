@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "jasy-jatere/contracts/stream-webrtc-candidate-request/v1",
+  "title": "StreamWebRtcCandidateRequest",
+  "type": "object",
+  "required": [
+    "cameraId",
+    "candidate"
+  ],
+  "properties": {
+    "cameraId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "candidate": {
+      "oneOf": [
+        {
+          "type": "string",
+          "minLength": 1
+        },
+        {
+          "type": "object",
+          "required": [
+            "candidate"
+          ],
+          "properties": {
+            "candidate": {
+              "type": "string",
+              "minLength": 1
+            },
+            "sdpMid": {
+              "type": "string",
+              "minLength": 1
+            },
+            "sdpMLineIndex": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "usernameFragment": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "sdpMid": {
+      "type": "string",
+      "minLength": 1
+    },
+    "sdpMLineIndex": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "usernameFragment": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "additionalProperties": false
+}

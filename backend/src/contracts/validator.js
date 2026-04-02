@@ -36,8 +36,45 @@ function typeMatches(schema, value) {
     return false;
 }
 
+function validateWithLocalErrors(schema, value, path) {
+    const localErrors = [];
+    validateNode(schema, value, path, localErrors);
+    return localErrors;
+}
+
 function validateNode(schema, value, path, errors) {
     if (!schema || typeof schema !== 'object') return;
+
+    if (Array.isArray(schema.allOf) && schema.allOf.length > 0) {
+        schema.allOf.forEach((subSchema) => {
+            const localErrors = validateWithLocalErrors(subSchema, value, path);
+            errors.push(...localErrors);
+        });
+    }
+
+    if (Array.isArray(schema.anyOf) && schema.anyOf.length > 0) {
+        const matches = schema.anyOf.some((subSchema) => validateWithLocalErrors(subSchema, value, path).length === 0);
+        if (!matches) {
+            errors.push({
+                path,
+                message: 'Value does not match any allowed schema variant'
+            });
+            return;
+        }
+    }
+
+    if (Array.isArray(schema.oneOf) && schema.oneOf.length > 0) {
+        const matchCount = schema.oneOf
+            .filter((subSchema) => validateWithLocalErrors(subSchema, value, path).length === 0)
+            .length;
+        if (matchCount !== 1) {
+            errors.push({
+                path,
+                message: `Value must match exactly one schema variant (matched ${matchCount})`
+            });
+            return;
+        }
+    }
 
     if (!typeMatches(schema, value)) {
         errors.push({
@@ -61,6 +98,9 @@ function validateNode(schema, value, path, errors) {
     if ((schema.type === 'string' || (Array.isArray(schema.type) && schema.type.includes('string'))) && typeof value === 'string') {
         if (Number.isFinite(Number(schema.minLength)) && value.length < Number(schema.minLength)) {
             errors.push({ path, message: `String length must be >= ${schema.minLength}` });
+        }
+        if (Number.isFinite(Number(schema.maxLength)) && value.length > Number(schema.maxLength)) {
+            errors.push({ path, message: `String length must be <= ${schema.maxLength}` });
         }
         if (schema.pattern) {
             try {
@@ -94,6 +134,9 @@ function validateNode(schema, value, path, errors) {
         if (Number.isFinite(Number(schema.minItems)) && value.length < Number(schema.minItems)) {
             errors.push({ path, message: `Array size must be >= ${schema.minItems}` });
         }
+        if (Number.isFinite(Number(schema.maxItems)) && value.length > Number(schema.maxItems)) {
+            errors.push({ path, message: `Array size must be <= ${schema.maxItems}` });
+        }
         if (schema.items && typeof schema.items === 'object') {
             value.forEach((item, index) => {
                 validateNode(schema.items, item, `${path}[${index}]`, errors);
@@ -116,6 +159,12 @@ function validateNode(schema, value, path, errors) {
             const count = Object.keys(value).length;
             if (count < Number(schema.minProperties)) {
                 errors.push({ path, message: `Object must have at least ${schema.minProperties} properties` });
+            }
+        }
+        if (Number.isFinite(Number(schema.maxProperties))) {
+            const count = Object.keys(value).length;
+            if (count > Number(schema.maxProperties)) {
+                errors.push({ path, message: `Object must have at most ${schema.maxProperties} properties` });
             }
         }
 

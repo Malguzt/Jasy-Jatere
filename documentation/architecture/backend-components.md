@@ -26,6 +26,7 @@ Instead, it becomes the authoritative system layer that:
 - Health policy aggregation and metrics export.
 - Map job orchestration, validation, versioning, and promotion.
 - Contract validation and schema versioning.
+- Contract composition constraints (`allOf`, `anyOf`, `oneOf`) for incremental payload evolution.
 
 ## Responsibilities That Move Out
 

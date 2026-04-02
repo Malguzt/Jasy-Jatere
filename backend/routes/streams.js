@@ -86,7 +86,7 @@ function createStreamsRouter({ streamControlService, streamControlProxyService =
         }
     });
 
-    router.post('/webrtc/sessions', async (req, res) => {
+    router.post('/webrtc/sessions', validateBody('jasy-jatere/contracts/stream-webrtc-session-create-request/v1'), async (req, res) => {
         try {
             const service = resolveStreamsService(streamControlService, streamControlProxyService);
             if (!service || typeof service.createWebRtcSession !== 'function') {
@@ -109,7 +109,7 @@ function createStreamsRouter({ streamControlService, streamControlProxyService =
         }
     });
 
-    router.post('/webrtc/sessions/:sessionId/candidates', async (req, res) => {
+    router.post('/webrtc/sessions/:sessionId/candidates', validateBody('jasy-jatere/contracts/stream-webrtc-candidate-request/v1'), async (req, res) => {
         try {
             const service = resolveStreamsService(streamControlService, streamControlProxyService);
             if (!service || typeof service.submitWebRtcCandidate !== 'function') {
@@ -142,7 +142,7 @@ function createStreamsRouter({ streamControlService, streamControlProxyService =
         }
     });
 
-    router.delete('/webrtc/sessions/:sessionId', async (req, res) => {
+    router.delete('/webrtc/sessions/:sessionId', validateBody('jasy-jatere/contracts/stream-webrtc-session-close-request/v1'), async (req, res) => {
         try {
             const service = resolveStreamsService(streamControlService, streamControlProxyService);
             if (!service || typeof service.closeWebRtcSession !== 'function') {

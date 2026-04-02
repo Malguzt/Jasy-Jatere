@@ -67,6 +67,16 @@ test('createStreamGatewayApp exposes internal health and runtime endpoints', asy
         assert.equal(closeRes.status, 503);
         assert.equal(closePayload.success, false);
 
+        const invalidCloseRes = await fetch(`${baseUrl}/api/internal/streams/webrtc/sessions/sess-missing`, {
+            method: 'DELETE',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({})
+        });
+        const invalidClosePayload = await invalidCloseRes.json();
+        assert.equal(invalidCloseRes.status, 400);
+        assert.equal(invalidClosePayload.success, false);
+        assert.equal(invalidClosePayload.code, 'INVALID_REQUEST_BODY');
+
         const livezRes = await fetch(`${baseUrl}/livez`);
         const livezPayload = await livezRes.json();
         assert.equal(livezRes.status, 200);

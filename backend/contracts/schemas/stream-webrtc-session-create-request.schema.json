@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "jasy-jatere/contracts/stream-webrtc-session-create-request/v1",
+  "title": "StreamWebRtcSessionCreateRequest",
+  "type": "object",
+  "required": [
+    "cameraId"
+  ],
+  "properties": {
+    "cameraId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "offer": {
+      "type": "object",
+      "required": [
+        "sdp"
+      ],
+      "properties": {
+        "type": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sdp": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "offerSdp": {
+      "type": "string",
+      "minLength": 1
+    },
+    "offerType": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "anyOf": [
+    {
+      "required": [
+        "offer"
+      ]
+    },
+    {
+      "required": [
+        "offerSdp"
+      ]
+    }
+  ],
+  "additionalProperties": false
+}

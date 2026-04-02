@@ -14,7 +14,7 @@ test('createBackendApp returns express app and runtime coordinator', () => {
     assert.equal(typeof built.platformRuntimeCoordinator.start, 'function');
 });
 
-test('createBackendApp serves canonical and legacy camera API namespaces', async () => {
+test('createBackendApp serves canonical camera API namespace and retires legacy aliases', async () => {
     const built = createBackendApp({
         cameraFile: '/tmp/non-existent-cameras.json'
     });
@@ -41,7 +41,7 @@ test('createBackendApp serves canonical and legacy camera API namespaces', async
         });
 
         assert.equal(canonical.status, 400);
-        assert.equal(legacy.status, 400);
+        assert.equal(legacy.status, 404);
     } finally {
         await new Promise((resolve) => server.close(resolve));
     }

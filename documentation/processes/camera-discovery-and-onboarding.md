@@ -56,8 +56,6 @@ During migration, the canonical camera API namespace should be:
 - `POST /api/cameras/snapshot`
 - `POST /api/cameras/light/toggle`
 
-The legacy `/api/*` camera endpoints may remain temporarily for compatibility while frontend clients migrate.
-
 Worker-facing snapshots can be exposed through:
 
 - `GET /api/internal/config/cameras`

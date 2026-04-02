@@ -157,10 +157,7 @@ function createBackendApp({
 
     app.use('/api/contracts', createContractsRouter({ contractsService }));
 
-    // Canonical camera API namespace.
     app.use('/api/cameras', cameraRoutes);
-    // Legacy compatibility mount (to be removed after frontend migration).
-    app.use('/api', cameraRoutes);
     app.use('/api/saved-cameras', savedCamerasRoutes);
     app.use('/api/maps', mapsRoutes);
     app.use('/api/detector', detectorRoutes);

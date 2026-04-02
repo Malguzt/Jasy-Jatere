@@ -62,7 +62,8 @@ function motionFromNotification(notification) {
 }
 
 class CameraEventMonitor {
-    constructor() {
+    constructor({ cameraInventoryService = null } = {}) {
+        this.cameraInventoryService = cameraInventoryService;
         this.running = false;
         this.monitors = new Map(); // camId -> monitor state
         this.motion = new Map(); // camId -> { motion, lastMotionAt, lastEventAt, source, healthy, error, topic }
@@ -108,6 +109,14 @@ class CameraEventMonitor {
     }
 
     loadCameras() {
+        if (this.cameraInventoryService && typeof this.cameraInventoryService.listCameras === 'function') {
+            try {
+                return this.cameraInventoryService.listCameras();
+            } catch (error) {
+                console.error('[EVT] Error loading inventory cameras:', error?.message || error);
+            }
+        }
+
         try {
             if (!fs.existsSync(DATA_FILE)) return [];
             const data = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
@@ -280,4 +289,7 @@ class CameraEventMonitor {
     }
 }
 
-module.exports = new CameraEventMonitor();
+const defaultCameraEventMonitor = new CameraEventMonitor();
+
+module.exports = defaultCameraEventMonitor;
+module.exports.CameraEventMonitor = CameraEventMonitor;

@@ -51,6 +51,14 @@ The frontend should call control-plane APIs for:
 
 The device control service should talk directly to the ONVIF camera and persist command results or capability updates through the registry.
 
+## Incremental Control-Plane APIs
+
+As an intermediate migration step, the control plane can expose internal stream orchestration endpoints such as:
+
+- `GET /api/streams/runtime` for current stream and keepalive runtime state.
+- `POST /api/streams/sync` for operator-triggered keepalive and reconstructor resynchronization.
+- `GET /api/internal/config/streams` for worker-consumable stream snapshots.
+
 ## Target Outputs
 
 - logical stream session record

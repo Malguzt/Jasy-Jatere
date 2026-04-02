@@ -98,7 +98,7 @@ test('updateCamera returns 404 error for missing camera', async () => {
 
     await assert.rejects(
         () => service.updateCamera('missing-id', { name: 'updated' }),
-        (error) => Number(error?.status) === 404 && error.message === 'Database not found'
+        (error) => Number(error?.status) === 404 && error.message === 'Camera not found'
     );
 });
 

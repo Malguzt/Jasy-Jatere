@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Activity, RefreshCw, Wifi, WifiOff, Gauge, Timer, Server, AlertTriangle } from 'lucide-react';
+import { apiClient } from '../api/client';
 
 const POLL_MS = 5000;
 
@@ -89,8 +90,7 @@ const ConnectivityMonitor = () => {
 
     const fetchData = async () => {
         try {
-            const res = await fetch('/api/monitoring/connectivity');
-            const data = await res.json();
+            const data = await apiClient.getConnectivitySnapshot();
             setPayload(data);
         } catch (e) {
             console.error('Monitoring fetch failed', e);
@@ -102,8 +102,7 @@ const ConnectivityMonitor = () => {
     const forceProbe = async () => {
         setForcingProbe(true);
         try {
-            const res = await fetch('/api/monitoring/probe', { method: 'POST' });
-            const data = await res.json();
+            const data = await apiClient.forceConnectivityProbe();
             setPayload(data);
         } catch (e) {
             console.error('Force probe failed', e);

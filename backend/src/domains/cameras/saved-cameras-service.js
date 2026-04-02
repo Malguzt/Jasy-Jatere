@@ -1,9 +1,10 @@
-const fs = require('fs');
 const path = require('path');
 const { validateCameraRtspPayload } = require('../../../rtsp-validator');
 const { resolveCameraCredentials } = require('../../../camera-credentials');
+const { CameraMetadataRepository } = require('../../infrastructure/repositories/camera-metadata-repository');
 
 const DEFAULT_DATA_FILE = path.join(__dirname, '../../../data/cameras.json');
+const DEFAULT_METADATA_FILE = path.join(__dirname, '../../../data/metadata/cameras.json');
 
 function savedCamerasError(status, message, code = null, details = null) {
     const error = new Error(message || 'Saved cameras error');
@@ -16,11 +17,16 @@ function savedCamerasError(status, message, code = null, details = null) {
 class SavedCamerasService {
     constructor({
         dataFile = DEFAULT_DATA_FILE,
+        metadataFile = DEFAULT_METADATA_FILE,
+        repository = null,
         validateRtsp = validateCameraRtspPayload,
         resolveCredentials = resolveCameraCredentials,
         now = () => Date.now()
     } = {}) {
-        this.dataFile = dataFile;
+        this.repository = repository || new CameraMetadataRepository({
+            primaryFile: dataFile === DEFAULT_DATA_FILE ? metadataFile : dataFile,
+            legacyFile: dataFile
+        });
         this.validateRtsp = validateRtsp;
         this.resolveCredentials = resolveCredentials;
         this.now = now;
@@ -28,9 +34,7 @@ class SavedCamerasService {
 
     readCamerasOrThrow() {
         try {
-            if (!fs.existsSync(this.dataFile)) return [];
-            const raw = JSON.parse(fs.readFileSync(this.dataFile, 'utf8'));
-            return Array.isArray(raw) ? raw : [];
+            return this.repository.list();
         } catch (error) {
             throw savedCamerasError(500, 'Database read error', 'DATABASE_READ_ERROR');
         }
@@ -38,7 +42,7 @@ class SavedCamerasService {
 
     writeCamerasOrThrow(cameras = []) {
         try {
-            fs.writeFileSync(this.dataFile, JSON.stringify(cameras, null, 2));
+            this.repository.replace(cameras);
         } catch (error) {
             throw savedCamerasError(500, 'Database write error', 'DATABASE_WRITE_ERROR');
         }
@@ -118,10 +122,6 @@ class SavedCamerasService {
     }
 
     async updateCamera(id, body = {}) {
-        if (!fs.existsSync(this.dataFile)) {
-            throw savedCamerasError(404, 'Database not found', 'DATABASE_NOT_FOUND');
-        }
-
         const data = this.readCamerasOrThrow();
         const index = data.findIndex((camera) => camera.id === id);
         if (index === -1) {

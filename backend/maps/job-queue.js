@@ -6,6 +6,7 @@ const { validateMapDocument } = require('./validate-map');
 const { buildFallbackCroquis } = require('./fallback-generator');
 
 const CAMERA_FILE = path.join(__dirname, '..', 'data', 'cameras.json');
+const OBSERVATIONS_FILE = path.join(__dirname, '..', 'data', 'metadata', 'observations.json');
 const MAPPER_URL = (process.env.MAPPER_URL || 'http://localhost:5002').replace(/\/$/, '');
 const MAPPER_TIMEOUT_MS = Number(process.env.MAP_MAPPER_TIMEOUT_MS || 90000);
 const DETECTOR_URL = (process.env.DETECTOR_URL || 'http://localhost:5000').replace(/\/$/, '');
@@ -36,6 +37,17 @@ function loadSavedCamerasSafe() {
         const data = JSON.parse(fs.readFileSync(CAMERA_FILE, 'utf8'));
         if (!Array.isArray(data)) return [];
         return data;
+    } catch (error) {
+        return [];
+    }
+}
+
+function loadObservationEventsSafe(limit = 60) {
+    try {
+        if (!fs.existsSync(OBSERVATIONS_FILE)) return [];
+        const data = JSON.parse(fs.readFileSync(OBSERVATIONS_FILE, 'utf8'));
+        if (!Array.isArray(data)) return [];
+        return data.slice(-Math.max(1, Number(limit) || 60));
     } catch (error) {
         return [];
     }
@@ -406,15 +418,39 @@ class MapJobQueue {
                 }
                 const fallbackStart = Date.now();
                 this.setProgress(job, 'fallback', 62, `Aplicando fallback heuristico (Plan ${fallbackPlan})`);
-                mapDoc = buildFallbackCroquis({
-                    jobId: job.id,
-                    cameras,
-                    recentEvents,
-                    objectHints,
-                    manualCameraLayout: manualLayout,
-                    planUsed: fallbackPlan
-                });
-                planUsed = fallbackPlan;
+                try {
+                    const mappedFallback = await this.generateWithMapper({
+                        jobId: job.id,
+                        cameras,
+                        recentEvents,
+                        objectHints,
+                        manualCameraLayout: manualLayout,
+                        planHint: fallbackPlan,
+                        forceFallback: true
+                    }, controller.signal);
+                    mapDoc = mappedFallback.map;
+                    planUsed = mappedFallback.planUsed || fallbackPlan;
+                    mapperWarnings = [
+                        ...mapperWarnings,
+                        ...(Array.isArray(mappedFallback.warnings) ? mappedFallback.warnings : [])
+                    ].slice(0, 20);
+                    this.log(job, 'info', `Mapper fallback aplicado (plan=${planUsed})`);
+                } catch (mapperFallbackError) {
+                    this.log(
+                        job,
+                        'warn',
+                        `Mapper fallback falló, usando fallback local: ${mapperFallbackError?.message || mapperFallbackError}`
+                    );
+                    mapDoc = buildFallbackCroquis({
+                        jobId: job.id,
+                        cameras,
+                        recentEvents,
+                        objectHints,
+                        manualCameraLayout: manualLayout,
+                        planUsed: fallbackPlan
+                    });
+                    planUsed = fallbackPlan;
+                }
                 timing.fallbackMs = toDurationMs(fallbackStart);
             }
 
@@ -455,19 +491,38 @@ class MapJobQueue {
                 if (!validationFallbackPlan) {
                     throw new Error(`Mapa invalido y sin fallback de validacion habilitado: ${validation.errors.join('; ')}`);
                 }
-                mapDoc = buildFallbackCroquis({
-                    jobId: job.id,
-                    cameras,
-                    recentEvents: [],
-                    objectHints,
-                    manualCameraLayout: manualLayout,
-                    planUsed: validationFallbackPlan
-                });
+                try {
+                    const mappedFallback = await this.generateWithMapper({
+                        jobId: job.id,
+                        cameras,
+                        recentEvents: [],
+                        objectHints,
+                        manualCameraLayout: manualLayout,
+                        planHint: validationFallbackPlan,
+                        forceFallback: true
+                    }, controller.signal);
+                    mapDoc = mappedFallback.map;
+                    planUsed = mappedFallback.planUsed || validationFallbackPlan;
+                } catch (mapperValidationFallbackError) {
+                    this.log(
+                        job,
+                        'warn',
+                        `Mapper fallback de validación falló, usando fallback local: ${mapperValidationFallbackError?.message || mapperValidationFallbackError}`
+                    );
+                    mapDoc = buildFallbackCroquis({
+                        jobId: job.id,
+                        cameras,
+                        recentEvents: [],
+                        objectHints,
+                        manualCameraLayout: manualLayout,
+                        planUsed: validationFallbackPlan
+                    });
+                    planUsed = validationFallbackPlan;
+                }
                 const validationC = validateMapDocument(mapDoc);
                 if (!validationC.ok) {
                     throw new Error(`No se pudo validar mapa generado: ${validationC.errors.join('; ')}`);
                 }
-                planUsed = validationFallbackPlan;
             }
             timing.validateMs = toDurationMs(validateStart);
 
@@ -534,6 +589,9 @@ class MapJobQueue {
     }
 
     async fetchRecentEvents(signal) {
+        const localObservations = loadObservationEventsSafe(60);
+        if (localObservations.length > 0) return localObservations;
+
         try {
             const response = await fetch(`${DETECTOR_URL}/events`, { signal });
             if (!response.ok) return [];

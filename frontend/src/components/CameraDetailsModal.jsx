@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import './CameraDetailsModal.css';
 import { X, Lock, Unlock, Loader, Video, Settings, Play, Save } from 'lucide-react';
+import { apiClient } from '../api/client';
 
 const CameraDetailsModal = ({ camera, onClose }) => {
     const [user, setUser] = useState('');
@@ -14,12 +15,7 @@ const CameraDetailsModal = ({ camera, onClose }) => {
         setLoading(true);
         setError('');
         try {
-           const res = await fetch('/api/connect', {
-               method: 'POST',
-               headers: { 'Content-Type': 'application/json' },
-               body: JSON.stringify({ url: camera.address, user, pass })
-           });
-           const data = await res.json();
+           const data = await apiClient.connectCamera({ url: camera.address, user, pass });
            if(data.success) {
                setDetails(data);
            } else {
@@ -57,12 +53,7 @@ const CameraDetailsModal = ({ camera, onClose }) => {
         }
 
         try {
-            const res = await fetch('/api/saved-cameras', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-            const data = await res.json();
+            const data = await apiClient.createSavedCamera(payload);
             if (data.success) {
                 if (data.validation && data.validation.ok === false) {
                     const validationErrors = (data?.validation?.errors || []).join(' | ');

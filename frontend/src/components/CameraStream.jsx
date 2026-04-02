@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Loader, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Plus, Minus, Camera as CameraIcon, RefreshCw, Lock, Save, X, Lightbulb, LightbulbOff } from 'lucide-react';
+import { apiClient } from '../api/client';
 
 const CameraStream = ({ camera }) => {
     const canvasRef = useRef(null);
@@ -61,12 +62,7 @@ const CameraStream = ({ camera }) => {
     const updateAuth = async (e) => {
         e.preventDefault();
         try {
-            const res = await fetch(`/api/saved-cameras/${localCamera.id}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ user: tempUser, pass: tempPass })
-            });
-            const data = await res.json();
+            const data = await apiClient.patchSavedCamera(localCamera.id, { user: tempUser, pass: tempPass });
             if (data.success) {
                 setLocalCamera(data.camera);
                 setIsEditingAuth(false);
@@ -91,15 +87,11 @@ const CameraStream = ({ camera }) => {
     const handlePtz = async (direction) => {
         setIsPtzAction(true);
         try {
-            await fetch('/api/ptz/move', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    url: localCamera.ip, 
-                    user: localCamera.user, 
-                    pass: localCamera.pass || '', 
-                    direction 
-                })
+            await apiClient.movePtz({
+                url: localCamera.ip,
+                user: localCamera.user,
+                pass: localCamera.pass || '',
+                direction
             });
             setTimeout(() => stopPtz(), 600);
         } catch (e) {
@@ -109,10 +101,10 @@ const CameraStream = ({ camera }) => {
 
     const stopPtz = async () => {
         try {
-            await fetch('/api/ptz/stop', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ url: localCamera.ip, user: localCamera.user, pass: localCamera.pass || '' })
+            await apiClient.stopPtz({
+                url: localCamera.ip,
+                user: localCamera.user,
+                pass: localCamera.pass || ''
             });
         } finally {
             setIsPtzAction(false);
@@ -121,13 +113,11 @@ const CameraStream = ({ camera }) => {
 
     const takeSnapshot = async () => {
         try {
-            const res = await fetch('/api/snapshot', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ url: localCamera.ip, user: localCamera.user, pass: localCamera.pass || '' })
+            const blob = await apiClient.takeCameraSnapshot({
+                url: localCamera.ip,
+                user: localCamera.user,
+                pass: localCamera.pass || ''
             });
-            if (!res.ok) throw new Error('Failed');
-            const blob = await res.blob();
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
@@ -145,17 +135,12 @@ const CameraStream = ({ camera }) => {
         setLightLoading(true);
         try {
             const next = !lightOn;
-            const res = await fetch('/api/light/toggle', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    url: localCamera.ip,
-                    user: localCamera.user,
-                    pass: localCamera.pass || '',
-                    enabled: next
-                })
+            const data = await apiClient.toggleCameraLight({
+                url: localCamera.ip,
+                user: localCamera.user,
+                pass: localCamera.pass || '',
+                enabled: next
             });
-            const data = await res.json();
             if (!data.success) throw new Error(data.error || 'No se pudo cambiar la luz');
             setLightOn(next);
         } catch (e) {

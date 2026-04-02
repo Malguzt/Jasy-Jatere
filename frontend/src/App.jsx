@@ -7,6 +7,7 @@ import Recordings from './components/Recordings';
 import ConnectivityMonitor from './components/ConnectivityMonitor';
 import MapView from './components/MapView';
 import { Search, Plus, LayoutDashboard, Radar, Video, Activity, Map as MapIcon } from 'lucide-react';
+import { apiClient } from './api/client';
 import './index.css';
 
 function App() {
@@ -46,8 +47,7 @@ function App() {
     setIsScanning(true);
     setCameras([]);
     try {
-      const res = await fetch('/api/discover');
-      const data = await res.json();
+      const data = await apiClient.discoverCameras();
       if(data.success) {
          setCameras(data.devices);
       } else {

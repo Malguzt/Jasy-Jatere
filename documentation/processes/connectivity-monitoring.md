@@ -37,6 +37,15 @@ The control plane health engine runs scheduled probe jobs and may also execute a
 6. The frontend reads the snapshot through the control plane API.
 7. The metrics exporter exposes the same snapshot as Prometheus-compatible metrics.
 
+## Incremental Control-Plane APIs
+
+During migration, the control plane can expose these operational APIs:
+
+- `GET /api/monitoring/connectivity`
+- `POST /api/monitoring/probe`
+- `GET /metrics`
+- `GET /api/health`
+
 ## Target Outputs
 
 - current health snapshot per camera

@@ -49,6 +49,9 @@ The operator starts map generation, retries a previous job, or saves a manual co
 The mapper owns Plans A, B, and C.
 The control plane owns Plan D persistence and job lifecycle.
 
+During migration, the control plane may still keep a minimal emergency local fallback only for resilience when the mapper is unavailable.
+That fallback is a temporary compatibility layer and should be removed once mapper coverage is complete.
+
 This removes duplicate spatial logic from the backend and keeps:
 
 - strategy selection,

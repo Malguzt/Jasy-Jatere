@@ -45,6 +45,23 @@ The operator starts camera onboarding from the frontend by either:
 10. The camera is committed to the metadata store.
 11. The control plane emits a fresh camera configuration snapshot for workers.
 
+## Incremental Control-Plane APIs
+
+During migration, the canonical camera API namespace should be:
+
+- `GET /api/cameras/discover`
+- `POST /api/cameras/connect`
+- `POST /api/cameras/ptz/move`
+- `POST /api/cameras/ptz/stop`
+- `POST /api/cameras/snapshot`
+- `POST /api/cameras/light/toggle`
+
+The legacy `/api/*` camera endpoints may remain temporarily for compatibility while frontend clients migrate.
+
+Worker-facing snapshots can be exposed through:
+
+- `GET /api/internal/config/cameras`
+
 ## Target Outputs
 
 - `Camera` record

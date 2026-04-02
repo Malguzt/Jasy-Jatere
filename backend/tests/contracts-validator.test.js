@@ -98,3 +98,50 @@ test('light toggle schema requires boolean enabled', () => {
     });
     assert.equal(valid.ok, true);
 });
+
+test('stream sync request schema validates optional manual metadata', () => {
+    const empty = validateBySchemaId('jasy-jatere/contracts/stream-sync-request/v1', {});
+    assert.equal(empty.ok, true);
+
+    const valid = validateBySchemaId('jasy-jatere/contracts/stream-sync-request/v1', {
+        reason: 'operator-manual-sync',
+        requestedBy: 'control-room'
+    });
+    assert.equal(valid.ok, true);
+
+    const invalid = validateBySchemaId('jasy-jatere/contracts/stream-sync-request/v1', {
+        reason: '',
+        unknownField: true
+    });
+    assert.equal(invalid.ok, false);
+    assert.ok(invalid.errors.some((error) => error.includes('$.reason')));
+    assert.ok(invalid.errors.some((error) => error.includes('unknownField')));
+});
+
+test('perception ingest schemas validate required fields', () => {
+    const observationValid = validateBySchemaId('jasy-jatere/contracts/observation-event-ingest-request/v1', {
+        timestamp: '2026-04-02T12:00:00.000Z',
+        camera_id: 'cam-1',
+        type: 'motion'
+    });
+    assert.equal(observationValid.ok, true);
+
+    const observationInvalid = validateBySchemaId('jasy-jatere/contracts/observation-event-ingest-request/v1', {
+        camera_id: 'cam-1'
+    });
+    assert.equal(observationInvalid.ok, false);
+
+    const recordingValid = validateBySchemaId('jasy-jatere/contracts/recording-catalog-upsert-request/v1', {
+        filename: 'cam_1.mp4',
+        camera_id: 'cam-1',
+        event_time: '2026-04-02T12:00:00.000Z',
+        status: 'ready'
+    });
+    assert.equal(recordingValid.ok, true);
+
+    const recordingInvalid = validateBySchemaId('jasy-jatere/contracts/recording-catalog-upsert-request/v1', {
+        filename: 'cam_1.mp4',
+        status: 'ready'
+    });
+    assert.equal(recordingInvalid.ok, false);
+});

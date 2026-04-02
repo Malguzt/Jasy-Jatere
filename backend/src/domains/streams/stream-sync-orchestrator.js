@@ -9,6 +9,7 @@ function toPositiveInt(value, fallback) {
 class StreamSyncOrchestrator {
     constructor({
         cameraFile,
+        cameraInventoryService,
         streamManager,
         resolveCameraStreamUrls,
         deriveCompanionRtsp,
@@ -25,6 +26,7 @@ class StreamSyncOrchestrator {
         clearIntervalFn = clearInterval
     } = {}) {
         this.cameraFile = cameraFile;
+        this.cameraInventoryService = cameraInventoryService;
         this.streamManager = streamManager;
         this.resolveCameraStreamUrls = resolveCameraStreamUrls;
         this.deriveCompanionRtsp = deriveCompanionRtsp;
@@ -41,6 +43,8 @@ class StreamSyncOrchestrator {
         this.clearIntervalFn = clearIntervalFn;
         this.initialTimer = null;
         this.periodicTimer = null;
+        this.lastSyncAt = null;
+        this.lastSyncResult = null;
     }
 
     selectReconstructorPair(camera) {
@@ -90,6 +94,14 @@ class StreamSyncOrchestrator {
     }
 
     loadSavedCamerasSafe() {
+        if (this.cameraInventoryService && typeof this.cameraInventoryService.listCameras === 'function') {
+            try {
+                return this.cameraInventoryService.listCameras();
+            } catch (error) {
+                this.logger.error('[KEEPALIVE] Error leyendo inventory service:', error?.message || error);
+            }
+        }
+
         try {
             if (!this.fs.existsSync(this.cameraFile)) return [];
             const raw = JSON.parse(this.fs.readFileSync(this.cameraFile, 'utf8'));
@@ -138,18 +150,24 @@ class StreamSyncOrchestrator {
                 );
             }
 
-            return {
+            const result = {
                 success: true,
                 cameraCount: cameras.length,
                 keepaliveCount: configs.length,
                 reconstructorStreamCount: reconStreams.length
             };
+            this.lastSyncAt = Date.now();
+            this.lastSyncResult = result;
+            return result;
         } catch (error) {
             this.logger.error('[KEEPALIVE] Sync error:', error?.message || error);
-            return {
+            const result = {
                 success: false,
                 error: error?.message || String(error)
             };
+            this.lastSyncAt = Date.now();
+            this.lastSyncResult = result;
+            return result;
         }
     }
 
@@ -178,6 +196,17 @@ class StreamSyncOrchestrator {
             this.clearIntervalFn(this.periodicTimer);
             this.periodicTimer = null;
         }
+    }
+
+    getRuntimeState() {
+        return {
+            hasInitialTimer: !!this.initialTimer,
+            hasPeriodicTimer: !!this.periodicTimer,
+            syncIntervalMs: Math.max(3000, this.syncIntervalMs),
+            initialDelayMs: this.initialDelayMs,
+            lastSyncAt: this.lastSyncAt,
+            lastSyncResult: this.lastSyncResult
+        };
     }
 }
 

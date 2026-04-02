@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import CameraStream from './CameraStream';
 import DetectionBadge from './DetectionBadge';
 import { Trash2, ShieldAlert, Star } from 'lucide-react';
+import { apiClient } from '../api/client';
 
 const Dashboard = () => {
     const [savedCameras, setSavedCameras] = useState([]);
@@ -14,8 +15,7 @@ const Dashboard = () => {
     useEffect(() => {
         const poll = setInterval(async () => {
             try {
-                const res = await fetch('/api/detector/status');
-                const data = await res.json();
+                const data = await apiClient.getDetectorStatus();
                 if (data.cameras) setDetectorStatus(data.cameras);
             } catch (e) { /* detector offline */ }
         }, 2000);
@@ -31,8 +31,7 @@ const Dashboard = () => {
 
     const fetchCameras = async () => {
         try {
-            const res = await fetch('/api/saved-cameras');
-            const data = await res.json();
+            const data = await apiClient.listSavedCameras();
             if (data.success) {
                 setSavedCameras(data.cameras);
                 if (data.cameras.length >= 2 && featuredIds.length === 0) {
@@ -48,7 +47,7 @@ const Dashboard = () => {
 
     const deleteCamera = async (id) => {
         try {
-            await fetch(`/api/saved-cameras/${id}`, { method: 'DELETE' });
+            await apiClient.deleteSavedCamera(id);
             setFeaturedIds(prev => prev.filter(fid => fid !== id));
             fetchCameras();
         } catch (error) {

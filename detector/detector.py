@@ -23,6 +23,17 @@ from flask_cors import CORS
 app = Flask(__name__)
 CORS(app)
 
+def parse_bool_env(name, default=True):
+    raw = os.getenv(name)
+    if raw is None:
+        return bool(default)
+    normalized = str(raw).strip().lower()
+    if normalized in {"1", "true", "yes", "on"}:
+        return True
+    if normalized in {"0", "false", "no", "off"}:
+        return False
+    return bool(default)
+
 # --- Configuration ---
 DATA_FILE = "/app/data/cameras.json"
 RECORDINGS_DIR = "/app/recordings"
@@ -43,8 +54,9 @@ WALL_CONFIRMATIONS = 3
 PTZ_SCAN_COOLDOWN = 12.0
 PTZ_STEP_DURATION = 0.7
 PTZ_DIRECTIONS = ["left", "right", "up", "down"]
-PTZ_API_MOVE = "http://localhost:4000/api/ptz/move"
-PTZ_API_STOP = "http://localhost:4000/api/ptz/stop"
+PTZ_CONTROL_PLANE_BASE = (os.getenv("CONTROL_PLANE_URL", "http://localhost:4000") or "http://localhost:4000").rstrip("/")
+PTZ_API_MOVE = f"{PTZ_CONTROL_PLANE_BASE}/api/cameras/ptz/move"
+PTZ_API_STOP = f"{PTZ_CONTROL_PLANE_BASE}/api/cameras/ptz/stop"
 DETECTOR_OUTPUT_STREAM_BASE = (os.getenv("DETECTOR_OUTPUT_STREAM_BASE", "http://localhost:5001/stream") or "http://localhost:5001/stream").rstrip("/")
 DETECTOR_MONITOR_TRANSPORT = (os.getenv("DETECTOR_MONITOR_TRANSPORT", "udp") or "udp").strip().lower()
 if DETECTOR_MONITOR_TRANSPORT not in {"tcp", "udp"}:
@@ -61,6 +73,14 @@ SOFT_MOTION_SCORE_THRESHOLD = 0.010
 SOFT_MOTION_MIN_BLOB_RATIO = 0.0012
 SOFT_MOTION_HOLD_SECONDS = 2.0
 SOFT_MOTION_CYCLE_CORR_THRESHOLD = 0.86
+CONTROL_PLANE_URL = (os.getenv("CONTROL_PLANE_URL", "http://localhost:4000") or "http://localhost:4000").rstrip("/")
+CONTROL_PLANE_CAMERA_CONFIG_URL = f"{CONTROL_PLANE_URL}/api/internal/config/cameras"
+CONTROL_PLANE_RECORDINGS_URL = f"{CONTROL_PLANE_URL}/api/recordings"
+CONTROL_PLANE_PERCEPTION_OBSERVATIONS_URL = f"{CONTROL_PLANE_URL}/api/perception/observations"
+CONTROL_PLANE_PERCEPTION_RECORDINGS_URL = f"{CONTROL_PLANE_URL}/api/perception/recordings"
+USE_CONTROL_PLANE_CAMERA_CONFIG = parse_bool_env("USE_CONTROL_PLANE_CAMERA_CONFIG", True)
+USE_CONTROL_PLANE_PERCEPTION_INGEST = parse_bool_env("USE_CONTROL_PLANE_PERCEPTION_INGEST", True)
+USE_CONTROL_PLANE_RECORDING_CATALOG = parse_bool_env("USE_CONTROL_PLANE_RECORDING_CATALOG", True)
 
 # Classes of interest (COCO dataset IDs)
 PERSON_CLASSES = {0}  # person
@@ -268,6 +288,8 @@ def upsert_recording_metadata(metadata):
         index.sort(key=lambda m: m.get("event_time") or m.get("created_at") or "", reverse=True)
         save_recordings_index(index)
 
+    publish_recording_catalog(metadata)
+
 
 def remove_recording_metadata(filename):
     if not filename:
@@ -285,6 +307,8 @@ def remove_recording_metadata(filename):
         filtered = [m for m in index if m.get("filename") != filename]
         if len(filtered) != len(index):
             save_recordings_index(filtered)
+
+    delete_recording_catalog_entry(filename)
 
 
 def delete_recording_family(mp4_path):
@@ -359,7 +383,23 @@ def get_category(class_id):
     return "otro"
 
 
+def load_cameras_from_control_plane():
+    try:
+        payload = http_json("GET", CONTROL_PLANE_CAMERA_CONFIG_URL, timeout=4)
+        cameras = payload.get("cameras") if isinstance(payload, dict) else None
+        if payload.get("success") and isinstance(cameras, list):
+            return cameras
+    except Exception as e:
+        print(f"[CFG] Control-plane camera config unavailable: {e}")
+    return None
+
+
 def load_cameras():
+    if USE_CONTROL_PLANE_CAMERA_CONFIG:
+        cameras = load_cameras_from_control_plane()
+        if isinstance(cameras, list):
+            return cameras
+
     try:
         if os.path.exists(DATA_FILE):
             with open(DATA_FILE, "r") as f:
@@ -646,6 +686,36 @@ def http_json(method, url, payload=None, timeout=2):
     with urllib.request.urlopen(req, timeout=timeout) as resp:
         body = resp.read().decode("utf-8", "ignore")
         return json.loads(body) if body else {}
+
+
+def publish_observation_event(event):
+    if not USE_CONTROL_PLANE_PERCEPTION_INGEST:
+        return
+    try:
+        http_json("POST", CONTROL_PLANE_PERCEPTION_OBSERVATIONS_URL, payload=event, timeout=2)
+    except Exception as e:
+        print(f"[INGEST] observation publish failed: {e}")
+
+
+def publish_recording_catalog(metadata):
+    if not USE_CONTROL_PLANE_RECORDING_CATALOG:
+        return
+    try:
+        http_json("POST", CONTROL_PLANE_PERCEPTION_RECORDINGS_URL, payload=metadata, timeout=2)
+    except Exception as e:
+        print(f"[INGEST] recording metadata publish failed: {e}")
+
+
+def delete_recording_catalog_entry(filename):
+    if not USE_CONTROL_PLANE_RECORDING_CATALOG:
+        return
+    if not filename:
+        return
+    try:
+        safe = urllib.parse.quote(str(filename), safe="")
+        http_json("DELETE", f"{CONTROL_PLANE_RECORDINGS_URL}/{safe}", timeout=2)
+    except Exception as e:
+        print(f"[INGEST] recording metadata delete failed: {e}")
 
 
 def get_camera_motion_trigger(cam_id):
@@ -1054,6 +1124,7 @@ def monitor_camera(cam):
                     events_log.append(event)
                     if len(events_log) > 100:
                         events_log.pop(0)
+                    publish_observation_event(event)
 
                     confidences = [d.get("confidence", 0) for d in detections]
                     metadata = {
@@ -1272,10 +1343,12 @@ def main():
         models[0] = YOLO("yolov8n.pt")
         models[1] = models[0]
 
-    # Wait for cameras.json to exist
-    print("[INIT] Waiting for camera database...")
-    while not os.path.exists(DATA_FILE):
-        time.sleep(2)
+    if USE_CONTROL_PLANE_CAMERA_CONFIG:
+        print(f"[INIT] Camera config source: control-plane API ({CONTROL_PLANE_CAMERA_CONFIG_URL})")
+    else:
+        print("[INIT] Waiting for camera database...")
+        while not os.path.exists(DATA_FILE):
+            time.sleep(2)
 
     cameras = load_cameras()
     print(f"[INIT] Found {len(cameras)} cameras.")
@@ -1286,7 +1359,7 @@ def main():
         t.start()
         print(f"[INIT] Started monitor for: {cam.get('name', cam['id'])}")
 
-    # Periodically reload cameras.json to pick up new cameras
+    # Periodically reload camera config snapshot to pick up new cameras
     def reload_loop():
         known_ids = set(c["id"] for c in cameras)
         while True:

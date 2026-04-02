@@ -104,6 +104,8 @@ The camera registry is the only place that owns:
 - encrypted credentials,
 - desired processing capabilities.
 
+During migration, camera-control and discovery APIs should converge under `/api/cameras/*` as the canonical namespace.
+
 ### Discovery coordinator
 
 Discovery becomes a tracked workflow instead of a one-shot controller action.
@@ -123,15 +125,46 @@ This domain decides:
 - what protocol to offer the client,
 - what health fallback to apply when a source degrades.
 
+During migration, this domain can expose internal operational APIs for control-plane operators, for example:
+
+- `GET /api/streams/runtime`
+- `POST /api/streams/sync`
+- `GET /api/internal/config/streams`
+
 ### Observation ingest
 
 This domain is the contract boundary between perception workers and the rest of the system.
 It stores normalized events instead of letting other modules scrape detector-local logs.
 
+Incremental ingest endpoints can be:
+
+- `POST /api/perception/observations`
+- `GET /api/perception/observations`
+
 ### Recording catalog
 
 Recording metadata should move out of the detector and into the control plane.
 The detector or recording worker produces artifacts; the control plane owns the searchable catalog and retention policy.
+
+Incremental catalog endpoints can be:
+
+- `POST /api/perception/recordings`
+- `GET /api/recordings`
+- `DELETE /api/recordings/:filename`
+
+### Worker configuration snapshots
+
+Workers should consume explicit internal snapshots instead of reading shared files.
+During migration the control plane can expose:
+
+- `GET /api/internal/config/cameras`
+- `GET /api/internal/config/streams`
+- `GET /api/internal/config/retention`
+
+### Metadata repositories and compatibility exports
+
+Control-plane domains should persist authoritative state in dedicated metadata repositories.
+Compatibility exports (for example legacy `cameras.json` or recording index files) can remain dual-written temporarily, but they are generated outputs, not the source of truth.
 
 ### Health engine
 

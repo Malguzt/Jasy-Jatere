@@ -195,6 +195,25 @@ def hint_objects(object_hints, by_id):
     return out
 
 
+def heuristic_objects_from_cameras(layout):
+    out = []
+    cameras = layout if isinstance(layout, list) else []
+    for index, cam in enumerate(cameras):
+        cx = float(cam.get("x", 0.0))
+        cy = float(cam.get("y", 0.0))
+        angle = (index / max(1, len(cameras))) * math.pi * 2.0
+        out.append({
+            "id": f"obj_b_{index + 1}",
+            "label": f"zona_{index + 1}",
+            "category": "estructura",
+            "x": round(cx + math.cos(angle) * 1.8, 2),
+            "y": round(cy + math.sin(angle) * 1.8, 2),
+            "confidence": 0.42,
+            "sources": [str(cam.get("id"))] if cam.get("id") is not None else []
+        })
+    return out
+
+
 @app.route("/health")
 def health():
     return jsonify({"success": True, "service": "mapper", "time": int(time.time())})
@@ -212,14 +231,28 @@ def generate():
     by_id = camera_by_id(layout)
     recent_events = payload.get("recentEvents") or []
     object_hints = payload.get("objectHints") or []
+    plan_hint = str(payload.get("planHint") or "").strip().upper()
+    force_fallback = bool(payload.get("forceFallback", False))
 
     objects = event_objects(recent_events, by_id) + hint_objects(object_hints, by_id)
     warnings = []
     score = 0.72
     plan_used = "C" if used_manual_layout else "A"
+
+    prefer_plan_b = force_fallback or plan_hint == "B"
+    if prefer_plan_b:
+        if len(objects) == 0:
+            objects = heuristic_objects_from_cameras(layout)
+            warnings.append("Fallback heuristic objects were generated from camera anchors.")
+        plan_used = "B"
+        score = 0.56 if len(objects) > 0 else 0.45
+
     if not objects:
         warnings.append("No se detectaron objetos recientes; mapa generado solo con camaras.")
-        score = 0.63
+        if plan_used == "B":
+            score = 0.45
+        else:
+            score = 0.63
 
     map_doc = {
         "schemaVersion": "1.0",

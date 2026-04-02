@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "jasy-jatere/contracts/observation-event-ingest-request/v1",
+  "title": "ObservationEventIngestRequest",
+  "type": "object",
+  "required": [
+    "timestamp",
+    "camera_id",
+    "type"
+  ],
+  "properties": {
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "camera_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "camera": {
+      "type": "string"
+    },
+    "type": {
+      "type": "string",
+      "minLength": 1
+    },
+    "categories": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "objects": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "recording": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "thumbnail": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "motion_source": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "motion_healthy": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    }
+  },
+  "additionalProperties": true
+}

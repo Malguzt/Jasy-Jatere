@@ -10,6 +10,9 @@ Current scope:
 - recording catalog entries
 - health snapshots
 - map job and map version payloads
+- stream control requests
+- perception ingest requests
+- recording catalog ingest requests
 
 Notes:
 

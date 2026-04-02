@@ -62,6 +62,19 @@ The control plane owns:
 
 The perception service should not read `cameras.json` or infer topology from backend-local files.
 
+## Incremental Control-Plane APIs
+
+During migration, the perception and recording flow can be wired through these APIs:
+
+- `GET /api/internal/config/cameras`
+- `POST /api/perception/observations`
+- `GET /api/perception/observations`
+- `POST /api/perception/recordings`
+- `GET /api/recordings`
+- `DELETE /api/recordings/:filename`
+
+Legacy detector-local recording endpoints may remain temporarily for compatibility, but frontend and map workflows should move to control-plane-owned catalog APIs.
+
 ## Failure Modes
 
 - Stream gateway cannot provide the requested feed.

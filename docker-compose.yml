@@ -1,9 +1,10 @@
 services:
   backend:
-    build: 
+    build:
       context: ./backend
     container_name: ipcam-backend
-    network_mode: "host"
+    ports:
+      - "4000:4000"
     volumes:
       - ./backend/data:/app/data
       - ./recordings:/app/recordings
@@ -14,13 +15,21 @@ services:
       - CAMERA_KEEPALIVE_SYNC_MS=10000
       - CAMERA_KEEPALIVE_SOURCE_INDEX=1
       - CAMERA_KEEPALIVE_TRANSPORT=udp
-      - MAPPER_URL=http://localhost:5002
+      - MAPPER_URL=http://mapper:5002
+      - DETECTOR_URL=http://detector:5000
+      - RECONSTRUCTOR_URL=http://reconstructor:5001
       - MAP_PLAN_A_ENABLED=1
       - MAP_PLAN_B_ENABLED=1
       - MAP_PLAN_C_ENABLED=1
       - MAP_PLAN_D_ENABLED=1
       - MAP_APPLY_MANUAL_CORRECTIONS=1
       - MAP_MAPPER_TIMEOUT_MS=90000
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
     deploy:
       resources:
         reservations:
@@ -34,24 +43,42 @@ services:
     build:
       context: ./frontend
     container_name: ipcam-frontend
-    network_mode: "host"
+    ports:
+      - "5173:5173"
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:5173 >/dev/null || exit 1"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
 
   detector:
     build:
       context: ./detector
     container_name: ipcam-detector
-    network_mode: "host"
     volumes:
       - ./backend/data:/app/data
       - ./recordings:/app/recordings
     environment:
       - CAMERA_DEFAULT_USER=admin
       - CAMERA_DEFAULT_PASS=PerroN3gro
-      - DETECTOR_OUTPUT_STREAM_BASE=http://localhost:5001/stream
+      - CONTROL_PLANE_URL=http://backend:4000
+      - USE_CONTROL_PLANE_CAMERA_CONFIG=1
+      - USE_CONTROL_PLANE_PERCEPTION_INGEST=1
+      - USE_CONTROL_PLANE_RECORDING_CATALOG=1
+      - MOTION_API_BASE=http://backend:4000/api/camera-motion
+      - DETECTOR_OUTPUT_STREAM_BASE=http://reconstructor:5001/stream
       - DETECTOR_MONITOR_TRANSPORT=udp
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:5000/status',timeout=3).getcode()==200 else 1)"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 25s
     deploy:
       resources:
         reservations:
@@ -61,21 +88,28 @@ services:
               capabilities: [gpu]
     restart: unless-stopped
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
 
   reconstructor:
     build:
       context: ./reconstructor
     container_name: ipcam-reconstructor
-    network_mode: "host"
     environment:
       - TEMPORAL_WINDOW_SIZE=7
       - TEMPORAL_MIN_FRAMES=4
       - TEMPORAL_DIFF_SIGMA=20.0
       - TEMPORAL_CURRENT_BIAS=1.5
+      - MOTION_API_BASE=http://backend:4000/api/camera-motion
     volumes:
       - ./backend/data:/app/data
       - ./recordings:/app/recordings
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:5001/health',timeout=3).getcode()==200 else 1)"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     deploy:
       resources:
         reservations:
@@ -85,11 +119,17 @@ services:
               capabilities: [gpu]
     restart: unless-stopped
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
 
   mapper:
     build:
       context: ./mapper
     container_name: ipcam-mapper
-    network_mode: "host"
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:5002/health',timeout=3).getcode()==200 else 1)"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 15s

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, Camera, CheckCircle2, Clock3, Play, Plus, RefreshCw, Save, Trash2 } from 'lucide-react';
 import MapToolbar from './MapToolbar';
+import { apiClient } from '../api/client';
 
 const CATEGORY_COLORS = {
     vehiculo: '#4dabf7',
@@ -90,21 +91,19 @@ const MapView = () => {
     const fetchMapData = async (silent = false) => {
         if (!silent) setLoading(true);
         try {
-            const [latestRes, historyRes, savedRes] = await Promise.all([
-                fetch('/api/maps/latest'),
-                fetch('/api/maps/history'),
-                fetch('/api/saved-cameras')
+            const [latestPayload, historyPayload, savedPayload] = await Promise.all([
+                apiClient.getLatestMap().catch(() => null),
+                apiClient.getMapHistory().catch(() => null),
+                apiClient.listSavedCameras().catch(() => null)
             ]);
 
-            if (latestRes.ok) {
-                const latestPayload = await latestRes.json();
+            if (latestPayload && latestPayload.success) {
                 setLatestMap(latestPayload.map || null);
             } else {
                 setLatestMap(null);
             }
 
-            if (historyRes.ok) {
-                const historyPayload = await historyRes.json();
+            if (historyPayload && historyPayload.success) {
                 setHistory(Array.isArray(historyPayload.maps) ? historyPayload.maps : []);
                 setActiveMapId(historyPayload.activeMapId || null);
             } else {
@@ -112,8 +111,7 @@ const MapView = () => {
                 setActiveMapId(null);
             }
 
-            if (savedRes.ok) {
-                const savedPayload = await savedRes.json();
+            if (savedPayload && savedPayload.success) {
                 const cameras = Array.isArray(savedPayload?.cameras) ? savedPayload.cameras : [];
                 setSavedCameras(cameras);
                 setSavedCameraCount(cameras.length);
@@ -145,9 +143,7 @@ const MapView = () => {
         if (!job || !['queued', 'running'].includes(job.status)) return undefined;
         const interval = setInterval(async () => {
             try {
-                const res = await fetch(`/api/maps/jobs/${job.id}`);
-                if (!res.ok) return;
-                const payload = await res.json();
+                const payload = await apiClient.getMapJob(job.id);
                 const nextJob = payload.job;
                 setJob(nextJob);
                 if (!nextJob || !['queued', 'running'].includes(nextJob.status)) {
@@ -209,13 +205,8 @@ const MapView = () => {
                 manualCameraLayout: assistedPayload.manualCameraLayout,
                 planHint: assisted ? 'C' : null
             };
-            const res = await fetch('/api/maps/generate', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(body)
-            });
-            const payload = await res.json();
-            if (!res.ok || !payload.success) {
+            const payload = await apiClient.createMapJob(body);
+            if (!payload.success) {
                 throw new Error(payload.error || 'No se pudo iniciar la generación');
             }
             setJob(payload.job);
@@ -236,19 +227,14 @@ const MapView = () => {
         setError('');
         try {
             const assistedPayload = manualMode ? getAssistedPayload() : { objectHints: [], manualCameraLayout: [] };
-            const res = await fetch(`/api/maps/jobs/${job.id}/retry`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    promote: true,
-                    reason: `manual-retry:${job.id}`,
-                    objectHints: assistedPayload.objectHints,
-                    manualCameraLayout: assistedPayload.manualCameraLayout,
-                    planHint: manualMode ? 'C' : null
-                })
+            const payload = await apiClient.retryMapJob(job.id, {
+                promote: true,
+                reason: `manual-retry:${job.id}`,
+                objectHints: assistedPayload.objectHints,
+                manualCameraLayout: assistedPayload.manualCameraLayout,
+                planHint: manualMode ? 'C' : null
             });
-            const payload = await res.json();
-            if (!res.ok || !payload.success) {
+            if (!payload.success) {
                 throw new Error(payload.error || 'No se pudo reintentar la generación');
             }
             setJob(payload.job);
@@ -263,9 +249,8 @@ const MapView = () => {
         if (!job?.id) return;
         setBusy(true);
         try {
-            const res = await fetch(`/api/maps/jobs/${job.id}/cancel`, { method: 'POST' });
-            const payload = await res.json();
-            if (!res.ok || !payload.success) {
+            const payload = await apiClient.cancelMapJob(job.id);
+            if (!payload.success) {
                 throw new Error(payload.error || 'No se pudo cancelar');
             }
             setJob(payload.job);
@@ -280,9 +265,8 @@ const MapView = () => {
         if (!mapId) return;
         setBusy(true);
         try {
-            const res = await fetch(`/api/maps/${mapId}/promote`, { method: 'POST' });
-            const payload = await res.json();
-            if (!res.ok || !payload.success) {
+            const payload = await apiClient.promoteMap(mapId);
+            if (!payload.success) {
                 throw new Error(payload.error || 'No se pudo promover el mapa');
             }
             await fetchMapData(true);
@@ -330,18 +314,13 @@ const MapView = () => {
                 })
                 .filter(Boolean);
 
-            const res = await fetch('/api/maps/manual', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    promote: true,
-                    cameras,
-                    objects,
-                    qualityScore: 0.45
-                })
+            const payload = await apiClient.saveManualMap({
+                promote: true,
+                cameras,
+                objects,
+                qualityScore: 0.45
             });
-            const payload = await res.json();
-            if (!res.ok || !payload.success) {
+            if (!payload.success) {
                 throw new Error(payload.error || 'No se pudo guardar mapa manual');
             }
 

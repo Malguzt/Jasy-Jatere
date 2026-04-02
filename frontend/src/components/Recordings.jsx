@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Play, Trash2, Calendar, Film, Search } from 'lucide-react';
+import { apiClient } from '../api/client';
 
 const Recordings = () => {
     const [recordings, setRecordings] = useState([]);
@@ -15,8 +16,7 @@ const Recordings = () => {
     const fetchRecordings = async () => {
         setLoading(true);
         try {
-            const res = await fetch('/api/detector/recordings');
-            const data = await res.json();
+            const data = await apiClient.listRecordings();
             if (data.success) {
                 setRecordings(data.recordings);
             }
@@ -28,10 +28,7 @@ const Recordings = () => {
 
     const deleteRecording = async (filename) => {
         try {
-            const res = await fetch(`/api/detector/recordings/${filename}`, {
-                method: 'DELETE'
-            });
-            const data = await res.json();
+            const data = await apiClient.deleteRecording(filename);
             if (data.success) {
                 // Refresh list
                 fetchRecordings();

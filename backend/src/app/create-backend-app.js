@@ -100,6 +100,7 @@ function createBackendApp({
         legacyFileFallbackEnabled: runtimeFlags.legacyCompatExportsEnabled
     });
     const cameraEventMonitor = new CameraEventMonitor({
+        cameraFile,
         cameraInventoryService,
         legacyFileFallbackEnabled: runtimeFlags.legacyCompatExportsEnabled
     });

@@ -63,9 +63,11 @@ function motionFromNotification(notification) {
 
 class CameraEventMonitor {
     constructor({
+        cameraFile = DATA_FILE,
         cameraInventoryService = null,
         legacyFileFallbackEnabled = (process.env.LEGACY_COMPAT_EXPORTS_ENABLED === '1')
     } = {}) {
+        this.cameraFile = cameraFile || DATA_FILE;
         this.cameraInventoryService = cameraInventoryService;
         this.legacyFileFallbackEnabled = legacyFileFallbackEnabled === true;
         this.running = false;
@@ -127,11 +129,11 @@ class CameraEventMonitor {
         if (!this.legacyFileFallbackEnabled) return [];
 
         try {
-            if (!fs.existsSync(DATA_FILE)) return [];
-            const data = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+            if (!fs.existsSync(this.cameraFile)) return [];
+            const data = JSON.parse(fs.readFileSync(this.cameraFile, 'utf8'));
             return Array.isArray(data) ? data : [];
         } catch (e) {
-            console.error('[EVT] Error loading cameras.json:', e.message);
+            console.error('[EVT] Error loading camera file:', e.message);
             return [];
         }
     }

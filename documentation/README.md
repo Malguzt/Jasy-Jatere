@@ -99,3 +99,4 @@ If you want the shortest path through the redesign, use this order:
 - Stream-gateway service wiring follows the same pattern via `backend/src/app/create-stream-gateway-services.js`.
 - Stream-gateway internal stream APIs are now mounted through a dedicated router module (`backend/routes/internal-streams-gateway.js`) instead of inline app handlers.
 - Control-plane and stream-gateway liveness/readiness probes are now mounted through dedicated router modules (`backend/routes/control-plane-probes.js`, `backend/routes/stream-gateway-probes.js`) to keep app bootstrap focused on composition.
+- Shared server lifecycle wiring (listen/start/shutdown signal handling) is now centralized in `backend/src/app/http-runtime-bootstrap.js`, reused by both `server.js` and `stream-gateway-server.js`.

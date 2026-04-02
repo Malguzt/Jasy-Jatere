@@ -1,37 +1,20 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Play, Trash2, Calendar, Film, Search } from 'lucide-react';
 import { apiClient } from '../api/client';
+import { useRecordingsData } from '../api/hooks';
 
 const Recordings = () => {
-    const [recordings, setRecordings] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const { recordings, loading, error, refresh } = useRecordingsData();
     const [selectedVideo, setSelectedVideo] = useState(null);
     const [confirmDelete, setConfirmDelete] = useState(null); // Track which file is in 'confirm delete' state
     const [searchTerm, setSearchTerm] = useState('');
-
-    useEffect(() => {
-        fetchRecordings();
-    }, []);
-
-    const fetchRecordings = async () => {
-        setLoading(true);
-        try {
-            const data = await apiClient.listRecordings();
-            if (data.success) {
-                setRecordings(data.recordings);
-            }
-        } catch (error) {
-            console.error('Error fetching recordings', error);
-        }
-        setLoading(false);
-    };
 
     const deleteRecording = async (filename) => {
         try {
             const data = await apiClient.deleteRecording(filename);
             if (data.success) {
                 // Refresh list
-                fetchRecordings();
+                refresh();
                 setConfirmDelete(null);
             } else {
                 alert('Error al borrar: ' + data.error);
@@ -73,6 +56,11 @@ const Recordings = () => {
                     <Film className="text-accent" /> Grabaciones por Detección
                 </h2>
                 <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center' }}>
+                    {error && (
+                        <span style={{ fontSize: '0.72rem', color: '#ff9f9f' }}>
+                            Error cargando catálogo
+                        </span>
+                    )}
                     <div style={{ position: 'relative' }}>
                         <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', opacity: 0.7 }} />
                         <input
@@ -90,7 +78,7 @@ const Recordings = () => {
                             }}
                         />
                     </div>
-                    <button className="btn" onClick={fetchRecordings} style={{ padding: '0.5rem 1rem', fontSize: '0.8rem' }}>
+                    <button className="btn" onClick={refresh} style={{ padding: '0.5rem 1rem', fontSize: '0.8rem' }}>
                         Actualizar
                     </button>
                 </div>

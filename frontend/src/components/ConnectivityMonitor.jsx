@@ -1,6 +1,7 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Activity, RefreshCw, Wifi, WifiOff, Gauge, Timer, Server, AlertTriangle } from 'lucide-react';
 import { apiClient } from '../api/client';
+import { useConnectivityData } from '../api/hooks';
 
 const POLL_MS = 5000;
 
@@ -84,20 +85,8 @@ function Sparkline({ values, color = '#66fcf1', height = 52 }) {
 }
 
 const ConnectivityMonitor = () => {
-    const [payload, setPayload] = useState(null);
-    const [loading, setLoading] = useState(true);
+    const { payload, setPayload, loading, error, refresh } = useConnectivityData({ pollMs: POLL_MS });
     const [forcingProbe, setForcingProbe] = useState(false);
-
-    const fetchData = async () => {
-        try {
-            const data = await apiClient.getConnectivitySnapshot();
-            setPayload(data);
-        } catch (e) {
-            console.error('Monitoring fetch failed', e);
-        } finally {
-            setLoading(false);
-        }
-    };
 
     const forceProbe = async () => {
         setForcingProbe(true);
@@ -110,12 +99,6 @@ const ConnectivityMonitor = () => {
             setForcingProbe(false);
         }
     };
-
-    useEffect(() => {
-        fetchData();
-        const t = setInterval(fetchData, POLL_MS);
-        return () => clearInterval(t);
-    }, []);
 
     const summary = payload?.summary || {};
     const cameras = payload?.cameras || [];
@@ -145,9 +128,18 @@ const ConnectivityMonitor = () => {
                     Monitoreo de Conectividad de Cámaras
                 </h2>
                 <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                    {error && (
+                        <span style={{ fontSize: '0.72rem', color: '#ff9f9f' }}>
+                            Error de conectividad
+                        </span>
+                    )}
                     <span style={{ fontSize: '0.72rem', opacity: 0.7 }}>
                         Actualizado: {formatWhen(payload?.updatedAt)}
                     </span>
+                    <button className="btn" style={{ padding: '0.35rem 0.7rem', fontSize: '0.78rem' }} onClick={refresh}>
+                        <RefreshCw size={14} />
+                        Refrescar
+                    </button>
                     <button className="btn" style={{ padding: '0.35rem 0.7rem', fontSize: '0.78rem' }} onClick={forceProbe} disabled={forcingProbe}>
                         {forcingProbe ? <RefreshCw className="spin" size={14} /> : <RefreshCw size={14} />}
                         Sondear Ahora

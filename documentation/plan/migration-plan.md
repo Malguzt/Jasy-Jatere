@@ -17,7 +17,7 @@ Each phase should produce a working system and avoid a large-bang rewrite.
 - Phase 5: in progress with perception ingest and control-plane-owned recording catalog APIs (`/api/perception/*`, `/api/recordings`).
 - Phase 6: in progress with health and monitoring APIs modularized under dedicated services and connectivity snapshots persisted through repository adapters.
 - Phase 7: in progress with map job persistence in metadata store, map queue inputs sourced from repository-backed camera and observation metadata, local backend fallback gated behind `MAP_LOCAL_FALLBACK_ENABLED`, and detector-event fallback gated behind `MAP_USE_DETECTOR_EVENTS_FALLBACK`.
-- Phase 8: in progress with a typed frontend API client and migration of major UI domains away from ad hoc `fetch` calls.
+- Phase 8: in progress with a typed frontend API client, stream capability-aware live view wiring, and domain query hooks (`frontend/src/api/hooks.js`) replacing component-local polling/fetch logic for recordings and connectivity monitoring.
 - Phase 9: in progress with compose networking moved from host-network coupling to explicit service networking and health checks, worker runtime decoupling from shared `backend/data` mounts where control-plane snapshots are enforced, optional at-rest camera credential encryption via `CAMERA_CREDENTIALS_MASTER_KEY`, explicit liveness/readiness probes (`/livez`, `/readyz`), and control-plane-managed recording retention job wiring (`RECORDING_RETENTION_*`).
 - Phase 10: in progress with import-script test coverage for legacy JSON migration into repository-backed SQLite state.
 

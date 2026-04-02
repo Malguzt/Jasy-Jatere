@@ -20,6 +20,7 @@ Each phase should produce a working system and avoid a large-bang rewrite.
 - Phase 8: in progress with a typed frontend API client, stream capability-aware live view wiring, and domain query hooks (`frontend/src/api/hooks.js`) replacing component-local polling/fetch logic for recordings, connectivity monitoring, dashboard camera/detector status, map workspace jobs/history/state, discovery scan state, and camera onboarding/live-control API actions (including recording deletion and force-probe mutations).
 - Phase 9: in progress with compose networking moved from host-network coupling to explicit service networking and health checks, worker runtime decoupling from shared `backend/data` mounts where control-plane snapshots are enforced, optional at-rest camera credential encryption via `CAMERA_CREDENTIALS_MASTER_KEY`, explicit liveness/readiness probes (`/livez`, `/readyz`), control-plane-managed recording retention job wiring (`RECORDING_RETENTION_*`), and centralized retention/recycle knobs (`RECORDINGS_*`, `OBSERVATION_MAX_ENTRIES`) exposed through worker config snapshots.
 - Phase 10: in progress with import-script test coverage for legacy JSON migration into repository-backed SQLite state.
+- Phase 10: in progress with import-script test coverage for legacy JSON migration into repository-backed SQLite state, plus dedicated composition-factory tests for control-plane and stream-gateway service graphs.
 
 ## Starting Point Summary
 

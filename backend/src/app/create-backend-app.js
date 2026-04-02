@@ -70,7 +70,8 @@ function createBackendApp({
     const observationRepository = new ObservationEventRepository({
         driver: metadataDriver,
         sqliteStore,
-        maxEntries: runtimeFlags.observationMaxEntries
+        maxEntries: runtimeFlags.observationMaxEntries,
+        dualWriteLegacy: runtimeFlags.legacyCompatExportsEnabled
     });
     const healthSnapshotRepository = new HealthSnapshotRepository({
         driver: metadataDriver,

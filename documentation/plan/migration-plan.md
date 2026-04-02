@@ -478,6 +478,7 @@ Current incremental implementation:
 - migration tests now validate import of legacy cameras, recordings, observations, health snapshot, maps, map jobs, and correction history into repository-backed SQLite adapters.
 - legacy camera API aliases under `/api/*` are retired; `/api/cameras/*` remains the canonical namespace.
 - compatibility dual-write exports are now runtime-gated with `LEGACY_COMPAT_EXPORTS_ENABLED` (default disabled in compose profiles).
+- observation event repository compatibility JSON writes are now also gated by `LEGACY_COMPAT_EXPORTS_ENABLED` when running on SQLite.
 
 ### Current code touch points
 

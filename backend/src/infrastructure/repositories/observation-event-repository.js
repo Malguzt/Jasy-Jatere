@@ -16,11 +16,13 @@ class ObservationEventRepository {
         filePath = DEFAULT_FILE,
         maxEntries = Number(process.env.OBSERVATION_MAX_ENTRIES || 2500),
         driver = DEFAULT_DRIVER,
-        sqliteStore = null
+        sqliteStore = null,
+        dualWriteLegacy = true
     } = {}) {
         this.filePath = filePath;
         this.maxEntries = Number.isFinite(Number(maxEntries)) ? Math.max(100, Number(maxEntries)) : 2500;
         this.driver = String(driver || 'sqlite').toLowerCase();
+        this.legacyCompatEnabled = this.driver === 'sqlite' ? Boolean(dualWriteLegacy) : true;
         this.sqlite = this.driver === 'sqlite'
             ? new SqliteObservationEventRepository({
                 store: sqliteStore || new MetadataSqliteStore({
@@ -32,6 +34,7 @@ class ObservationEventRepository {
     }
 
     readJsonEvents() {
+        if (!this.legacyCompatEnabled) return [];
         const entries = readJsonFile(this.filePath, []);
         if (!Array.isArray(entries)) return [];
         return entries.filter((entry) => entry && typeof entry === 'object');
@@ -50,6 +53,7 @@ class ObservationEventRepository {
             this.ensureSqliteBootstrapped();
             const rows = this.sqlite.list(limit);
             if (rows.length > 0) return rows;
+            if (!this.legacyCompatEnabled) return [];
         }
         const normalized = this.readJsonEvents();
         if (limit === null || limit === undefined) return normalized;
@@ -62,9 +66,11 @@ class ObservationEventRepository {
         if (this.sqlite) {
             this.sqlite.append(safeEvent);
         }
-        const current = this.readJsonEvents();
-        const next = [...current, safeEvent].slice(-this.maxEntries);
-        writeJsonFile(this.filePath, next);
+        if (this.legacyCompatEnabled) {
+            const current = this.readJsonEvents();
+            const next = [...current, safeEvent].slice(-this.maxEntries);
+            writeJsonFile(this.filePath, next);
+        }
         return safeEvent;
     }
 }

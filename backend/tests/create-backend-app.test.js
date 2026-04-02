@@ -131,3 +131,55 @@ test('createBackendApp exposes internal worker config and perception ingest APIs
         await new Promise((resolve) => server.close(resolve));
     }
 });
+
+test('createBackendApp degrades readiness when stream proxy mode is required and gateway is unreachable', async () => {
+    const built = createBackendApp({
+        cameraFile: '/tmp/non-existent-cameras.json',
+        runtimeFlags: {
+            streamGatewayApiUrl: 'http://127.0.0.1:9/api/internal/streams',
+            streamProxyModeEnabled: true,
+            streamProxyRequired: true,
+            streamRuntimeEnabled: false,
+            streamWebSocketGatewayEnabled: false,
+            streamWebRtcEnabled: false,
+            streamWebRtcRequireHttps: true,
+            legacyCompatExportsEnabled: false,
+            recordingRetentionEnabled: false,
+            recordingRetentionIntervalMs: 60000,
+            recordingRetentionMaxAgeDays: null,
+            recordingRetentionMaxEntries: null,
+            recordingsMaxSizeGb: 50,
+            recordingsDeleteOldestBatch: 100,
+            observationMaxEntries: 2500
+        }
+    });
+
+    const server = await new Promise((resolve, reject) => {
+        const instance = built.app.listen(0, '127.0.0.1');
+        instance.once('listening', () => resolve(instance));
+        instance.once('error', reject);
+    });
+    const address = server.address();
+    assert.ok(address && typeof address === 'object');
+    const baseUrl = `http://127.0.0.1:${address.port}`;
+
+    try {
+        const runtimeRes = await fetch(`${baseUrl}/api/streams/runtime`);
+        assert.equal(runtimeRes.status, 502);
+
+        const readyRes = await fetch(`${baseUrl}/api/health/ready`);
+        const readyPayload = await readyRes.json();
+        assert.equal(readyRes.status, 503);
+        assert.equal(readyPayload.success, false);
+        assert.ok(Array.isArray(readyPayload.readiness?.failures));
+        assert.ok(readyPayload.readiness.failures.includes('streamGatewayProxy'));
+
+        const readyzRes = await fetch(`${baseUrl}/readyz`);
+        const readyzPayload = await readyzRes.json();
+        assert.equal(readyzRes.status, 503);
+        assert.equal(readyzPayload.success, false);
+        assert.ok(readyzPayload.readiness.failures.includes('streamGatewayProxy'));
+    } finally {
+        await new Promise((resolve) => server.close(resolve));
+    }
+});

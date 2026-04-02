@@ -115,7 +115,7 @@ function createBackendApp({
         streamWebRtcEnabled: runtimeFlags.streamWebRtcEnabled,
         streamWebRtcRequireHttps: runtimeFlags.streamWebRtcRequireHttps
     });
-    const streamGatewayApiUrl = String(process.env.STREAM_GATEWAY_API_URL || '').trim();
+    const streamGatewayApiUrl = String(runtimeFlags.streamGatewayApiUrl || '').trim();
     const streamControlProxyService = streamGatewayApiUrl
         ? new StreamGatewayProxyService({
             gatewayApiBaseUrl: streamGatewayApiUrl
@@ -144,6 +144,9 @@ function createBackendApp({
         contractsService,
         monitoringService,
         streamControlService,
+        streamControlProxyService,
+        streamProxyModeEnabled: runtimeFlags.streamProxyModeEnabled,
+        streamProxyRequired: runtimeFlags.streamProxyRequired,
         recordingRetentionJob
     });
     const perceptionIngestService = new PerceptionIngestService({
@@ -189,8 +192,8 @@ function createBackendApp({
             liveness: platformHealthService.getLivenessSnapshot()
         });
     });
-    app.get('/readyz', (req, res) => {
-        const readiness = platformHealthService.getReadinessSnapshot();
+    app.get('/readyz', async (req, res) => {
+        const readiness = await platformHealthService.getReadinessSnapshot();
         return res.status(readiness.ready ? 200 : 503).json({
             success: readiness.ready,
             readiness

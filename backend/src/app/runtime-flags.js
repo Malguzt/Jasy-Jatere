@@ -26,9 +26,20 @@ function parseOptionalPositiveIntEnv(value) {
 }
 
 function resolveRuntimeFlags(env = process.env) {
+    const streamGatewayApiUrl = String(env.STREAM_GATEWAY_API_URL || '').trim();
+    const streamProxyModeEnabled = parseBoolEnv(env.STREAM_PROXY_MODE_ENABLED, !!streamGatewayApiUrl);
+    const streamProxyRequired = parseBoolEnv(env.STREAM_PROXY_REQUIRED, streamProxyModeEnabled);
+
     return {
-        streamRuntimeEnabled: parseBoolEnv(env.STREAM_RUNTIME_ENABLED, true),
-        streamWebSocketGatewayEnabled: parseBoolEnv(env.STREAM_WEBSOCKET_GATEWAY_ENABLED, true),
+        streamGatewayApiUrl,
+        streamProxyModeEnabled,
+        streamProxyRequired,
+        streamRuntimeEnabled: streamProxyModeEnabled
+            ? false
+            : parseBoolEnv(env.STREAM_RUNTIME_ENABLED, true),
+        streamWebSocketGatewayEnabled: streamProxyModeEnabled
+            ? false
+            : parseBoolEnv(env.STREAM_WEBSOCKET_GATEWAY_ENABLED, true),
         streamWebRtcEnabled: parseBoolEnv(env.STREAM_WEBRTC_ENABLED, false),
         streamWebRtcRequireHttps: parseBoolEnv(env.STREAM_WEBRTC_REQUIRE_HTTPS, true),
         legacyCompatExportsEnabled: parseBoolEnv(env.LEGACY_COMPAT_EXPORTS_ENABLED, false),

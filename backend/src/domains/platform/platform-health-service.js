@@ -3,6 +3,9 @@ class PlatformHealthService {
         contractsService,
         monitoringService,
         streamControlService,
+        streamControlProxyService,
+        streamProxyModeEnabled = false,
+        streamProxyRequired = false,
         recordingRetentionJob,
         now = () => Date.now(),
         uptimeSeconds = () => process.uptime()
@@ -10,6 +13,9 @@ class PlatformHealthService {
         this.contractsService = contractsService;
         this.monitoringService = monitoringService;
         this.streamControlService = streamControlService;
+        this.streamControlProxyService = streamControlProxyService;
+        this.streamProxyModeEnabled = streamProxyModeEnabled === true;
+        this.streamProxyRequired = streamProxyRequired === true;
         this.recordingRetentionJob = recordingRetentionJob;
         this.now = now;
         this.uptimeSeconds = uptimeSeconds;
@@ -18,6 +24,18 @@ class PlatformHealthService {
     safeCall(fn, fallback = null) {
         try {
             return fn();
+        } catch (error) {
+            return fallback;
+        }
+    }
+
+    async safeCallAsync(fn, fallback = null) {
+        try {
+            const result = fn();
+            if (result && typeof result.then === 'function') {
+                return await result;
+            }
+            return result;
         } catch (error) {
             return fallback;
         }
@@ -66,8 +84,12 @@ class PlatformHealthService {
         };
     }
 
-    getReadinessSnapshot() {
+    async getReadinessSnapshot() {
         const health = this.getHealthSnapshot();
+        const proxySnapshot =
+            this.streamProxyModeEnabled && this.streamControlProxyService
+                ? await this.safeCallAsync(() => this.streamControlProxyService.getRuntimeSnapshot(), null)
+                : null;
         const checks = {
             contracts: !this.contractsService
                 ? { ready: true, skipped: true }
@@ -86,6 +108,14 @@ class PlatformHealthService {
                 : {
                     ready: !!health.streams,
                     summary: health.streams?.summary || null
+                },
+            streamGatewayProxy:
+                !this.streamProxyModeEnabled
+                    ? { ready: true, skipped: true, required: false }
+                    : {
+                        required: this.streamProxyRequired,
+                        ready: this.streamProxyRequired ? !!proxySnapshot : true,
+                        summary: proxySnapshot?.summary || null
                 }
         };
 

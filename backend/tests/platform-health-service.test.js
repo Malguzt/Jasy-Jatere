@@ -68,7 +68,7 @@ test('getHealthSnapshot tolerates subsystem read errors', () => {
     assert.equal(snapshot.recordingsRetention, null);
 });
 
-test('getReadinessSnapshot returns ready when core checks are healthy', () => {
+test('getReadinessSnapshot returns ready when core checks are healthy', async () => {
     const service = new PlatformHealthService({
         contractsService: {
             getCatalog: () => ({ schemaCount: 20, invalidSchemas: 0 })
@@ -83,13 +83,14 @@ test('getReadinessSnapshot returns ready when core checks are healthy', () => {
         uptimeSeconds: () => 3.4
     });
 
-    const readiness = service.getReadinessSnapshot();
+    const readiness = await service.getReadinessSnapshot();
     assert.equal(readiness.ready, true);
     assert.equal(readiness.status, 'ready');
     assert.deepEqual(readiness.failures, []);
+    assert.equal(readiness.checks.streamGatewayProxy.skipped, true);
 });
 
-test('getReadinessSnapshot marks degraded when configured checks fail', () => {
+test('getReadinessSnapshot marks degraded when configured checks fail', async () => {
     const service = new PlatformHealthService({
         contractsService: {
             getCatalog: () => ({ schemaCount: 20, invalidSchemas: 2 })
@@ -106,8 +107,48 @@ test('getReadinessSnapshot marks degraded when configured checks fail', () => {
         uptimeSeconds: () => 3.4
     });
 
-    const readiness = service.getReadinessSnapshot();
+    const readiness = await service.getReadinessSnapshot();
     assert.equal(readiness.ready, false);
     assert.equal(readiness.status, 'degraded');
     assert.deepEqual(readiness.failures.sort(), ['contracts', 'monitoring']);
+});
+
+test('getReadinessSnapshot checks stream gateway proxy when proxy mode is required', async () => {
+    const healthy = new PlatformHealthService({
+        contractsService: { getCatalog: () => ({ schemaCount: 20, invalidSchemas: 0 }) },
+        monitoringService: { getConnectivitySnapshot: () => ({ running: true, updatedAt: 1700000000100 }) },
+        streamControlService: { getRuntimeSnapshot: () => ({ summary: { streams: 0 } }) },
+        streamControlProxyService: {
+            getRuntimeSnapshot: async () => ({ summary: { streams: 2 } })
+        },
+        streamProxyModeEnabled: true,
+        streamProxyRequired: true,
+        now: () => 1700000000000,
+        uptimeSeconds: () => 10
+    });
+
+    const healthyReadiness = await healthy.getReadinessSnapshot();
+    assert.equal(healthyReadiness.ready, true);
+    assert.equal(healthyReadiness.checks.streamGatewayProxy.required, true);
+    assert.equal(healthyReadiness.checks.streamGatewayProxy.ready, true);
+    assert.equal(healthyReadiness.checks.streamGatewayProxy.summary.streams, 2);
+
+    const degraded = new PlatformHealthService({
+        contractsService: { getCatalog: () => ({ schemaCount: 20, invalidSchemas: 0 }) },
+        monitoringService: { getConnectivitySnapshot: () => ({ running: true, updatedAt: 1700000000100 }) },
+        streamControlService: { getRuntimeSnapshot: () => ({ summary: { streams: 0 } }) },
+        streamControlProxyService: {
+            getRuntimeSnapshot: async () => {
+                throw new Error('proxy down');
+            }
+        },
+        streamProxyModeEnabled: true,
+        streamProxyRequired: true,
+        now: () => 1700000000000,
+        uptimeSeconds: () => 10
+    });
+
+    const degradedReadiness = await degraded.getReadinessSnapshot();
+    assert.equal(degradedReadiness.ready, false);
+    assert.ok(degradedReadiness.failures.includes('streamGatewayProxy'));
 });

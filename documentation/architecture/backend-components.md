@@ -137,6 +137,7 @@ During migration, this domain can expose internal operational APIs for control-p
 Runtime toggles such as `STREAM_RUNTIME_ENABLED` and `STREAM_WEBSOCKET_GATEWAY_ENABLED` allow decoupling stream runtime lifecycle from the main control-plane HTTP process while extraction proceeds.
 Transport negotiation can be staged with `STREAM_WEBRTC_ENABLED` and `STREAM_WEBRTC_REQUIRE_HTTPS` while keeping JSMpeg fallback enabled.
 When stream runtime is externalized, control-plane stream APIs can proxy to `STREAM_GATEWAY_API_URL` while preserving the same frontend contracts.
+Proxy mode can be made explicit with `STREAM_PROXY_MODE_ENABLED=1`, which disables local stream runtime ownership and lets readiness enforce upstream gateway availability when `STREAM_PROXY_REQUIRED=1`.
 
 ### Observation ingest
 

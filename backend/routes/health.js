@@ -17,9 +17,9 @@ function createHealthRouter({ platformHealthService }) {
         }
     });
 
-    router.get('/ready', (req, res) => {
+    router.get('/ready', async (req, res) => {
         try {
-            const readiness = platformHealthService.getReadinessSnapshot();
+            const readiness = await platformHealthService.getReadinessSnapshot();
             return res.status(readiness.ready ? 200 : 503).json({
                 success: readiness.ready,
                 readiness

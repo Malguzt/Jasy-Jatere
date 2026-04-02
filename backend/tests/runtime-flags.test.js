@@ -23,8 +23,11 @@ test('parseBoolEnv parses common truthy/falsy env variants', () => {
 
 test('resolveRuntimeFlags returns stream-related runtime toggles', () => {
     const flags = resolveRuntimeFlags({
-        STREAM_RUNTIME_ENABLED: '0',
-        STREAM_WEBSOCKET_GATEWAY_ENABLED: 'false',
+        STREAM_GATEWAY_API_URL: 'http://stream-gateway:4100/api/internal/streams',
+        STREAM_PROXY_MODE_ENABLED: '1',
+        STREAM_PROXY_REQUIRED: '1',
+        STREAM_RUNTIME_ENABLED: '1',
+        STREAM_WEBSOCKET_GATEWAY_ENABLED: 'true',
         STREAM_WEBRTC_ENABLED: '1',
         STREAM_WEBRTC_REQUIRE_HTTPS: '0',
         LEGACY_COMPAT_EXPORTS_ENABLED: '1',
@@ -38,6 +41,9 @@ test('resolveRuntimeFlags returns stream-related runtime toggles', () => {
     });
 
     assert.deepEqual(flags, {
+        streamGatewayApiUrl: 'http://stream-gateway:4100/api/internal/streams',
+        streamProxyModeEnabled: true,
+        streamProxyRequired: true,
         streamRuntimeEnabled: false,
         streamWebSocketGatewayEnabled: false,
         streamWebRtcEnabled: true,
@@ -51,6 +57,32 @@ test('resolveRuntimeFlags returns stream-related runtime toggles', () => {
         recordingsDeleteOldestBatch: 77,
         observationMaxEntries: 900
     });
+});
+
+test('resolveRuntimeFlags enables proxy mode by default when stream gateway api url is set', () => {
+    const flags = resolveRuntimeFlags({
+        STREAM_GATEWAY_API_URL: 'http://stream-gateway:4100/api/internal/streams'
+    });
+
+    assert.equal(flags.streamProxyModeEnabled, true);
+    assert.equal(flags.streamProxyRequired, true);
+    assert.equal(flags.streamRuntimeEnabled, false);
+    assert.equal(flags.streamWebSocketGatewayEnabled, false);
+});
+
+test('resolveRuntimeFlags can disable proxy mode explicitly even when stream gateway api url is set', () => {
+    const flags = resolveRuntimeFlags({
+        STREAM_GATEWAY_API_URL: 'http://stream-gateway:4100/api/internal/streams',
+        STREAM_PROXY_MODE_ENABLED: '0',
+        STREAM_PROXY_REQUIRED: '0',
+        STREAM_RUNTIME_ENABLED: '1',
+        STREAM_WEBSOCKET_GATEWAY_ENABLED: '1'
+    });
+
+    assert.equal(flags.streamProxyModeEnabled, false);
+    assert.equal(flags.streamProxyRequired, false);
+    assert.equal(flags.streamRuntimeEnabled, true);
+    assert.equal(flags.streamWebSocketGatewayEnabled, true);
 });
 
 test('parsePositiveIntEnv and parseOptionalPositiveIntEnv normalize retention settings', () => {

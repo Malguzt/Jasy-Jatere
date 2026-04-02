@@ -149,6 +149,12 @@ def use_local_recordings_index():
     return not USE_CONTROL_PLANE_RECORDING_CATALOG
 
 
+def use_local_recording_sidecars():
+    if use_local_recordings_index():
+        return True
+    return not REQUIRE_CONTROL_PLANE_RECORDING_CATALOG
+
+
 class PersistentFFmpegReader:
     """Persistent low-res RTSP reader that keeps a single socket open per camera."""
 
@@ -303,6 +309,8 @@ def save_recordings_index(entries):
 
 
 def load_sidecar_metadata(filename):
+    if not use_local_recording_sidecars():
+        return None
     meta_path = get_metadata_path_from_filename(filename)
     if not os.path.exists(meta_path):
         return None
@@ -321,12 +329,13 @@ def upsert_recording_metadata(metadata):
     if not filename:
         return
 
-    meta_path = get_metadata_path_from_filename(filename)
-    try:
-        with open(meta_path, "w") as f:
-            json.dump(metadata, f, ensure_ascii=False, indent=2)
-    except Exception as e:
-        print(f"[META] Error writing sidecar {meta_path}: {e}")
+    if use_local_recording_sidecars():
+        meta_path = get_metadata_path_from_filename(filename)
+        try:
+            with open(meta_path, "w") as f:
+                json.dump(metadata, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            print(f"[META] Error writing sidecar {meta_path}: {e}")
 
     if use_local_recordings_index():
         with recordings_index_lock:
@@ -343,12 +352,13 @@ def remove_recording_metadata(filename):
     if not filename:
         return
 
-    meta_path = get_metadata_path_from_filename(filename)
-    try:
-        if os.path.exists(meta_path):
-            os.remove(meta_path)
-    except Exception as e:
-        print(f"[META] Error removing sidecar {meta_path}: {e}")
+    if use_local_recording_sidecars():
+        meta_path = get_metadata_path_from_filename(filename)
+        try:
+            if os.path.exists(meta_path):
+                os.remove(meta_path)
+        except Exception as e:
+            print(f"[META] Error removing sidecar {meta_path}: {e}")
 
     if use_local_recordings_index():
         with recordings_index_lock:
@@ -367,9 +377,10 @@ def delete_recording_family(mp4_path):
     related_paths = [
         mp4_path,
         f"{base}.jpg",
-        f"{mp4_path}.log",
-        get_metadata_path_from_mp4(mp4_path)
+        f"{mp4_path}.log"
     ]
+    if use_local_recording_sidecars():
+        related_paths.append(get_metadata_path_from_mp4(mp4_path))
     for p in related_paths:
         try:
             if os.path.exists(p):
@@ -1396,7 +1407,8 @@ def delete_recording(filename):
 
         # Delete metadata sidecar + index entry
         remove_recording_metadata(filename)
-        deleted.append("metadata")
+        if use_local_recording_sidecars() or use_local_recordings_index():
+            deleted.append("metadata")
             
         print(f"[API] Deleted recording: {filename} ({', '.join(deleted)})")
         return jsonify({"success": True, "deleted": deleted})

@@ -85,6 +85,7 @@ If you want the shortest path through the redesign, use this order:
 - Legacy detector recording aliases (`/api/detector/recordings*`) are retired (`410 Gone`); use `/api/recordings*` as canonical catalog APIs.
 - Detector compatibility `/recordings*` routes now delegate listing/deletion to control-plane `/api/recordings*` when `USE_CONTROL_PLANE_RECORDING_CATALOG=1`.
 - Strict detector catalog ownership can be enforced with `REQUIRE_CONTROL_PLANE_RECORDING_CATALOG=1` (enabled in compose defaults).
+- In strict mode, detector local recording metadata sidecars/indexes are treated as compatibility artifacts and are not the default catalog path.
 - Backend and stream-gateway expose explicit readiness/liveness probes (`/readyz`, `/livez`) for operational checks.
 - Recording retention and cleanup are now modeled as control-plane runtime policy (`RECORDING_RETENTION_*`).
 - Detector recycle policy can be synchronized from `GET /api/internal/config/retention` (`USE_CONTROL_PLANE_RETENTION_CONFIG`) to avoid drift with control-plane retention settings.

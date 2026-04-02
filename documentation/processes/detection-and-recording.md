@@ -78,6 +78,7 @@ During migration, the perception and recording flow can be wired through these A
 
 Legacy detector-local recording endpoints may remain temporarily for compatibility, but frontend and map workflows should move to control-plane-owned catalog APIs. In compatibility mode, detector `/recordings*` endpoints can delegate list/delete operations to control-plane catalog APIs so worker-local indexes are no longer the default source of truth.
 Strict catalog ownership can be enforced with `REQUIRE_CONTROL_PLANE_RECORDING_CATALOG=1`, which disables detector-local listing fallback when control-plane catalog APIs are unavailable.
+When strict mode is enabled, detector-local sidecar metadata (`*.meta.json`) is also treated as optional compatibility output instead of default runtime state.
 
 Operationally, control-plane camera config can be enforced with `REQUIRE_CONTROL_PLANE_CAMERA_CONFIG=1` so detector workers do not fall back to shared `cameras.json` reads when control-plane snapshots are unavailable.
 Retention recycling can also consume control-plane snapshots with `USE_CONTROL_PLANE_RETENTION_CONFIG=1` (and optional strict mode via `REQUIRE_CONTROL_PLANE_RETENTION_CONFIG=1`) so detector-side disk recycling policy is aligned with control-plane runtime settings.

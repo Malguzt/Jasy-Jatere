@@ -356,7 +356,6 @@ Remove map generation duplication and make the mapper the only place where map i
 ### Current code touch points
 
 - `backend/maps/job-queue.js`
-- `backend/maps/fallback-generator.js`
 - `backend/maps/validate-map.js`
 - `backend/maps/corrections.js`
 - `mapper/mapper.py`
@@ -366,7 +365,7 @@ Remove map generation duplication and make the mapper the only place where map i
 
 - First, keep the current backend job orchestration.
 - Move heuristic generation behind a mapper API contract.
-- Only remove `fallback-generator.js` after the mapper strategies fully cover the old behavior.
+- Keep mapper as the only runtime fallback strategy engine once parity is confirmed.
 
 ### Exit criteria
 

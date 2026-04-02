@@ -41,24 +41,6 @@ test('validate-map accepts valid document and rejects invalid document', () => {
     assert.ok(invalid.errors.length >= 5);
 });
 
-test('fallback-generator respects manual camera layout', () => {
-    const { buildFallbackCroquis } = freshRequire('../maps/fallback-generator');
-    const map = buildFallbackCroquis({
-        jobId: 'job_x',
-        cameras: [],
-        manualCameraLayout: [
-            { id: 'camA', label: 'A', x: 10, y: 20, yawDeg: 45 },
-            { id: 'camB', label: 'B', x: -5, y: 2, yawDeg: 180 }
-        ],
-        objectHints: [{ label: 'lavadora', cameraId: 'camA' }],
-        planUsed: 'D'
-    });
-    assert.equal(map.quality.planUsed, 'D');
-    assert.equal(map.cameras.length, 2);
-    assert.equal(map.cameras[0].x, 10);
-    assert.equal(map.cameras[0].y, 20);
-});
-
 test('storage saves and retrieves maps in isolated directory', () => {
     const tempDir = makeTmpDir('maps-storage');
     process.env.MAPS_DATA_DIR = tempDir;

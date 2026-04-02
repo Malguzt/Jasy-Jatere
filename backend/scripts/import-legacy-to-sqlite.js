@@ -7,41 +7,56 @@ const { HealthSnapshotRepository } = require('../src/infrastructure/repositories
 const mapStorage = require('../maps/storage');
 const mapCorrections = require('../maps/corrections');
 
-const camerasPath = path.join(__dirname, '..', 'data', 'cameras.json');
-const recordingsPath = path.join('/app', 'recordings', 'recordings-index.json');
-const observationsPath = path.join(__dirname, '..', 'data', 'metadata', 'observations.json');
-const healthSnapshotPath = path.join(__dirname, '..', 'data', 'metadata', 'health-snapshot.json');
+const DEFAULT_PATHS = {
+    camerasPath: path.join(__dirname, '..', 'data', 'cameras.json'),
+    recordingsPath: path.join('/app', 'recordings', 'recordings-index.json'),
+    observationsPath: path.join(__dirname, '..', 'data', 'metadata', 'observations.json'),
+    healthSnapshotPath: path.join(__dirname, '..', 'data', 'metadata', 'health-snapshot.json')
+};
 
-function readArraySafe(filePath) {
+function readArraySafe(filePath, fsModule = fs) {
     try {
-        if (!fs.existsSync(filePath)) return [];
-        const parsed = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+        if (!fsModule.existsSync(filePath)) return [];
+        const parsed = JSON.parse(fsModule.readFileSync(filePath, 'utf8'));
         return Array.isArray(parsed) ? parsed : [];
     } catch (error) {
         return [];
     }
 }
 
-function readObjectSafe(filePath) {
+function readObjectSafe(filePath, fsModule = fs) {
     try {
-        if (!fs.existsSync(filePath)) return null;
-        const parsed = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+        if (!fsModule.existsSync(filePath)) return null;
+        const parsed = JSON.parse(fsModule.readFileSync(filePath, 'utf8'));
         return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : null;
     } catch (error) {
         return null;
     }
 }
 
-function run() {
-    const cameraRepo = new CameraMetadataRepository({ driver: 'sqlite' });
-    const recordingRepo = new RecordingCatalogRepository({ driver: 'sqlite' });
-    const observationRepo = new ObservationEventRepository({ driver: 'sqlite' });
-    const healthRepo = new HealthSnapshotRepository({ driver: 'sqlite' });
+function run({
+    paths = {},
+    repositories = {},
+    mapAdapters = {},
+    fsModule = fs,
+    logger = console
+} = {}) {
+    const resolvedPaths = {
+        ...DEFAULT_PATHS,
+        ...(paths || {})
+    };
+    const injectedRepositories = repositories || {};
+    const cameraRepo = injectedRepositories.cameraRepo || new CameraMetadataRepository({ driver: 'sqlite' });
+    const recordingRepo = injectedRepositories.recordingRepo || new RecordingCatalogRepository({ driver: 'sqlite' });
+    const observationRepo = injectedRepositories.observationRepo || new ObservationEventRepository({ driver: 'sqlite' });
+    const healthRepo = injectedRepositories.healthRepo || new HealthSnapshotRepository({ driver: 'sqlite' });
+    const resolvedMapStorage = mapAdapters.mapStorage || mapStorage;
+    const resolvedMapCorrections = mapAdapters.mapCorrections || mapCorrections;
 
-    const cameras = readArraySafe(camerasPath);
-    const recordings = readArraySafe(recordingsPath);
-    const observations = readArraySafe(observationsPath);
-    const healthSnapshot = readObjectSafe(healthSnapshotPath);
+    const cameras = readArraySafe(resolvedPaths.camerasPath, fsModule);
+    const recordings = readArraySafe(resolvedPaths.recordingsPath, fsModule);
+    const observations = readArraySafe(resolvedPaths.observationsPath, fsModule);
+    const healthSnapshot = readObjectSafe(resolvedPaths.healthSnapshotPath, fsModule);
 
     if (cameras.length > 0) cameraRepo.replace(cameras);
     recordings.forEach((entry) => recordingRepo.upsert(entry));
@@ -49,20 +64,39 @@ function run() {
     if (healthSnapshot) healthRepo.save(healthSnapshot);
 
     // Trigger map/corrections bootstrap from legacy JSON files.
-    const mapsIndex = mapStorage.getIndex();
-    const mapJobs = mapStorage.loadJobs();
-    const corrections = mapCorrections.readCorrections();
+    const mapsIndex = resolvedMapStorage.getIndex();
+    const mapJobs = resolvedMapStorage.loadJobs();
+    const corrections = resolvedMapCorrections.readCorrections();
 
-    // eslint-disable-next-line no-console
-    console.log(
-        `metadata-db import complete: cameras=${cameras.length} recordings=${recordings.length} observations=${observations.length} maps=${mapsIndex.maps.length} mapJobs=${mapJobs.length} correctionsHistory=${Array.isArray(corrections.history) ? corrections.history.length : 0} health=${healthSnapshot ? 1 : 0}`
+    const summary = {
+        cameras: cameras.length,
+        recordings: recordings.length,
+        observations: observations.length,
+        maps: Array.isArray(mapsIndex?.maps) ? mapsIndex.maps.length : 0,
+        mapJobs: Array.isArray(mapJobs) ? mapJobs.length : 0,
+        correctionsHistory: Array.isArray(corrections?.history) ? corrections.history.length : 0,
+        health: healthSnapshot ? 1 : 0
+    };
+
+    logger.log(
+        `metadata-db import complete: cameras=${summary.cameras} recordings=${summary.recordings} observations=${summary.observations} maps=${summary.maps} mapJobs=${summary.mapJobs} correctionsHistory=${summary.correctionsHistory} health=${summary.health}`
     );
+    return summary;
 }
 
-try {
-    run();
-} catch (error) {
-    // eslint-disable-next-line no-console
-    console.error(`metadata-db import failed: ${error?.message || error}`);
-    process.exit(1);
+if (require.main === module) {
+    try {
+        run();
+    } catch (error) {
+        // eslint-disable-next-line no-console
+        console.error(`metadata-db import failed: ${error?.message || error}`);
+        process.exit(1);
+    }
 }
+
+module.exports = {
+    DEFAULT_PATHS,
+    readArraySafe,
+    readObjectSafe,
+    run
+};

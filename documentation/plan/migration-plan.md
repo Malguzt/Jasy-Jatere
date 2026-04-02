@@ -19,6 +19,7 @@ Each phase should produce a working system and avoid a large-bang rewrite.
 - Phase 7: in progress with map job persistence in metadata store, map queue inputs sourced from repository-backed camera and observation metadata, local backend fallback gated behind `MAP_LOCAL_FALLBACK_ENABLED`, and detector-event fallback gated behind `MAP_USE_DETECTOR_EVENTS_FALLBACK`.
 - Phase 8: in progress with a typed frontend API client and migration of major UI domains away from ad hoc `fetch` calls.
 - Phase 9: in progress with compose networking moved from host-network coupling to explicit service networking and health checks, worker runtime decoupling from shared `backend/data` mounts where control-plane snapshots are enforced, optional at-rest camera credential encryption via `CAMERA_CREDENTIALS_MASTER_KEY`, explicit liveness/readiness probes (`/livez`, `/readyz`), and control-plane-managed recording retention job wiring (`RECORDING_RETENTION_*`).
+- Phase 10: in progress with import-script test coverage for legacy JSON migration into repository-backed SQLite state.
 
 ## Starting Point Summary
 
@@ -471,6 +472,11 @@ Finish the redesign by removing temporary compatibility layers only after confid
 - Add stream session smoke tests.
 - Add migration tests for importing legacy JSON and recordings metadata.
 - Remove deprecated compatibility writers and readers.
+
+Current incremental implementation:
+
+- `backend/scripts/import-legacy-to-sqlite.js` now exposes a testable `run()` entrypoint and keeps CLI behavior via `require.main === module`.
+- migration tests now validate import of legacy cameras, recordings, observations, health snapshot, maps, map jobs, and correction history into repository-backed SQLite adapters.
 
 ### Current code touch points
 

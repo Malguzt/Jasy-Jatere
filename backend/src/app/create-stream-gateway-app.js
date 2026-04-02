@@ -13,6 +13,7 @@ const { CameraInventoryService } = require('../domains/cameras/camera-inventory-
 const { StreamSyncOrchestrator } = require('../domains/streams/stream-sync-orchestrator');
 const { StreamWebSocketGateway } = require('../domains/streams/stream-websocket-gateway');
 const { StreamControlService } = require('../domains/streams/stream-control-service');
+const { renderStreamRuntimePrometheusMetrics } = require('../domains/streams/stream-runtime-metrics');
 
 function sendGatewayError(res, error) {
     const status = Number(error?.status) || 500;
@@ -132,6 +133,17 @@ function createStreamGatewayApp({
                 success: true,
                 ...snapshot
             });
+        } catch (error) {
+            return sendGatewayError(res, error);
+        }
+    });
+
+    app.get('/api/internal/streams/metrics', async (req, res) => {
+        try {
+            const snapshot = await streamControlService.getRuntimeSnapshot();
+            const metricsText = renderStreamRuntimePrometheusMetrics(snapshot);
+            res.set('Content-Type', 'text/plain; version=0.0.4; charset=utf-8');
+            return res.send(metricsText);
         } catch (error) {
             return sendGatewayError(res, error);
         }

@@ -80,6 +80,7 @@ If you want the shortest path through the redesign, use this order:
 - WebRTC offer/answer signaling is now exposed via `POST /api/streams/webrtc/sessions` (proxied to stream-gateway when proxy mode is enabled) and can be wired to an external signaling backend through `STREAM_WEBRTC_SIGNALING_URL`.
 - Trickle ICE candidate forwarding is exposed via `POST /api/streams/webrtc/sessions/:sessionId/candidates`; signaling retries and fallback ICE servers can be tuned with `STREAM_WEBRTC_SIGNALING_RETRIES` and `STREAM_WEBRTC_ICE_SERVERS_JSON`.
 - Explicit WebRTC session teardown is exposed via `DELETE /api/streams/webrtc/sessions/:sessionId` and is invoked by frontend cleanup to avoid lingering signaling sessions.
+- Stream runtime Prometheus metrics are available via `GET /api/streams/metrics` (and `GET /api/internal/streams/metrics` in stream-gateway).
 - Backend and stream-gateway expose explicit readiness/liveness probes (`/readyz`, `/livez`) for operational checks.
 - Recording retention and cleanup are now modeled as control-plane runtime policy (`RECORDING_RETENTION_*`).
 - Detector recycle policy can be synchronized from `GET /api/internal/config/retention` (`USE_CONTROL_PLANE_RETENTION_CONFIG`) to avoid drift with control-plane retention settings.

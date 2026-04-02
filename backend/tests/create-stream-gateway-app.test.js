@@ -29,6 +29,12 @@ test('createStreamGatewayApp exposes internal health and runtime endpoints', asy
         assert.equal(runtimePayload.success, true);
         assert.ok(runtimePayload.summary);
 
+        const metricsRes = await fetch(`${baseUrl}/api/internal/streams/metrics`);
+        const metricsText = await metricsRes.text();
+        assert.equal(metricsRes.status, 200);
+        assert.equal(String(metricsRes.headers.get('content-type') || '').includes('text/plain'), true);
+        assert.equal(metricsText.includes('ipcam_stream_runtime_streams_total'), true);
+
         const capabilitiesRes = await fetch(`${baseUrl}/api/internal/streams/capabilities`);
         const capabilitiesPayload = await capabilitiesRes.json();
         assert.equal(capabilitiesRes.status, 200);

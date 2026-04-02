@@ -149,6 +149,12 @@ test('streams router returns local runtime snapshot when proxy is not configured
         assert.equal(response.status, 200);
         assert.equal(payload.success, true);
         assert.equal(payload.summary.streams, 1);
+
+        const metricsRes = await fetch(`${baseUrl}/api/streams/metrics`);
+        const metricsText = await metricsRes.text();
+        assert.equal(metricsRes.status, 200);
+        assert.equal(String(metricsRes.headers.get('content-type') || '').includes('text/plain'), true);
+        assert.equal(metricsText.includes('ipcam_stream_runtime_streams_total 1'), true);
     } finally {
         await new Promise((resolve) => server.close(resolve));
     }
@@ -317,6 +323,12 @@ test('streams router prefers proxy service when configured', async () => {
         const runtimePayload = await runtimeRes.json();
         assert.equal(runtimeRes.status, 200);
         assert.equal(runtimePayload.summary.streams, 2);
+
+        const metricsRes = await fetch(`${baseUrl}/api/streams/metrics`);
+        const metricsText = await metricsRes.text();
+        assert.equal(metricsRes.status, 200);
+        assert.equal(String(metricsRes.headers.get('content-type') || '').includes('text/plain'), true);
+        assert.equal(metricsText.includes('ipcam_stream_runtime_streams_total 2'), true);
 
         const syncRes = await fetch(`${baseUrl}/api/streams/sync`, {
             method: 'POST',

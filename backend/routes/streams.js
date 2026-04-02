@@ -1,6 +1,7 @@
 const express = require('express');
 const { validateBody } = require('../src/contracts/validator');
 const { badRequest, internalError } = require('../src/http/respond');
+const { renderStreamRuntimePrometheusMetrics } = require('../src/domains/streams/stream-runtime-metrics');
 
 function sendStreamsError(res, error, fallbackMessage) {
     const message = error?.message || fallbackMessage || 'Unexpected streams error';
@@ -83,6 +84,21 @@ function createStreamsRouter({ streamControlService, streamControlProxyService =
             });
         } catch (error) {
             return sendStreamsError(res, error, 'Failed to read stream runtime');
+        }
+    });
+
+    router.get('/metrics', async (req, res) => {
+        try {
+            const service = resolveStreamsService(streamControlService, streamControlProxyService);
+            if (!service || typeof service.getRuntimeSnapshot !== 'function') {
+                throw new Error('Streams service not configured');
+            }
+            const snapshot = await service.getRuntimeSnapshot();
+            const metricsText = renderStreamRuntimePrometheusMetrics(snapshot);
+            res.set('Content-Type', 'text/plain; version=0.0.4; charset=utf-8');
+            return res.send(metricsText);
+        } catch (error) {
+            return sendStreamsError(res, error, 'Failed to render stream runtime metrics');
         }
     });
 

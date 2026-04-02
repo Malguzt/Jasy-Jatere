@@ -136,6 +136,7 @@ During migration, this domain can expose internal operational APIs for control-p
 - `POST /api/streams/webrtc/sessions/:sessionId/candidates`
 - `DELETE /api/streams/webrtc/sessions/:sessionId`
 - `GET /api/streams/runtime`
+- `GET /api/streams/metrics`
 - `POST /api/streams/sync`
 - `GET /api/internal/config/streams`
 

@@ -61,6 +61,7 @@ As an intermediate migration step, the control plane can expose internal stream 
 - `POST /api/streams/webrtc/sessions/:sessionId/candidates` for trickle ICE candidate forwarding.
 - `DELETE /api/streams/webrtc/sessions/:sessionId` for explicit signaling-session teardown.
 - `GET /api/streams/runtime` for current stream and keepalive runtime state.
+- `GET /api/streams/metrics` for Prometheus-formatted stream runtime metrics.
 - `POST /api/streams/sync` for operator-triggered keepalive and reconstructor resynchronization.
 - `GET /api/internal/config/streams` for worker-consumable stream snapshots.
 

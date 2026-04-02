@@ -4,6 +4,16 @@ function stripTrailingSlash(value = '') {
     return String(value || '').replace(/\/+$/, '');
 }
 
+function pickHeaderValue(headers, key) {
+    if (!headers || typeof headers !== 'object') return '';
+    const direct = headers[key];
+    const fallback = direct === undefined ? headers[String(key).toLowerCase()] : direct;
+    if (Array.isArray(fallback)) {
+        return String(fallback[0] || '').trim();
+    }
+    return String(fallback || '').trim();
+}
+
 class StreamGatewayProxyService {
     constructor({
         gatewayApiBaseUrl = process.env.STREAM_GATEWAY_API_URL || null,
@@ -26,7 +36,17 @@ class StreamGatewayProxyService {
         }
     }
 
-    async requestJson(pathname, { method = 'GET', body = null } = {}) {
+    buildForwardHeaders(requestHeaders = {}) {
+        const forwarded = {};
+        const supportedKeys = ['origin', 'x-forwarded-proto', 'x-forwarded-host', 'x-forwarded-port'];
+        supportedKeys.forEach((key) => {
+            const value = pickHeaderValue(requestHeaders, key);
+            if (value) forwarded[key] = value;
+        });
+        return forwarded;
+    }
+
+    async requestJson(pathname, { method = 'GET', body = null, headers = {} } = {}) {
         this.ensureConfigured();
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), this.requestTimeoutMs);
@@ -34,7 +54,8 @@ class StreamGatewayProxyService {
             const response = await this.fetchImpl(`${this.gatewayApiBaseUrl}${pathname}`, {
                 method,
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    ...headers
                 },
                 body: body ? JSON.stringify(body) : null,
                 signal: controller.signal
@@ -94,12 +115,28 @@ class StreamGatewayProxyService {
         return payload.sync || null;
     }
 
-    async getCapabilities() {
-        const payload = await this.requestJson('/capabilities');
+    async getCapabilities({ requestHeaders = {} } = {}) {
+        const payload = await this.requestJson('/capabilities', {
+            headers: this.buildForwardHeaders(requestHeaders)
+        });
         if (!payload?.success || !payload?.capabilities) {
             throw streamControlError(502, 'Invalid capabilities payload from stream gateway', 'STREAM_GATEWAY_INVALID_CAPABILITIES');
         }
         return payload.capabilities;
+    }
+
+    async getSessionDescriptor({ cameraId, requestHeaders = {} } = {}) {
+        const normalizedCameraId = String(cameraId || '').trim();
+        if (!normalizedCameraId) {
+            throw streamControlError(400, 'cameraId is required', 'STREAM_CAMERA_ID_REQUIRED');
+        }
+        const payload = await this.requestJson(`/sessions/${encodeURIComponent(normalizedCameraId)}`, {
+            headers: this.buildForwardHeaders(requestHeaders)
+        });
+        if (!payload?.success || !payload?.session) {
+            throw streamControlError(502, 'Invalid session payload from stream gateway', 'STREAM_GATEWAY_INVALID_SESSION');
+        }
+        return payload.session;
     }
 }
 

@@ -51,6 +51,25 @@ function createStreamsRouter({ streamControlService, streamControlProxyService =
         }
     });
 
+    router.get('/sessions/:cameraId', async (req, res) => {
+        try {
+            const service = resolveStreamsService(streamControlService, streamControlProxyService);
+            if (!service || typeof service.getSessionDescriptor !== 'function') {
+                throw new Error('Streams session service not configured');
+            }
+            const session = await service.getSessionDescriptor({
+                cameraId: req.params?.cameraId,
+                requestHeaders: req.headers || {}
+            });
+            return res.json({
+                success: true,
+                session
+            });
+        } catch (error) {
+            return sendStreamsError(res, error, 'Failed to resolve stream session');
+        }
+    });
+
     router.get('/runtime', async (req, res) => {
         try {
             const service = resolveStreamsService(streamControlService, streamControlProxyService);

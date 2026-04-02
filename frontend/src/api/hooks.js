@@ -530,6 +530,24 @@ export function useCameraStreamData(camera) {
     }, [camera?.id]);
 
     const resolveStreamTransport = async () => {
+        try {
+            const sessionPayload = await apiClient.getStreamSession(localCamera?.id);
+            const session = sessionPayload?.success ? sessionPayload.session : null;
+            if (session && typeof session === 'object') {
+                const preferred = String(session.preferredTransport || '').toLowerCase();
+                const selected = String(session.selectedTransport || '').toLowerCase();
+                const webrtcFallbackWarning = preferred === 'webrtc' && selected === 'jsmpeg'
+                    ? 'WebRTC policy selected. Falling back to JSMpeg transport in this build.'
+                    : '';
+                return {
+                    transport: selected || null,
+                    streamUrl: session?.transports?.jsmpeg?.url || null,
+                    streamPath: session?.transports?.jsmpeg?.path || null,
+                    warning: webrtcFallbackWarning
+                };
+            }
+        } catch (error) {}
+
         if (!capabilitiesRef.current) {
             try {
                 const payload = await apiClient.getStreamCapabilities();
@@ -548,6 +566,8 @@ export function useCameraStreamData(camera) {
 
         return {
             transport: jsmpegEnabled ? 'jsmpeg' : null,
+            streamUrl: null,
+            streamPath: jsmpegEnabled ? `/stream/${encodeURIComponent(String(localCamera?.id || ''))}` : null,
             warning: webrtcFallbackWarning
         };
     };

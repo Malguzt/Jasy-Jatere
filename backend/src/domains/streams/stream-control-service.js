@@ -6,20 +6,38 @@ function streamControlError(status, message, code = null, details = null) {
     return error;
 }
 
+function stripTrailingSlash(value = '') {
+    return String(value || '').replace(/\/+$/, '');
+}
+
+function toWebSocketBaseUrl(value = '') {
+    const normalized = stripTrailingSlash(value);
+    if (!normalized) return '';
+    if (/^wss?:\/\//i.test(normalized)) return normalized;
+    if (/^https?:\/\//i.test(normalized)) {
+        return normalized.replace(/^http:/i, 'ws:').replace(/^https:/i, 'wss:');
+    }
+    return '';
+}
+
 class StreamControlService {
     constructor({
         streamManager,
+        cameraInventoryService = null,
         streamSyncOrchestrator,
         streamWebSocketGatewayEnabled = true,
         streamWebRtcEnabled = false,
         streamWebRtcRequireHttps = true,
+        streamPublicBaseUrl = process.env.STREAM_PUBLIC_BASE_URL || '',
         now = () => Date.now()
     } = {}) {
         this.streamManager = streamManager;
+        this.cameraInventoryService = cameraInventoryService;
         this.streamSyncOrchestrator = streamSyncOrchestrator;
         this.streamWebSocketGatewayEnabled = streamWebSocketGatewayEnabled !== false;
         this.streamWebRtcEnabled = streamWebRtcEnabled === true;
         this.streamWebRtcRequireHttps = streamWebRtcRequireHttps !== false;
+        this.streamPublicBaseUrl = String(streamPublicBaseUrl || '').trim();
         this.now = now;
         this.lastManualSync = null;
     }
@@ -56,6 +74,65 @@ class StreamControlService {
                     enabled: jsmpegEnabled
                 }
             }
+        };
+    }
+
+    ensureCameraExists(cameraId) {
+        const normalizedCameraId = String(cameraId || '').trim();
+        if (!normalizedCameraId) {
+            throw streamControlError(400, 'cameraId is required', 'STREAM_CAMERA_ID_REQUIRED');
+        }
+
+        if (!this.cameraInventoryService || typeof this.cameraInventoryService.findCamera !== 'function') {
+            return normalizedCameraId;
+        }
+
+        const camera = this.cameraInventoryService.findCamera(normalizedCameraId);
+        if (!camera) {
+            throw streamControlError(404, `Camera not found: ${normalizedCameraId}`, 'STREAM_CAMERA_NOT_FOUND');
+        }
+        return normalizedCameraId;
+    }
+
+    buildJsmpegTransportDescriptor(cameraId) {
+        const path = `/stream/${encodeURIComponent(cameraId)}`;
+        const webSocketBaseUrl = toWebSocketBaseUrl(this.streamPublicBaseUrl);
+        return {
+            enabled: true,
+            path,
+            url: webSocketBaseUrl ? `${webSocketBaseUrl}${path}` : null
+        };
+    }
+
+    getSessionDescriptor({ cameraId, requestHeaders = {} } = {}) {
+        const normalizedCameraId = this.ensureCameraExists(cameraId);
+        const capabilities = this.getCapabilities({ requestHeaders });
+        const jsmpegEnabled = capabilities?.transports?.jsmpeg?.enabled === true;
+        const webrtc = capabilities?.transports?.webrtc || {};
+        const webrtcEnabled = webrtc.enabled === true;
+        const selectedTransport = jsmpegEnabled ? 'jsmpeg' : (webrtcEnabled ? 'webrtc' : null);
+
+        if (!selectedTransport) {
+            throw streamControlError(503, 'No stream transport available', 'STREAM_TRANSPORT_UNAVAILABLE', {
+                cameraId: normalizedCameraId,
+                capabilities
+            });
+        }
+
+        return {
+            cameraId: normalizedCameraId,
+            selectedTransport,
+            preferredTransport: capabilities?.defaultTransport || null,
+            transports: {
+                jsmpeg: jsmpegEnabled
+                    ? this.buildJsmpegTransportDescriptor(normalizedCameraId)
+                    : { enabled: false, path: null, url: null },
+                webrtc: {
+                    enabled: webrtcEnabled,
+                    reason: webrtc.reason || null
+                }
+            },
+            capabilities
         };
     }
 

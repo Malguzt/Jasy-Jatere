@@ -67,6 +67,9 @@ export const apiClient = {
     getStreamCapabilities() {
         return apiFetch('/api/streams/capabilities');
     },
+    getStreamSession(cameraId) {
+        return apiFetch(`/api/streams/sessions/${encodeURIComponent(String(cameraId || ''))}`);
+    },
     listRecordings(query = {}) {
         const params = new URLSearchParams();
         Object.entries(query || {}).forEach(([key, value]) => {

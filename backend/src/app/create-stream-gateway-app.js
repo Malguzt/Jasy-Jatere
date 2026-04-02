@@ -63,10 +63,12 @@ function createStreamGatewayApp({
 
     const streamControlService = new StreamControlService({
         streamManager,
+        cameraInventoryService,
         streamSyncOrchestrator,
         streamWebSocketGatewayEnabled: runtimeFlags.streamWebSocketGatewayEnabled,
         streamWebRtcEnabled: runtimeFlags.streamWebRtcEnabled,
-        streamWebRtcRequireHttps: runtimeFlags.streamWebRtcRequireHttps
+        streamWebRtcRequireHttps: runtimeFlags.streamWebRtcRequireHttps,
+        streamPublicBaseUrl: runtimeFlags.streamPublicBaseUrl
     });
 
     const streamWebSocketGateway = new StreamWebSocketGateway({
@@ -137,6 +139,20 @@ function createStreamGatewayApp({
             return res.json({
                 success: true,
                 capabilities: streamControlService.getCapabilities({
+                    requestHeaders: req.headers || {}
+                })
+            });
+        } catch (error) {
+            return sendGatewayError(res, error);
+        }
+    });
+
+    app.get('/api/internal/streams/sessions/:cameraId', (req, res) => {
+        try {
+            return res.json({
+                success: true,
+                session: streamControlService.getSessionDescriptor({
+                    cameraId: req.params?.cameraId,
                     requestHeaders: req.headers || {}
                 })
             });

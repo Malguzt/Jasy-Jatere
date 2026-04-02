@@ -107,3 +107,47 @@ test('getCapabilities falls back to jsmpeg when WebRTC requires https and contex
     assert.equal(caps.transports.webrtc.enabled, false);
     assert.equal(caps.transports.webrtc.reason, 'webrtc-requires-https');
 });
+
+test('getSessionDescriptor returns jsmpeg session payload and preserves preferred transport', () => {
+    const service = new StreamControlService({
+        cameraInventoryService: {
+            findCamera: () => ({ id: 'cam-123', name: 'Patio' })
+        },
+        streamManager: { getStatsSnapshot: () => ({}) },
+        streamSyncOrchestrator: { getRuntimeState: () => ({}) },
+        streamWebSocketGatewayEnabled: true,
+        streamWebRtcEnabled: true,
+        streamWebRtcRequireHttps: true,
+        streamPublicBaseUrl: 'https://streams.example.com'
+    });
+
+    const session = service.getSessionDescriptor({
+        cameraId: 'cam-123',
+        requestHeaders: {
+            'x-forwarded-proto': 'https'
+        }
+    });
+
+    assert.equal(session.cameraId, 'cam-123');
+    assert.equal(session.selectedTransport, 'jsmpeg');
+    assert.equal(session.preferredTransport, 'webrtc');
+    assert.equal(session.transports.jsmpeg.enabled, true);
+    assert.equal(session.transports.jsmpeg.path, '/stream/cam-123');
+    assert.equal(session.transports.jsmpeg.url, 'wss://streams.example.com/stream/cam-123');
+    assert.equal(session.transports.webrtc.enabled, true);
+});
+
+test('getSessionDescriptor throws when camera does not exist', () => {
+    const service = new StreamControlService({
+        cameraInventoryService: {
+            findCamera: () => null
+        },
+        streamManager: { getStatsSnapshot: () => ({}) },
+        streamSyncOrchestrator: { getRuntimeState: () => ({}) }
+    });
+
+    assert.throws(
+        () => service.getSessionDescriptor({ cameraId: 'missing' }),
+        (error) => Number(error?.status) === 404 && error.code === 'STREAM_CAMERA_NOT_FOUND'
+    );
+});

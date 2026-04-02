@@ -110,6 +110,11 @@ test('createBackendApp exposes internal worker config and perception ingest APIs
         assert.equal(capabilitiesPayload.success, true);
         assert.ok(capabilitiesPayload.capabilities);
 
+        const streamSessionRes = await fetch(`${baseUrl}/api/streams/sessions/missing-camera`);
+        const streamSessionPayload = await streamSessionRes.json();
+        assert.equal(streamSessionRes.status, 404);
+        assert.equal(streamSessionPayload.success, false);
+
         const liveRes = await fetch(`${baseUrl}/api/health/live`);
         const livePayload = await liveRes.json();
         assert.equal(liveRes.status, 200);

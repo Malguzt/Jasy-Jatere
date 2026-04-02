@@ -28,6 +28,14 @@ test('streams router returns local runtime snapshot when proxy is not configured
                 defaultTransport: 'jsmpeg',
                 transports: { webrtc: { enabled: false }, jsmpeg: { enabled: true } }
             }),
+            getSessionDescriptor: () => ({
+                cameraId: 'cam-1',
+                selectedTransport: 'jsmpeg',
+                transports: {
+                    jsmpeg: { enabled: true, path: '/stream/cam-1', url: null },
+                    webrtc: { enabled: false, reason: 'webrtc-disabled' }
+                }
+            }),
             getRuntimeSnapshot: () => ({
                 summary: { streams: 1 },
                 streamStats: {},
@@ -45,6 +53,13 @@ test('streams router returns local runtime snapshot when proxy is not configured
         assert.equal(capabilitiesRes.status, 200);
         assert.equal(capabilitiesPayload.success, true);
         assert.equal(capabilitiesPayload.capabilities.defaultTransport, 'jsmpeg');
+
+        const sessionRes = await fetch(`${baseUrl}/api/streams/sessions/cam-1`);
+        const sessionPayload = await sessionRes.json();
+        assert.equal(sessionRes.status, 200);
+        assert.equal(sessionPayload.success, true);
+        assert.equal(sessionPayload.session.cameraId, 'cam-1');
+        assert.equal(sessionPayload.session.selectedTransport, 'jsmpeg');
 
         const response = await fetch(`${baseUrl}/api/streams/runtime`);
         const payload = await response.json();
@@ -66,6 +81,10 @@ test('streams router prefers proxy service when configured', async () => {
                 localCalled = true;
                 return { defaultTransport: 'jsmpeg' };
             },
+            getSessionDescriptor: () => {
+                localCalled = true;
+                return { cameraId: 'cam-local', selectedTransport: 'jsmpeg' };
+            },
             getRuntimeSnapshot: () => {
                 localCalled = true;
                 return { summary: { streams: 99 } };
@@ -78,6 +97,15 @@ test('streams router prefers proxy service when configured', async () => {
                 transports: {
                     webrtc: { enabled: true },
                     jsmpeg: { enabled: true }
+                }
+            }),
+            getSessionDescriptor: async () => ({
+                cameraId: 'cam-proxy',
+                selectedTransport: 'jsmpeg',
+                preferredTransport: 'webrtc',
+                transports: {
+                    jsmpeg: { enabled: true, path: '/stream/cam-proxy', url: null },
+                    webrtc: { enabled: true, reason: null }
                 }
             }),
             getRuntimeSnapshot: async () => {
@@ -102,6 +130,13 @@ test('streams router prefers proxy service when configured', async () => {
         const capabilitiesPayload = await capabilitiesRes.json();
         assert.equal(capabilitiesRes.status, 200);
         assert.equal(capabilitiesPayload.capabilities.defaultTransport, 'webrtc');
+
+        const sessionRes = await fetch(`${baseUrl}/api/streams/sessions/cam-proxy`);
+        const sessionPayload = await sessionRes.json();
+        assert.equal(sessionRes.status, 200);
+        assert.equal(sessionPayload.success, true);
+        assert.equal(sessionPayload.session.cameraId, 'cam-proxy');
+        assert.equal(sessionPayload.session.preferredTransport, 'webrtc');
 
         const runtimeRes = await fetch(`${baseUrl}/api/streams/runtime`);
         const runtimePayload = await runtimeRes.json();

@@ -25,22 +25,29 @@ const CameraStream = ({ camera }) => {
     } = useCameraStreamData(camera);
 
     const resolveSelectedTransport = async () => {
-        const transport = await resolveStreamTransport();
-        if (transport.warning) setStatus(transport.warning);
-        return transport.transport;
+        const resolved = await resolveStreamTransport();
+        if (resolved.warning) {
+            setStatus(resolved.warning);
+        }
+        return resolved;
     };
 
-    const startJsmpegStream = () => {
+    const startJsmpegStream = ({ streamUrl = null, streamPath = null } = {}) => {
         if (playerRef.current) playerRef.current.destroy();
 
-        const configuredBase = (import.meta.env.VITE_STREAM_BASE_URL || '').trim();
-        const normalizedConfiguredBase = configuredBase
-            ? configuredBase.replace(/\/+$/, '').replace(/^http:/i, 'ws:').replace(/^https:/i, 'wss:')
-            : '';
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const defaultBase = `${protocol}//${window.location.host}`;
-        const streamBase = normalizedConfiguredBase || defaultBase;
-        const url = `${streamBase}/stream/${localCamera.id}`;
+        let url = String(streamUrl || '').trim();
+        if (!url) {
+            const configuredBase = (import.meta.env.VITE_STREAM_BASE_URL || '').trim();
+            const normalizedConfiguredBase = configuredBase
+                ? configuredBase.replace(/\/+$/, '').replace(/^http:/i, 'ws:').replace(/^https:/i, 'wss:')
+                : '';
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const defaultBase = `${protocol}//${window.location.host}`;
+            const streamBase = normalizedConfiguredBase || defaultBase;
+            const normalizedPath = String(streamPath || '').trim() || `/stream/${localCamera.id}`;
+            const safePath = normalizedPath.startsWith('/') ? normalizedPath : `/${normalizedPath}`;
+            url = `${streamBase}${safePath}`;
+        }
         
         console.log(`[JSMP] Conectando a ${url} (Intento ${retryCount + 1})`);
         
@@ -67,13 +74,16 @@ const CameraStream = ({ camera }) => {
     };
 
     const startStream = async () => {
-        const selectedTransport = await resolveSelectedTransport();
-        if (selectedTransport !== 'jsmpeg') {
+        const resolved = await resolveSelectedTransport();
+        if (resolved.transport !== 'jsmpeg') {
             setError('No stream transport available for this client.');
             setStatus('Error de transporte de streaming.');
             return;
         }
-        startJsmpegStream();
+        startJsmpegStream({
+            streamUrl: resolved.streamUrl,
+            streamPath: resolved.streamPath
+        });
     };
 
     const handleRetry = () => {

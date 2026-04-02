@@ -27,11 +27,13 @@ function parseOptionalPositiveIntEnv(value) {
 
 function resolveRuntimeFlags(env = process.env) {
     const streamGatewayApiUrl = String(env.STREAM_GATEWAY_API_URL || '').trim();
+    const streamPublicBaseUrl = String(env.STREAM_PUBLIC_BASE_URL || '').trim();
     const streamProxyModeEnabled = parseBoolEnv(env.STREAM_PROXY_MODE_ENABLED, !!streamGatewayApiUrl);
     const streamProxyRequired = parseBoolEnv(env.STREAM_PROXY_REQUIRED, streamProxyModeEnabled);
 
     return {
         streamGatewayApiUrl,
+        streamPublicBaseUrl,
         streamProxyModeEnabled,
         streamProxyRequired,
         streamRuntimeEnabled: streamProxyModeEnabled

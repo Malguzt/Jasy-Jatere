@@ -130,13 +130,16 @@ This domain decides:
 During migration, this domain can expose internal operational APIs for control-plane operators, for example:
 
 - `GET /api/streams/capabilities`
+- `GET /api/streams/sessions/:cameraId`
 - `GET /api/streams/runtime`
 - `POST /api/streams/sync`
 - `GET /api/internal/config/streams`
 
 Runtime toggles such as `STREAM_RUNTIME_ENABLED` and `STREAM_WEBSOCKET_GATEWAY_ENABLED` allow decoupling stream runtime lifecycle from the main control-plane HTTP process while extraction proceeds.
 Transport negotiation can be staged with `STREAM_WEBRTC_ENABLED` and `STREAM_WEBRTC_REQUIRE_HTTPS` while keeping JSMpeg fallback enabled.
+Session descriptors (`GET /api/streams/sessions/:cameraId`) let clients consume logical stream session metadata (selected transport + endpoint path/URL) without hardcoding protocol endpoints in UI components.
 When stream runtime is externalized, control-plane stream APIs can proxy to `STREAM_GATEWAY_API_URL` while preserving the same frontend contracts.
+`STREAM_PUBLIC_BASE_URL` can be set when descriptors should include externally reachable stream URLs directly.
 Proxy mode can be made explicit with `STREAM_PROXY_MODE_ENABLED=1`, which disables local stream runtime ownership and lets readiness enforce upstream gateway availability when `STREAM_PROXY_REQUIRED=1`.
 
 ### Observation ingest

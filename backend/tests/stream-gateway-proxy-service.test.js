@@ -72,10 +72,13 @@ test('getRuntimeSnapshot raises timeout error when gateway request aborts', asyn
     );
 });
 
-test('getCapabilities proxies capabilities payload from stream gateway API', async () => {
+test('getCapabilities proxies capabilities payload from stream gateway API and forwards request context headers', async () => {
+    const calls = [];
     const service = new StreamGatewayProxyService({
         gatewayApiBaseUrl: 'http://stream-gateway:4100/api/internal/streams',
-        fetchImpl: async () => ({
+        fetchImpl: async (url, init = {}) => {
+            calls.push({ url, init });
+            return ({
             ok: true,
             status: 200,
             json: async () => ({
@@ -89,10 +92,50 @@ test('getCapabilities proxies capabilities payload from stream gateway API', asy
                     }
                 }
             })
+            });
+        }
+    });
+
+    const caps = await service.getCapabilities({
+        requestHeaders: {
+            origin: 'https://dashboard.local',
+            'x-forwarded-proto': 'https'
+        }
+    });
+    assert.equal(caps.defaultTransport, 'jsmpeg');
+    assert.equal(caps.transports.jsmpeg.enabled, true);
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].url, 'http://stream-gateway:4100/api/internal/streams/capabilities');
+    assert.equal(calls[0].init?.headers?.origin, 'https://dashboard.local');
+    assert.equal(calls[0].init?.headers?.['x-forwarded-proto'], 'https');
+});
+
+test('getSessionDescriptor proxies session payload from stream gateway API', async () => {
+    const service = new StreamGatewayProxyService({
+        gatewayApiBaseUrl: 'http://stream-gateway:4100/api/internal/streams',
+        fetchImpl: async () => ({
+            ok: true,
+            status: 200,
+            json: async () => ({
+                success: true,
+                session: {
+                    cameraId: 'cam-9',
+                    selectedTransport: 'jsmpeg',
+                    transports: {
+                        jsmpeg: {
+                            enabled: true,
+                            path: '/stream/cam-9',
+                            url: null
+                        },
+                        webrtc: { enabled: false, reason: 'webrtc-disabled' }
+                    }
+                }
+            })
         })
     });
 
-    const caps = await service.getCapabilities();
-    assert.equal(caps.defaultTransport, 'jsmpeg');
-    assert.equal(caps.transports.jsmpeg.enabled, true);
+    const session = await service.getSessionDescriptor({ cameraId: 'cam-9' });
+    assert.equal(session.cameraId, 'cam-9');
+    assert.equal(session.selectedTransport, 'jsmpeg');
+    assert.equal(session.transports.jsmpeg.path, '/stream/cam-9');
 });

@@ -35,6 +35,11 @@ test('createStreamGatewayApp exposes internal health and runtime endpoints', asy
         assert.equal(capabilitiesPayload.success, true);
         assert.ok(capabilitiesPayload.capabilities);
 
+        const sessionRes = await fetch(`${baseUrl}/api/internal/streams/sessions/missing-camera`);
+        const sessionPayload = await sessionRes.json();
+        assert.equal(sessionRes.status, 404);
+        assert.equal(sessionPayload.success, false);
+
         const livezRes = await fetch(`${baseUrl}/livez`);
         const livezPayload = await livezRes.json();
         assert.equal(livezRes.status, 200);

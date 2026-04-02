@@ -110,10 +110,12 @@ function createBackendApp({
     });
     const streamControlService = new StreamControlService({
         streamManager,
+        cameraInventoryService,
         streamSyncOrchestrator,
         streamWebSocketGatewayEnabled: runtimeFlags.streamWebSocketGatewayEnabled,
         streamWebRtcEnabled: runtimeFlags.streamWebRtcEnabled,
-        streamWebRtcRequireHttps: runtimeFlags.streamWebRtcRequireHttps
+        streamWebRtcRequireHttps: runtimeFlags.streamWebRtcRequireHttps,
+        streamPublicBaseUrl: runtimeFlags.streamPublicBaseUrl
     });
     const streamGatewayApiUrl = String(runtimeFlags.streamGatewayApiUrl || '').trim();
     const streamControlProxyService = streamGatewayApiUrl

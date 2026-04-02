@@ -73,7 +73,7 @@ If you want the shortest path through the redesign, use this order:
 - Sequence diagrams remain as standalone PlantUML files, one per core process.
 - The migration plan is intentionally phased so the current system can evolve incrementally instead of being rewritten in one step.
 - Stream runtime can now be split via a dedicated gateway process and control-plane proxy wiring as an incremental extraction path.
-- A compose profile (`stream-gateway`) and `make run-with-stream-gateway` target are available to run backend stream APIs in proxy mode (`STREAM_GATEWAY_API_URL=http://stream-gateway:4100`) while local stream runtime is disabled.
+- A compose profile (`stream-gateway`) and `make run-with-stream-gateway` target are available to run backend stream APIs in proxy mode (`STREAM_GATEWAY_API_URL=http://stream-gateway:4100/api/internal/streams`) while local stream runtime is disabled.
 - Stream proxy readiness can be enforced with `STREAM_PROXY_REQUIRED=1` (default when proxy mode is enabled) so backend readiness fails if the gateway upstream is unavailable.
 - Stream session descriptors are now exposed via `GET /api/streams/sessions/:cameraId` so frontend tiles consume logical stream sessions instead of hardcoding transport URLs; optional `STREAM_PUBLIC_BASE_URL` can publish externally reachable WS endpoints in those descriptors.
 - In proxy mode, backend `/stream/:cameraId` websocket traffic is now relayed to the stream-gateway upstream, keeping legacy frontend websocket paths working while runtime ownership stays in the gateway.

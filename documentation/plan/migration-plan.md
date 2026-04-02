@@ -480,6 +480,7 @@ Current incremental implementation:
 - compatibility dual-write exports are now runtime-gated with `LEGACY_COMPAT_EXPORTS_ENABLED` (default disabled in compose profiles).
 - observation event repository compatibility JSON writes are now also gated by `LEGACY_COMPAT_EXPORTS_ENABLED` when running on SQLite.
 - map/corrections compatibility JSON exports and health snapshot JSON fallback/write paths are now aligned to `LEGACY_COMPAT_EXPORTS_ENABLED`, with explicit forced bootstrap hooks reserved for migration/import workflows.
+- camera inventory and recording catalog repositories now align primary/legacy JSON write and legacy-read fallback behavior to `LEGACY_COMPAT_EXPORTS_ENABLED` in SQLite runtime mode.
 
 ### Current code touch points
 

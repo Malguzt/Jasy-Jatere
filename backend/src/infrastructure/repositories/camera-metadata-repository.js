@@ -25,13 +25,17 @@ class CameraMetadataRepository {
         legacyFile = DEFAULT_LEGACY_FILE,
         driver = DEFAULT_DRIVER,
         sqliteStore = null,
+        dualWritePrimary = true,
         dualWriteLegacy = true,
+        legacyReadFallback = true,
         credentialCipher = createCameraCredentialCipher()
     } = {}) {
         this.primaryFile = primaryFile;
         this.legacyFile = legacyFile;
         this.driver = String(driver || 'sqlite').toLowerCase();
-        this.dualWriteLegacy = dualWriteLegacy !== false;
+        this.dualWritePrimary = this.driver === 'sqlite' ? dualWritePrimary === true : true;
+        this.dualWriteLegacy = this.driver === 'sqlite' ? dualWriteLegacy === true : dualWriteLegacy !== false;
+        this.legacyReadFallback = this.driver === 'sqlite' ? legacyReadFallback === true : true;
         this.credentialCipher = credentialCipher;
         this.sqlite = this.driver === 'sqlite'
             ? new SqliteCameraRepository({
@@ -81,6 +85,7 @@ class CameraMetadataRepository {
         if (fs.existsSync(this.primaryFile)) {
             return this.toRuntimeCameraList(readJsonFile(this.primaryFile, []));
         }
+        if (!this.legacyReadFallback) return [];
         return this.toRuntimeCameraList(readJsonFile(this.legacyFile, []));
     }
 
@@ -114,7 +119,9 @@ class CameraMetadataRepository {
         if (this.sqlite) {
             this.sqlite.replace(persisted);
         }
-        writeJsonFile(this.primaryFile, persisted);
+        if (this.dualWritePrimary) {
+            writeJsonFile(this.primaryFile, persisted);
+        }
         if (this.dualWriteLegacy) {
             writeJsonFile(this.legacyFile, persisted);
         }

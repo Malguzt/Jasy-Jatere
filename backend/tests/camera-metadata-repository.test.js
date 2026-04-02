@@ -86,3 +86,23 @@ test('CameraMetadataRepository can disable legacy compatibility export writes', 
     assert.equal(fs.existsSync(legacy), false);
     assert.equal(repository.findById('cam-3')?.name, 'Primary Only');
 });
+
+test('CameraMetadataRepository can disable all JSON compatibility writes in sqlite mode', () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cam-repo-sqlite-only-'));
+    const primary = path.join(tmpDir, 'metadata', 'cameras.json');
+    const legacy = path.join(tmpDir, 'cameras.json');
+    const repository = new CameraMetadataRepository({
+        primaryFile: primary,
+        legacyFile: legacy,
+        driver: 'sqlite',
+        dualWritePrimary: false,
+        dualWriteLegacy: false,
+        legacyReadFallback: false
+    });
+
+    repository.replace([{ id: 'cam-4', name: 'SQLite Only' }]);
+
+    assert.equal(repository.findById('cam-4')?.name, 'SQLite Only');
+    assert.equal(fs.existsSync(primary), false);
+    assert.equal(fs.existsSync(legacy), false);
+});

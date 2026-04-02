@@ -37,12 +37,16 @@ class RecordingCatalogRepository {
         legacyFile = DEFAULT_LEGACY_FILE,
         driver = DEFAULT_DRIVER,
         sqliteStore = null,
-        dualWriteLegacy = true
+        dualWritePrimary = true,
+        dualWriteLegacy = true,
+        legacyReadFallback = true
     } = {}) {
         this.primaryFile = primaryFile;
         this.legacyFile = legacyFile;
         this.driver = String(driver || 'sqlite').toLowerCase();
-        this.dualWriteLegacy = dualWriteLegacy !== false;
+        this.dualWritePrimary = this.driver === 'sqlite' ? dualWritePrimary === true : true;
+        this.dualWriteLegacy = this.driver === 'sqlite' ? dualWriteLegacy === true : dualWriteLegacy !== false;
+        this.legacyReadFallback = this.driver === 'sqlite' ? legacyReadFallback === true : true;
         this.sqlite = this.driver === 'sqlite'
             ? new SqliteRecordingCatalogRepository({
                 store: sqliteStore || new MetadataSqliteStore({
@@ -60,6 +64,7 @@ class RecordingCatalogRepository {
             }
             return [];
         }
+        if (!this.legacyReadFallback) return [];
         const legacy = readJsonFile(this.legacyFile, []);
         if (!Array.isArray(legacy)) return [];
         return sortByEventTimeDesc(legacy.map((entry) => normalizeEntry(entry)).filter(Boolean));
@@ -94,7 +99,9 @@ class RecordingCatalogRepository {
         }
         const existing = this.readJsonPrimaryOrLegacy().filter((item) => item.filename !== normalized.filename);
         const next = sortByEventTimeDesc([normalized, ...existing]);
-        writeJsonFile(this.primaryFile, next);
+        if (this.dualWritePrimary) {
+            writeJsonFile(this.primaryFile, next);
+        }
         if (this.dualWriteLegacy) {
             writeJsonFile(this.legacyFile, next);
         }
@@ -110,7 +117,9 @@ class RecordingCatalogRepository {
         const current = this.readJsonPrimaryOrLegacy();
         const next = current.filter((entry) => entry.filename !== safe);
         if (next.length === current.length) return false;
-        writeJsonFile(this.primaryFile, next);
+        if (this.dualWritePrimary) {
+            writeJsonFile(this.primaryFile, next);
+        }
         if (this.dualWriteLegacy) {
             writeJsonFile(this.legacyFile, next);
         }

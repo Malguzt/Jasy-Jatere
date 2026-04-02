@@ -60,12 +60,16 @@ function createBackendApp({
         legacyFile: cameraFile,
         driver: metadataDriver,
         sqliteStore,
-        dualWriteLegacy: runtimeFlags.legacyCompatExportsEnabled
+        dualWritePrimary: runtimeFlags.legacyCompatExportsEnabled,
+        dualWriteLegacy: runtimeFlags.legacyCompatExportsEnabled,
+        legacyReadFallback: runtimeFlags.legacyCompatExportsEnabled
     });
     const recordingCatalogRepository = new RecordingCatalogRepository({
         driver: metadataDriver,
         sqliteStore,
-        dualWriteLegacy: runtimeFlags.legacyCompatExportsEnabled
+        dualWritePrimary: runtimeFlags.legacyCompatExportsEnabled,
+        dualWriteLegacy: runtimeFlags.legacyCompatExportsEnabled,
+        legacyReadFallback: runtimeFlags.legacyCompatExportsEnabled
     });
     const observationRepository = new ObservationEventRepository({
         driver: metadataDriver,

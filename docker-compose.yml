@@ -28,6 +28,7 @@ services:
       - MAP_PLAN_D_ENABLED=1
       - MAP_APPLY_MANUAL_CORRECTIONS=1
       - MAP_LOCAL_FALLBACK_ENABLED=0
+      - MAP_USE_DETECTOR_EVENTS_FALLBACK=0
       - MAP_MAPPER_TIMEOUT_MS=90000
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
@@ -42,6 +43,36 @@ services:
             - driver: nvidia
               count: all
               capabilities: [gpu]
+    restart: unless-stopped
+
+  stream-gateway:
+    build:
+      context: ./backend
+    container_name: ipcam-stream-gateway
+    command: ["node", "stream-gateway-server.js"]
+    profiles: ["stream-gateway"]
+    ports:
+      - "4100:4100"
+    volumes:
+      - ./backend/data:/app/data
+      - ./recordings:/app/recordings
+    environment:
+      - STREAM_GATEWAY_PORT=4100
+      - METADATA_STORE_DRIVER=sqlite
+      - METADATA_SQLITE_PATH=/app/data/metadata/metadata.db
+      - RECONSTRUCTOR_URL=http://reconstructor:5001
+      - CAMERA_KEEPALIVE_ENABLED=0
+      - CAMERA_KEEPALIVE_SYNC_MS=10000
+      - CAMERA_KEEPALIVE_SOURCE_INDEX=1
+      - CAMERA_KEEPALIVE_TRANSPORT=udp
+      - STREAM_RUNTIME_ENABLED=1
+      - STREAM_WEBSOCKET_GATEWAY_ENABLED=1
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4100/api/internal/streams/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
     restart: unless-stopped
 
   frontend:
@@ -66,13 +97,13 @@ services:
       context: ./detector
     container_name: ipcam-detector
     volumes:
-      - ./backend/data:/app/data
       - ./recordings:/app/recordings
     environment:
       - CAMERA_DEFAULT_USER=admin
       - CAMERA_DEFAULT_PASS=PerroN3gro
       - CONTROL_PLANE_URL=http://backend:4000
       - USE_CONTROL_PLANE_CAMERA_CONFIG=1
+      - REQUIRE_CONTROL_PLANE_CAMERA_CONFIG=1
       - USE_CONTROL_PLANE_PERCEPTION_INGEST=1
       - USE_CONTROL_PLANE_RECORDING_CATALOG=1
       - MOTION_API_BASE=http://backend:4000/api/camera-motion
@@ -107,7 +138,6 @@ services:
       - TEMPORAL_CURRENT_BIAS=1.5
       - MOTION_API_BASE=http://backend:4000/api/camera-motion
     volumes:
-      - ./backend/data:/app/data
       - ./recordings:/app/recordings
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:5001/health',timeout=3).getcode()==200 else 1)"]

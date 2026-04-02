@@ -20,9 +20,15 @@ const CameraStream = ({ camera }) => {
 
     const startStream = () => {
         if (playerRef.current) playerRef.current.destroy();
-        
+
+        const configuredBase = (import.meta.env.VITE_STREAM_BASE_URL || '').trim();
+        const normalizedConfiguredBase = configuredBase
+            ? configuredBase.replace(/\/+$/, '').replace(/^http:/i, 'ws:').replace(/^https:/i, 'wss:')
+            : '';
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const url = `${protocol}//${window.location.host}/stream/${localCamera.id}`;
+        const defaultBase = `${protocol}//${window.location.host}`;
+        const streamBase = normalizedConfiguredBase || defaultBase;
+        const url = `${streamBase}/stream/${localCamera.id}`;
         
         console.log(`[JSMP] Conectando a ${url} (Intento ${retryCount + 1})`);
         

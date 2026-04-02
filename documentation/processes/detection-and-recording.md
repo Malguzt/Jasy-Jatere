@@ -75,6 +75,8 @@ During migration, the perception and recording flow can be wired through these A
 
 Legacy detector-local recording endpoints may remain temporarily for compatibility, but frontend and map workflows should move to control-plane-owned catalog APIs.
 
+Operationally, control-plane camera config can be enforced with `REQUIRE_CONTROL_PLANE_CAMERA_CONFIG=1` so detector workers do not fall back to shared `cameras.json` reads when control-plane snapshots are unavailable.
+
 ## Failure Modes
 
 - Stream gateway cannot provide the requested feed.

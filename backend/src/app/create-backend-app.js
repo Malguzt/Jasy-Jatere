@@ -26,6 +26,7 @@ const { PlatformHealthService } = require('../domains/platform/platform-health-s
 const { StreamSyncOrchestrator } = require('../domains/streams/stream-sync-orchestrator');
 const { StreamWebSocketGateway } = require('../domains/streams/stream-websocket-gateway');
 const { StreamControlService } = require('../domains/streams/stream-control-service');
+const { StreamGatewayProxyService } = require('../domains/streams/stream-gateway-proxy-service');
 const { CameraMetadataRepository } = require('../infrastructure/repositories/camera-metadata-repository');
 const { RecordingCatalogRepository } = require('../infrastructure/repositories/recording-catalog-repository');
 const { ObservationEventRepository } = require('../infrastructure/repositories/observation-event-repository');
@@ -100,6 +101,12 @@ function createBackendApp({
         streamManager,
         streamSyncOrchestrator
     });
+    const streamGatewayApiUrl = String(process.env.STREAM_GATEWAY_API_URL || '').trim();
+    const streamControlProxyService = streamGatewayApiUrl
+        ? new StreamGatewayProxyService({
+            gatewayApiBaseUrl: streamGatewayApiUrl
+        })
+        : null;
     const cameraMotionService = new CameraMotionService({
         cameraEventMonitor
     });
@@ -145,7 +152,10 @@ function createBackendApp({
     app.use('/api/maps', mapsRoutes);
     app.use('/api/detector', detectorRoutes);
     app.use('/api/monitoring', createMonitoringApiRouter({ monitoringService }));
-    app.use('/api/streams', createStreamsRouter({ streamControlService }));
+    app.use('/api/streams', createStreamsRouter({
+        streamControlService,
+        streamControlProxyService
+    }));
     app.use('/api/camera-motion', createCameraMotionRouter({ cameraMotionService }));
     app.use('/api/health', createHealthRouter({ platformHealthService }));
     app.use('/api/internal/config', createInternalConfigRouter({ workerConfigService }));

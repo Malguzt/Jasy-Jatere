@@ -79,6 +79,7 @@ CONTROL_PLANE_RECORDINGS_URL = f"{CONTROL_PLANE_URL}/api/recordings"
 CONTROL_PLANE_PERCEPTION_OBSERVATIONS_URL = f"{CONTROL_PLANE_URL}/api/perception/observations"
 CONTROL_PLANE_PERCEPTION_RECORDINGS_URL = f"{CONTROL_PLANE_URL}/api/perception/recordings"
 USE_CONTROL_PLANE_CAMERA_CONFIG = parse_bool_env("USE_CONTROL_PLANE_CAMERA_CONFIG", True)
+REQUIRE_CONTROL_PLANE_CAMERA_CONFIG = parse_bool_env("REQUIRE_CONTROL_PLANE_CAMERA_CONFIG", False)
 USE_CONTROL_PLANE_PERCEPTION_INGEST = parse_bool_env("USE_CONTROL_PLANE_PERCEPTION_INGEST", True)
 USE_CONTROL_PLANE_RECORDING_CATALOG = parse_bool_env("USE_CONTROL_PLANE_RECORDING_CATALOG", True)
 
@@ -399,6 +400,9 @@ def load_cameras():
         cameras = load_cameras_from_control_plane()
         if isinstance(cameras, list):
             return cameras
+        if REQUIRE_CONTROL_PLANE_CAMERA_CONFIG:
+            print("[CFG] Control-plane camera config is required; skipping shared-file fallback.")
+            return []
 
     try:
         if os.path.exists(DATA_FILE):

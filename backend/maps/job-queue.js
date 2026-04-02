@@ -14,6 +14,7 @@ const PLAN_C_ENABLED = parseBool(process.env.MAP_PLAN_C_ENABLED, true);
 const PLAN_D_ENABLED = parseBool(process.env.MAP_PLAN_D_ENABLED, true);
 const APPLY_MANUAL_CORRECTIONS = parseBool(process.env.MAP_APPLY_MANUAL_CORRECTIONS, true);
 const LOCAL_FALLBACK_ENABLED = parseBool(process.env.MAP_LOCAL_FALLBACK_ENABLED, true);
+const USE_DETECTOR_EVENTS_FALLBACK = parseBool(process.env.MAP_USE_DETECTOR_EVENTS_FALLBACK, true);
 const cameraRepository = new CameraMetadataRepository();
 const observationRepository = new ObservationEventRepository();
 
@@ -115,7 +116,8 @@ class MapJobQueue {
                 D: PLAN_D_ENABLED
             },
             applyManualCorrections: APPLY_MANUAL_CORRECTIONS,
-            localFallbackEnabled: LOCAL_FALLBACK_ENABLED
+            localFallbackEnabled: LOCAL_FALLBACK_ENABLED,
+            useDetectorEventsFallback: USE_DETECTOR_EVENTS_FALLBACK
         };
     }
 
@@ -603,6 +605,7 @@ class MapJobQueue {
     async fetchRecentEvents(signal) {
         const localObservations = loadObservationEventsSafe(60);
         if (localObservations.length > 0) return localObservations;
+        if (!USE_DETECTOR_EVENTS_FALLBACK) return [];
 
         try {
             const response = await fetch(`${DETECTOR_URL}/events`, { signal });

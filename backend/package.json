@@ -4,6 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "start": "node server.js",
+    "start:stream-gateway": "node stream-gateway-server.js",
     "test": "node --test tests/*.test.js",
     "test:maps": "node --test tests/maps-modules.test.js",
     "contracts:check": "node scripts/check-contract-schemas.js",

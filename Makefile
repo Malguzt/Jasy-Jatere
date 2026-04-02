@@ -1,7 +1,10 @@
-.PHONY: run stop logs clean rebuild map-smoke map-tests map-scenes
+.PHONY: run run-with-stream-gateway stop logs clean rebuild map-smoke map-tests map-scenes
 
 run:
 	docker compose up -d
+
+run-with-stream-gateway:
+	docker compose --profile stream-gateway up -d
 
 rebuild:
 	docker compose up --build -d

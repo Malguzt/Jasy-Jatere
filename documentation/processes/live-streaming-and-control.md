@@ -59,6 +59,9 @@ As an intermediate migration step, the control plane can expose internal stream 
 - `POST /api/streams/sync` for operator-triggered keepalive and reconstructor resynchronization.
 - `GET /api/internal/config/streams` for worker-consumable stream snapshots.
 
+When stream runtime is externalized, the control plane can proxy these APIs to `STREAM_GATEWAY_API_URL`.
+Frontend live tiles can target a dedicated stream gateway host via `VITE_STREAM_BASE_URL`.
+
 ## Target Outputs
 
 - logical stream session record

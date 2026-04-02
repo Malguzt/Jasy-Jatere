@@ -167,6 +167,7 @@ The following artifacts should stop being used as the system integration boundar
 - `backend/data/maps/jobs.json`
 - `recordings/recordings-index.json`
 - `*.meta.json` sidecars as authoritative catalog state
+- shared `backend/data` volume mounts between control plane and worker containers for runtime camera configuration
 
 They may continue to exist temporarily as migration compatibility outputs or export formats, but not as the canonical source of truth.
 

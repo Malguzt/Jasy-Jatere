@@ -132,6 +132,7 @@ During migration, this domain can expose internal operational APIs for control-p
 - `GET /api/internal/config/streams`
 
 Runtime toggles such as `STREAM_RUNTIME_ENABLED` and `STREAM_WEBSOCKET_GATEWAY_ENABLED` allow decoupling stream runtime lifecycle from the main control-plane HTTP process while extraction proceeds.
+When stream runtime is externalized, control-plane stream APIs can proxy to `STREAM_GATEWAY_API_URL` while preserving the same frontend contracts.
 
 ### Observation ingest
 
@@ -162,6 +163,8 @@ During migration the control plane can expose:
 - `GET /api/internal/config/cameras`
 - `GET /api/internal/config/streams`
 - `GET /api/internal/config/retention`
+
+When snapshot consumption is stable, worker deployments should stop mounting shared `backend/data` volumes for camera config reads.
 
 ### Metadata repositories and compatibility exports
 

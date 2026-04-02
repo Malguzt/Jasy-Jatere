@@ -72,3 +72,5 @@ If you want the shortest path through the redesign, use this order:
 - The C4 diagrams are embedded in Markdown with Mermaid.
 - Sequence diagrams remain as standalone PlantUML files, one per core process.
 - The migration plan is intentionally phased so the current system can evolve incrementally instead of being rewritten in one step.
+- Stream runtime can now be split via a dedicated gateway process and control-plane proxy wiring as an incremental extraction path.
+- A compose profile (`stream-gateway`) and `make run-with-stream-gateway` target are available to test this split mode incrementally.

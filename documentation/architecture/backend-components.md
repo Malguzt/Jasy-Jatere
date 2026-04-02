@@ -157,6 +157,8 @@ Incremental catalog endpoints can be:
 - `GET /api/recordings`
 - `DELETE /api/recordings/:filename`
 
+Operational retention is controlled by background policies in the control plane runtime (`RECORDING_RETENTION_ENABLED`, `RECORDING_RETENTION_INTERVAL_MS`, `RECORDING_RETENTION_MAX_AGE_DAYS`, `RECORDING_RETENTION_MAX_ENTRIES`).
+
 ### Worker configuration snapshots
 
 Workers should consume explicit internal snapshots instead of reading shared files.
@@ -182,6 +184,13 @@ The health engine combines:
 - event freshness,
 - observation health,
 - optional ONVIF event freshness.
+
+For operations, the control plane also exposes explicit probe endpoints:
+
+- `GET /api/health/live`
+- `GET /api/health/ready`
+- `GET /livez`
+- `GET /readyz`
 
 ### Map orchestrator
 

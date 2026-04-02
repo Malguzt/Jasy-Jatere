@@ -28,6 +28,17 @@ test('createStreamGatewayApp exposes internal health and runtime endpoints', asy
         assert.equal(runtimeRes.status, 200);
         assert.equal(runtimePayload.success, true);
         assert.ok(runtimePayload.summary);
+
+        const livezRes = await fetch(`${baseUrl}/livez`);
+        const livezPayload = await livezRes.json();
+        assert.equal(livezRes.status, 200);
+        assert.equal(livezPayload.success, true);
+
+        const readyzRes = await fetch(`${baseUrl}/readyz`);
+        const readyzPayload = await readyzRes.json();
+        assert.equal(readyzRes.status, 200);
+        assert.equal(readyzPayload.success, true);
+        assert.equal(readyzPayload.status, 'ready');
     } finally {
         await new Promise((resolve) => server.close(resolve));
     }

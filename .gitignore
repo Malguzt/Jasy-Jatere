@@ -8,7 +8,7 @@ frontend/dist/
 backend/data/
 
 # Recordings (video files)
-recordings/
+/recordings/
 
 # Python
 __pycache__/

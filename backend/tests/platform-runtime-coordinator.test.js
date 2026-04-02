@@ -15,6 +15,9 @@ test('start invokes start/attach on configured runtime components', () => {
         streamSyncOrchestrator: {
             start: () => calls.push('streamSyncOrchestrator.start')
         },
+        recordingRetentionJob: {
+            start: () => calls.push('recordingRetentionJob.start')
+        },
         streamWebSocketGateway: {
             attach: (server) => calls.push(`streamWebSocketGateway.attach:${server.id}`)
         }
@@ -26,6 +29,7 @@ test('start invokes start/attach on configured runtime components', () => {
         'cameraEventMonitor.start',
         'connectivityMonitor.start',
         'streamSyncOrchestrator.start',
+        'recordingRetentionJob.start',
         'streamWebSocketGateway.attach:http-server-1'
     ]);
 });
@@ -48,6 +52,9 @@ test('stop invokes shutdown methods in reverse runtime order when available', ()
         streamSyncOrchestrator: {
             stop: () => calls.push('streamSyncOrchestrator.stop')
         },
+        recordingRetentionJob: {
+            stop: () => calls.push('recordingRetentionJob.stop')
+        },
         streamWebSocketGateway: {
             stop: () => calls.push('streamWebSocketGateway.stop')
         }
@@ -58,6 +65,7 @@ test('stop invokes shutdown methods in reverse runtime order when available', ()
     assert.deepEqual(calls, [
         'streamWebSocketGateway.stop',
         'streamSyncOrchestrator.stop',
+        'recordingRetentionJob.stop',
         'connectivityMonitor.stop',
         'cameraEventMonitor.stop'
     ]);
@@ -78,6 +86,10 @@ test('runtime flags can disable stream runtime and websocket gateway lifecycle',
             start: () => calls.push('streamSyncOrchestrator.start'),
             stop: () => calls.push('streamSyncOrchestrator.stop')
         },
+        recordingRetentionJob: {
+            start: () => calls.push('recordingRetentionJob.start'),
+            stop: () => calls.push('recordingRetentionJob.stop')
+        },
         streamWebSocketGateway: {
             attach: () => calls.push('streamWebSocketGateway.attach'),
             stop: () => calls.push('streamWebSocketGateway.stop')
@@ -92,6 +104,8 @@ test('runtime flags can disable stream runtime and websocket gateway lifecycle',
     assert.deepEqual(calls, [
         'cameraEventMonitor.start',
         'connectivityMonitor.start',
+        'recordingRetentionJob.start',
+        'recordingRetentionJob.stop',
         'connectivityMonitor.stop',
         'cameraEventMonitor.stop'
     ]);

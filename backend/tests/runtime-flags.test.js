@@ -1,7 +1,12 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { parseBoolEnv, resolveRuntimeFlags } = require('../src/app/runtime-flags');
+const {
+    parseBoolEnv,
+    parsePositiveIntEnv,
+    parseOptionalPositiveIntEnv,
+    resolveRuntimeFlags
+} = require('../src/app/runtime-flags');
 
 test('parseBoolEnv parses common truthy/falsy env variants', () => {
     assert.equal(parseBoolEnv('1', false), true);
@@ -18,11 +23,30 @@ test('parseBoolEnv parses common truthy/falsy env variants', () => {
 test('resolveRuntimeFlags returns stream-related runtime toggles', () => {
     const flags = resolveRuntimeFlags({
         STREAM_RUNTIME_ENABLED: '0',
-        STREAM_WEBSOCKET_GATEWAY_ENABLED: 'false'
+        STREAM_WEBSOCKET_GATEWAY_ENABLED: 'false',
+        RECORDING_RETENTION_ENABLED: '1',
+        RECORDING_RETENTION_INTERVAL_MS: '120000',
+        RECORDING_RETENTION_MAX_AGE_DAYS: '14',
+        RECORDING_RETENTION_MAX_ENTRIES: '500'
     });
 
     assert.deepEqual(flags, {
         streamRuntimeEnabled: false,
-        streamWebSocketGatewayEnabled: false
+        streamWebSocketGatewayEnabled: false,
+        recordingRetentionEnabled: true,
+        recordingRetentionIntervalMs: 120000,
+        recordingRetentionMaxAgeDays: 14,
+        recordingRetentionMaxEntries: 500
     });
+});
+
+test('parsePositiveIntEnv and parseOptionalPositiveIntEnv normalize retention settings', () => {
+    assert.equal(parsePositiveIntEnv('60000', 1), 60000);
+    assert.equal(parsePositiveIntEnv('0', 42), 42);
+    assert.equal(parsePositiveIntEnv('bad', 42), 42);
+
+    assert.equal(parseOptionalPositiveIntEnv('30'), 30);
+    assert.equal(parseOptionalPositiveIntEnv(''), null);
+    assert.equal(parseOptionalPositiveIntEnv('0'), null);
+    assert.equal(parseOptionalPositiveIntEnv('bad'), null);
 });

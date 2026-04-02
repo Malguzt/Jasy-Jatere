@@ -86,6 +86,32 @@ function createStreamGatewayApp({
         });
     });
 
+    app.get('/livez', (req, res) => {
+        return res.json({
+            success: true,
+            service: 'stream-gateway',
+            status: 'alive'
+        });
+    });
+
+    app.get('/readyz', async (req, res) => {
+        try {
+            await streamControlService.getRuntimeSnapshot();
+            return res.json({
+                success: true,
+                service: 'stream-gateway',
+                status: 'ready'
+            });
+        } catch (error) {
+            return res.status(503).json({
+                success: false,
+                service: 'stream-gateway',
+                status: 'degraded',
+                error: error?.message || String(error)
+            });
+        }
+    });
+
     app.get('/api/internal/streams/runtime', async (req, res) => {
         try {
             const snapshot = await streamControlService.getRuntimeSnapshot();

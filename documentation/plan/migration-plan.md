@@ -18,7 +18,7 @@ Each phase should produce a working system and avoid a large-bang rewrite.
 - Phase 6: in progress with health and monitoring APIs modularized under dedicated services and connectivity snapshots persisted through repository adapters.
 - Phase 7: in progress with map job persistence in metadata store, map queue inputs sourced from repository-backed camera and observation metadata, local backend fallback gated behind `MAP_LOCAL_FALLBACK_ENABLED`, and detector-event fallback gated behind `MAP_USE_DETECTOR_EVENTS_FALLBACK`.
 - Phase 8: in progress with a typed frontend API client and migration of major UI domains away from ad hoc `fetch` calls.
-- Phase 9: in progress with compose networking moved from host-network coupling to explicit service networking and health checks, worker runtime decoupling from shared `backend/data` mounts where control-plane snapshots are enforced, and optional at-rest camera credential encryption via `CAMERA_CREDENTIALS_MASTER_KEY`.
+- Phase 9: in progress with compose networking moved from host-network coupling to explicit service networking and health checks, worker runtime decoupling from shared `backend/data` mounts where control-plane snapshots are enforced, optional at-rest camera credential encryption via `CAMERA_CREDENTIALS_MASTER_KEY`, explicit liveness/readiness probes (`/livez`, `/readyz`), and control-plane-managed recording retention job wiring (`RECORDING_RETENTION_*`).
 
 ## Starting Point Summary
 
@@ -429,6 +429,16 @@ Make the improved architecture operationally sustainable.
 - Add structured logs across all services.
 - Add service-level readiness and liveness endpoints.
 - Add retention and cleanup jobs owned by the control plane.
+
+Current incremental implementation:
+
+- `GET /api/health/live`, `GET /api/health/ready`, `GET /livez`, and `GET /readyz` are available in the backend.
+- `GET /livez` and `GET /readyz` are available in the stream-gateway process.
+- recording retention runs as a control-plane background job and can be configured with:
+  - `RECORDING_RETENTION_ENABLED`
+  - `RECORDING_RETENTION_INTERVAL_MS`
+  - `RECORDING_RETENTION_MAX_AGE_DAYS`
+  - `RECORDING_RETENTION_MAX_ENTRIES`
 
 ### Current code touch points
 

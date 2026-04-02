@@ -4,6 +4,7 @@ class PlatformRuntimeCoordinator {
         connectivityMonitor,
         streamSyncOrchestrator,
         streamWebSocketGateway,
+        recordingRetentionJob,
         streamRuntimeEnabled = true,
         streamWebSocketGatewayEnabled = true
     } = {}) {
@@ -11,6 +12,7 @@ class PlatformRuntimeCoordinator {
         this.connectivityMonitor = connectivityMonitor;
         this.streamSyncOrchestrator = streamSyncOrchestrator;
         this.streamWebSocketGateway = streamWebSocketGateway;
+        this.recordingRetentionJob = recordingRetentionJob;
         this.streamRuntimeEnabled = streamRuntimeEnabled !== false;
         this.streamWebSocketGatewayEnabled = streamWebSocketGatewayEnabled !== false;
     }
@@ -28,6 +30,9 @@ class PlatformRuntimeCoordinator {
             typeof this.streamSyncOrchestrator.start === 'function'
         ) {
             this.streamSyncOrchestrator.start();
+        }
+        if (this.recordingRetentionJob && typeof this.recordingRetentionJob.start === 'function') {
+            this.recordingRetentionJob.start();
         }
         if (
             this.streamWebSocketGatewayEnabled &&
@@ -52,6 +57,9 @@ class PlatformRuntimeCoordinator {
             typeof this.streamSyncOrchestrator.stop === 'function'
         ) {
             this.streamSyncOrchestrator.stop();
+        }
+        if (this.recordingRetentionJob && typeof this.recordingRetentionJob.stop === 'function') {
+            this.recordingRetentionJob.stop();
         }
         if (this.connectivityMonitor && typeof this.connectivityMonitor.stop === 'function') {
             this.connectivityMonitor.stop();

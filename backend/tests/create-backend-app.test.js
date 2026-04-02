@@ -74,6 +74,24 @@ test('createBackendApp exposes internal worker config and perception ingest APIs
             body: JSON.stringify({ camera_id: 'cam-1' })
         });
         assert.equal(invalidObservation.status, 400);
+
+        const liveRes = await fetch(`${baseUrl}/api/health/live`);
+        const livePayload = await liveRes.json();
+        assert.equal(liveRes.status, 200);
+        assert.equal(livePayload.success, true);
+        assert.equal(livePayload.liveness.alive, true);
+
+        const readyRes = await fetch(`${baseUrl}/api/health/ready`);
+        const readyPayload = await readyRes.json();
+        assert.equal(readyRes.status, 200);
+        assert.equal(readyPayload.success, true);
+        assert.equal(readyPayload.readiness.ready, true);
+
+        const livezRes = await fetch(`${baseUrl}/livez`);
+        assert.equal(livezRes.status, 200);
+
+        const readyzRes = await fetch(`${baseUrl}/readyz`);
+        assert.equal(readyzRes.status, 200);
     } finally {
         await new Promise((resolve) => server.close(resolve));
     }

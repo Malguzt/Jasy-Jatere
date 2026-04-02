@@ -74,3 +74,5 @@ If you want the shortest path through the redesign, use this order:
 - The migration plan is intentionally phased so the current system can evolve incrementally instead of being rewritten in one step.
 - Stream runtime can now be split via a dedicated gateway process and control-plane proxy wiring as an incremental extraction path.
 - A compose profile (`stream-gateway`) and `make run-with-stream-gateway` target are available to test this split mode incrementally.
+- Backend and stream-gateway expose explicit readiness/liveness probes (`/readyz`, `/livez`) for operational checks.
+- Recording retention and cleanup are now modeled as control-plane runtime policy (`RECORDING_RETENTION_*`).

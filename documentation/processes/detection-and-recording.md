@@ -58,6 +58,8 @@ The control plane owns:
 - retention policies,
 - metadata truth.
 
+Retention cleanup can run as a control-plane background job using `RECORDING_RETENTION_ENABLED=1` and policy knobs such as `RECORDING_RETENTION_MAX_AGE_DAYS` / `RECORDING_RETENTION_MAX_ENTRIES`.
+
 ### Camera config becomes explicit
 
 The perception service should not read `cameras.json` or infer topology from backend-local files.

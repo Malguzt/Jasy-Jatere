@@ -35,6 +35,7 @@ const { MetadataSqliteStore } = require('../infrastructure/sqlite/metadata-sqlit
 const { CameraInventoryService } = require('../domains/cameras/camera-inventory-service');
 const { WorkerConfigService } = require('../domains/platform/worker-config-service');
 const { RecordingCatalogService } = require('../domains/recordings/recording-catalog-service');
+const { RecordingRetentionJob } = require('../domains/recordings/recording-retention-job');
 const { PerceptionIngestService } = require('../domains/perception/perception-ingest-service');
 const { attachCorrelationId, injectCorrelationIdIntoJson } = require('../http/correlation-id-middleware');
 
@@ -111,17 +112,25 @@ function createBackendApp({
         cameraEventMonitor
     });
     const contractsService = new ContractsService();
-    const platformHealthService = new PlatformHealthService({
-        contractsService,
-        monitoringService,
-        streamControlService
-    });
     const workerConfigService = new WorkerConfigService({
         cameraInventoryService,
         streamSyncOrchestrator
     });
     const recordingCatalogService = new RecordingCatalogService({
         repository: recordingCatalogRepository
+    });
+    const recordingRetentionJob = new RecordingRetentionJob({
+        recordingCatalogService,
+        enabled: runtimeFlags.recordingRetentionEnabled,
+        intervalMs: runtimeFlags.recordingRetentionIntervalMs,
+        maxAgeDays: runtimeFlags.recordingRetentionMaxAgeDays,
+        maxEntries: runtimeFlags.recordingRetentionMaxEntries
+    });
+    const platformHealthService = new PlatformHealthService({
+        contractsService,
+        monitoringService,
+        streamControlService,
+        recordingRetentionJob
     });
     const perceptionIngestService = new PerceptionIngestService({
         observationRepository,
@@ -138,6 +147,7 @@ function createBackendApp({
         connectivityMonitor,
         streamSyncOrchestrator,
         streamWebSocketGateway,
+        recordingRetentionJob,
         streamRuntimeEnabled: runtimeFlags.streamRuntimeEnabled,
         streamWebSocketGatewayEnabled: runtimeFlags.streamWebSocketGatewayEnabled
     });
@@ -162,6 +172,19 @@ function createBackendApp({
     app.use('/api/recordings', createRecordingsRouter({ recordingCatalogService }));
     app.use('/api/perception', createPerceptionRouter({ perceptionIngestService }));
     app.use('/', createMetricsRouter({ monitoringService }));
+    app.get('/livez', (req, res) => {
+        return res.json({
+            success: true,
+            liveness: platformHealthService.getLivenessSnapshot()
+        });
+    });
+    app.get('/readyz', (req, res) => {
+        const readiness = platformHealthService.getReadinessSnapshot();
+        return res.status(readiness.ready ? 200 : 503).json({
+            success: readiness.ready,
+            readiness
+        });
+    });
 
     app.use('/recordings', express.static('/app/recordings'));
 

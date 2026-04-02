@@ -23,6 +23,10 @@ services:
       - RECONSTRUCTOR_URL=http://reconstructor:5001
       - STREAM_RUNTIME_ENABLED=1
       - STREAM_WEBSOCKET_GATEWAY_ENABLED=1
+      - RECORDING_RETENTION_ENABLED=0
+      - RECORDING_RETENTION_INTERVAL_MS=3600000
+      - RECORDING_RETENTION_MAX_AGE_DAYS=${RECORDING_RETENTION_MAX_AGE_DAYS:-}
+      - RECORDING_RETENTION_MAX_ENTRIES=${RECORDING_RETENTION_MAX_ENTRIES:-}
       - MAP_PLAN_A_ENABLED=1
       - MAP_PLAN_B_ENABLED=1
       - MAP_PLAN_C_ENABLED=1
@@ -32,7 +36,7 @@ services:
       - MAP_USE_DETECTOR_EVENTS_FALLBACK=0
       - MAP_MAPPER_TIMEOUT_MS=90000
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4000/readyz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 20s
       timeout: 5s
       retries: 5
@@ -70,7 +74,7 @@ services:
       - STREAM_RUNTIME_ENABLED=1
       - STREAM_WEBSOCKET_GATEWAY_ENABLED=1
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4100/api/internal/streams/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4100/readyz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 20s
       timeout: 5s
       retries: 5

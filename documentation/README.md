@@ -97,3 +97,4 @@ If you want the shortest path through the redesign, use this order:
 - Map and detector API routes are also composition-injected (`/api/maps`, `/api/detector`) to keep bootstrap ownership explicit and testable.
 - Backend service wiring is now centralized in a dedicated composition factory (`backend/src/app/create-backend-services.js`) so app bootstrap focuses on HTTP/runtime lifecycle only.
 - Stream-gateway service wiring follows the same pattern via `backend/src/app/create-stream-gateway-services.js`.
+- Stream-gateway internal stream APIs are now mounted through a dedicated router module (`backend/routes/internal-streams-gateway.js`) instead of inline app handlers.

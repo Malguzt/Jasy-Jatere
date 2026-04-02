@@ -2,7 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const { createCameraRouter } = require('../../routes/camera');
-const savedCamerasRoutes = require('../../routes/saved-cameras');
+const { createSavedCamerasRouter } = require('../../routes/saved-cameras');
 const mapsRoutes = require('../../routes/maps');
 const detectorRoutes = require('../../routes/detector');
 const { createMonitoringApiRouter, createMetricsRouter } = require('../../routes/monitoring');
@@ -34,6 +34,7 @@ const { ObservationEventRepository } = require('../infrastructure/repositories/o
 const { HealthSnapshotRepository } = require('../infrastructure/repositories/health-snapshot-repository');
 const { MetadataSqliteStore } = require('../infrastructure/sqlite/metadata-sqlite-store');
 const { CameraInventoryService } = require('../domains/cameras/camera-inventory-service');
+const { SavedCamerasService } = require('../domains/cameras/saved-cameras-service');
 const { OnvifCameraService } = require('../domains/cameras/onvif-camera-service');
 const { WorkerConfigService } = require('../domains/platform/worker-config-service');
 const { RecordingCatalogService } = require('../domains/recordings/recording-catalog-service');
@@ -86,6 +87,9 @@ function createBackendApp({
         legacyReadFallback: runtimeFlags.legacyCompatExportsEnabled
     });
     const cameraInventoryService = new CameraInventoryService({
+        repository: cameraRepository
+    });
+    const savedCamerasService = new SavedCamerasService({
         repository: cameraRepository
     });
     const onvifCameraService = new OnvifCameraService({
@@ -195,7 +199,7 @@ function createBackendApp({
     app.use('/api/contracts', createContractsRouter({ contractsService }));
 
     app.use('/api/cameras', createCameraRouter({ cameraService: onvifCameraService }));
-    app.use('/api/saved-cameras', savedCamerasRoutes);
+    app.use('/api/saved-cameras', createSavedCamerasRouter({ savedCamerasService }));
     app.use('/api/maps', mapsRoutes);
     app.use('/api/detector', detectorRoutes);
     app.use('/api/monitoring', createMonitoringApiRouter({ monitoringService }));

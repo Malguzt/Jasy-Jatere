@@ -19,6 +19,7 @@ const CameraConnectivityMonitor = require('../../camera-connectivity-monitor');
 const { resolveCameraStreamUrls, deriveCompanionRtsp, parseResolutionHint } = require('../../rtsp-utils');
 const { ContractsService } = require('../domains/contracts/contracts-service');
 const { PlatformRuntimeCoordinator } = require('./platform-runtime-coordinator');
+const { resolveRuntimeFlags } = require('./runtime-flags');
 const { ConnectivityMonitoringService } = require('../domains/monitoring/connectivity-monitoring-service');
 const { CameraMotionService } = require('../domains/monitoring/camera-motion-service');
 const { PlatformHealthService } = require('../domains/platform/platform-health-service');
@@ -37,7 +38,8 @@ const { PerceptionIngestService } = require('../domains/perception/perception-in
 const { attachCorrelationId, injectCorrelationIdIntoJson } = require('../http/correlation-id-middleware');
 
 function createBackendApp({
-    cameraFile = path.join(__dirname, '..', '..', 'data', 'cameras.json')
+    cameraFile = path.join(__dirname, '..', '..', 'data', 'cameras.json'),
+    runtimeFlags = resolveRuntimeFlags()
 } = {}) {
     const app = express();
 
@@ -128,7 +130,9 @@ function createBackendApp({
         cameraEventMonitor,
         connectivityMonitor,
         streamSyncOrchestrator,
-        streamWebSocketGateway
+        streamWebSocketGateway,
+        streamRuntimeEnabled: runtimeFlags.streamRuntimeEnabled,
+        streamWebSocketGatewayEnabled: runtimeFlags.streamWebSocketGatewayEnabled
     });
 
     app.use('/api/contracts', createContractsRouter({ contractsService }));

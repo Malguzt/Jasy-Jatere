@@ -3,12 +3,16 @@ class PlatformRuntimeCoordinator {
         cameraEventMonitor,
         connectivityMonitor,
         streamSyncOrchestrator,
-        streamWebSocketGateway
+        streamWebSocketGateway,
+        streamRuntimeEnabled = true,
+        streamWebSocketGatewayEnabled = true
     } = {}) {
         this.cameraEventMonitor = cameraEventMonitor;
         this.connectivityMonitor = connectivityMonitor;
         this.streamSyncOrchestrator = streamSyncOrchestrator;
         this.streamWebSocketGateway = streamWebSocketGateway;
+        this.streamRuntimeEnabled = streamRuntimeEnabled !== false;
+        this.streamWebSocketGatewayEnabled = streamWebSocketGatewayEnabled !== false;
     }
 
     start(server) {
@@ -18,19 +22,35 @@ class PlatformRuntimeCoordinator {
         if (this.connectivityMonitor && typeof this.connectivityMonitor.start === 'function') {
             this.connectivityMonitor.start();
         }
-        if (this.streamSyncOrchestrator && typeof this.streamSyncOrchestrator.start === 'function') {
+        if (
+            this.streamRuntimeEnabled &&
+            this.streamSyncOrchestrator &&
+            typeof this.streamSyncOrchestrator.start === 'function'
+        ) {
             this.streamSyncOrchestrator.start();
         }
-        if (this.streamWebSocketGateway && typeof this.streamWebSocketGateway.attach === 'function') {
+        if (
+            this.streamWebSocketGatewayEnabled &&
+            this.streamWebSocketGateway &&
+            typeof this.streamWebSocketGateway.attach === 'function'
+        ) {
             this.streamWebSocketGateway.attach(server);
         }
     }
 
     stop() {
-        if (this.streamWebSocketGateway && typeof this.streamWebSocketGateway.stop === 'function') {
+        if (
+            this.streamWebSocketGatewayEnabled &&
+            this.streamWebSocketGateway &&
+            typeof this.streamWebSocketGateway.stop === 'function'
+        ) {
             this.streamWebSocketGateway.stop();
         }
-        if (this.streamSyncOrchestrator && typeof this.streamSyncOrchestrator.stop === 'function') {
+        if (
+            this.streamRuntimeEnabled &&
+            this.streamSyncOrchestrator &&
+            typeof this.streamSyncOrchestrator.stop === 'function'
+        ) {
             this.streamSyncOrchestrator.stop();
         }
         if (this.connectivityMonitor && typeof this.connectivityMonitor.stop === 'function') {

@@ -51,6 +51,7 @@ The control plane owns Plan D persistence and job lifecycle.
 
 During migration, the control plane may still keep a minimal emergency local fallback only for resilience when the mapper is unavailable.
 That fallback is a temporary compatibility layer and should be removed once mapper coverage is complete.
+Current runtime guidance is to keep it disabled by default (`MAP_LOCAL_FALLBACK_ENABLED=0`) and only enable it as an emergency rollback switch.
 
 This removes duplicate spatial logic from the backend and keeps:
 

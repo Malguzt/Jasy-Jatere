@@ -131,6 +131,8 @@ During migration, this domain can expose internal operational APIs for control-p
 - `POST /api/streams/sync`
 - `GET /api/internal/config/streams`
 
+Runtime toggles such as `STREAM_RUNTIME_ENABLED` and `STREAM_WEBSOCKET_GATEWAY_ENABLED` allow decoupling stream runtime lifecycle from the main control-plane HTTP process while extraction proceeds.
+
 ### Observation ingest
 
 This domain is the contract boundary between perception workers and the rest of the system.

@@ -1,7 +1,6 @@
 const storage = require('./storage');
 const corrections = require('./corrections');
 const { validateMapDocument } = require('./validate-map');
-const { buildFallbackCroquis } = require('./fallback-generator');
 const { CameraMetadataRepository } = require('../src/infrastructure/repositories/camera-metadata-repository');
 const { ObservationEventRepository } = require('../src/infrastructure/repositories/observation-event-repository');
 
@@ -86,6 +85,13 @@ function mergeObjectHints(primary = [], secondary = []) {
 
 function toDurationMs(startMs) {
     return Math.max(0, Date.now() - Number(startMs || Date.now()));
+}
+
+function generateLocalFallback(payload) {
+    // Lazy-load so mapper-first environments can disable local fallback cleanly.
+    // eslint-disable-next-line global-require
+    const { buildFallbackCroquis } = require('./fallback-generator');
+    return buildFallbackCroquis(payload);
 }
 
 class MapJobQueue {
@@ -444,7 +450,7 @@ class MapJobQueue {
                     if (!LOCAL_FALLBACK_ENABLED) {
                         throw new Error(`Mapper fallback unavailable and MAP_LOCAL_FALLBACK_ENABLED=0: ${mapperFallbackError?.message || mapperFallbackError}`);
                     }
-                    mapDoc = buildFallbackCroquis({
+                    mapDoc = generateLocalFallback({
                         jobId: job.id,
                         cameras,
                         recentEvents,
@@ -515,7 +521,7 @@ class MapJobQueue {
                     if (!LOCAL_FALLBACK_ENABLED) {
                         throw new Error(`Mapper validation fallback unavailable and MAP_LOCAL_FALLBACK_ENABLED=0: ${mapperValidationFallbackError?.message || mapperValidationFallbackError}`);
                     }
-                    mapDoc = buildFallbackCroquis({
+                    mapDoc = generateLocalFallback({
                         jobId: job.id,
                         cameras,
                         recentEvents: [],

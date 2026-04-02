@@ -226,8 +226,5 @@ function buildFallbackCroquis({
 }
 
 module.exports = {
-    buildFallbackCroquis,
-    makeMapId,
-    resolveCategory,
-    normalizeManualLayout
+    buildFallbackCroquis
 };

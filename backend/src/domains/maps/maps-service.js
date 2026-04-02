@@ -2,7 +2,7 @@ const defaultStorage = require('../../../maps/storage');
 const defaultJobs = require('../../../maps/job-queue');
 const defaultCorrections = require('../../../maps/corrections');
 const { validateMapDocument } = require('../../../maps/validate-map');
-const { makeMapId, resolveCategory, normalizeManualLayout } = require('../../../maps/fallback-generator');
+const { makeMapId, resolveCategory, normalizeManualLayout } = require('./manual-map-utils');
 
 function mapServiceError(status, message, code = null, details = null) {
     const error = new Error(message || 'Map service error');

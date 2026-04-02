@@ -71,3 +71,39 @@ test('triggerManualSync throws when orchestrator reports failed sync', async () 
         (error) => Number(error?.status) === 500 && error.code === 'STREAM_SYNC_FAILED'
     );
 });
+
+test('getCapabilities prefers WebRTC when enabled and secure context is detected', () => {
+    const service = new StreamControlService({
+        streamManager: { getStatsSnapshot: () => ({}) },
+        streamSyncOrchestrator: { getRuntimeState: () => ({}) },
+        streamWebSocketGatewayEnabled: true,
+        streamWebRtcEnabled: true,
+        streamWebRtcRequireHttps: true
+    });
+
+    const caps = service.getCapabilities({
+        requestHeaders: {
+            'x-forwarded-proto': 'https'
+        }
+    });
+    assert.equal(caps.defaultTransport, 'webrtc');
+    assert.equal(caps.transports.webrtc.enabled, true);
+    assert.equal(caps.transports.jsmpeg.enabled, true);
+});
+
+test('getCapabilities falls back to jsmpeg when WebRTC requires https and context is insecure', () => {
+    const service = new StreamControlService({
+        streamManager: { getStatsSnapshot: () => ({}) },
+        streamSyncOrchestrator: { getRuntimeState: () => ({}) },
+        streamWebSocketGatewayEnabled: true,
+        streamWebRtcEnabled: true,
+        streamWebRtcRequireHttps: true
+    });
+
+    const caps = service.getCapabilities({
+        requestHeaders: {}
+    });
+    assert.equal(caps.defaultTransport, 'jsmpeg');
+    assert.equal(caps.transports.webrtc.enabled, false);
+    assert.equal(caps.transports.webrtc.reason, 'webrtc-requires-https');
+});

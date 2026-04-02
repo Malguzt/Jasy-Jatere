@@ -60,7 +60,10 @@ function createStreamGatewayApp({
 
     const streamControlService = new StreamControlService({
         streamManager,
-        streamSyncOrchestrator
+        streamSyncOrchestrator,
+        streamWebSocketGatewayEnabled: runtimeFlags.streamWebSocketGatewayEnabled,
+        streamWebRtcEnabled: runtimeFlags.streamWebRtcEnabled,
+        streamWebRtcRequireHttps: runtimeFlags.streamWebRtcRequireHttps
     });
 
     const streamWebSocketGateway = new StreamWebSocketGateway({
@@ -82,7 +85,9 @@ function createStreamGatewayApp({
             success: true,
             service: 'stream-gateway',
             streamRuntimeEnabled: runtimeFlags.streamRuntimeEnabled,
-            streamWebSocketGatewayEnabled: runtimeFlags.streamWebSocketGatewayEnabled
+            streamWebSocketGatewayEnabled: runtimeFlags.streamWebSocketGatewayEnabled,
+            streamWebRtcEnabled: runtimeFlags.streamWebRtcEnabled,
+            streamWebRtcRequireHttps: runtimeFlags.streamWebRtcRequireHttps
         });
     });
 
@@ -118,6 +123,19 @@ function createStreamGatewayApp({
             return res.json({
                 success: true,
                 ...snapshot
+            });
+        } catch (error) {
+            return sendGatewayError(res, error);
+        }
+    });
+
+    app.get('/api/internal/streams/capabilities', (req, res) => {
+        try {
+            return res.json({
+                success: true,
+                capabilities: streamControlService.getCapabilities({
+                    requestHeaders: req.headers || {}
+                })
             });
         } catch (error) {
             return sendGatewayError(res, error);

@@ -24,6 +24,8 @@ test('resolveRuntimeFlags returns stream-related runtime toggles', () => {
     const flags = resolveRuntimeFlags({
         STREAM_RUNTIME_ENABLED: '0',
         STREAM_WEBSOCKET_GATEWAY_ENABLED: 'false',
+        STREAM_WEBRTC_ENABLED: '1',
+        STREAM_WEBRTC_REQUIRE_HTTPS: '0',
         RECORDING_RETENTION_ENABLED: '1',
         RECORDING_RETENTION_INTERVAL_MS: '120000',
         RECORDING_RETENTION_MAX_AGE_DAYS: '14',
@@ -33,6 +35,8 @@ test('resolveRuntimeFlags returns stream-related runtime toggles', () => {
     assert.deepEqual(flags, {
         streamRuntimeEnabled: false,
         streamWebSocketGatewayEnabled: false,
+        streamWebRtcEnabled: true,
+        streamWebRtcRequireHttps: false,
         recordingRetentionEnabled: true,
         recordingRetentionIntervalMs: 120000,
         recordingRetentionMaxAgeDays: 14,

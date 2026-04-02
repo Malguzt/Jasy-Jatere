@@ -71,3 +71,28 @@ test('getRuntimeSnapshot raises timeout error when gateway request aborts', asyn
         (error) => Number(error?.status) === 504 && error.code === 'STREAM_GATEWAY_TIMEOUT'
     );
 });
+
+test('getCapabilities proxies capabilities payload from stream gateway API', async () => {
+    const service = new StreamGatewayProxyService({
+        gatewayApiBaseUrl: 'http://stream-gateway:4100/api/internal/streams',
+        fetchImpl: async () => ({
+            ok: true,
+            status: 200,
+            json: async () => ({
+                success: true,
+                capabilities: {
+                    defaultTransport: 'jsmpeg',
+                    preferredOrder: ['webrtc', 'jsmpeg'],
+                    transports: {
+                        webrtc: { enabled: false, reason: 'webrtc-disabled' },
+                        jsmpeg: { enabled: true }
+                    }
+                }
+            })
+        })
+    });
+
+    const caps = await service.getCapabilities();
+    assert.equal(caps.defaultTransport, 'jsmpeg');
+    assert.equal(caps.transports.jsmpeg.enabled, true);
+});

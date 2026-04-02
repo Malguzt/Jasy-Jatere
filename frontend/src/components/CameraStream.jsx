@@ -17,8 +17,30 @@ const CameraStream = ({ camera }) => {
     const [retryCount, setRetryCount] = useState(0);
     const [error, setError] = useState(null);
     let playerRef = useRef(null);
+    const capabilitiesRef = useRef(null);
 
-    const startStream = () => {
+    const resolveStreamTransport = async () => {
+        if (!capabilitiesRef.current) {
+            try {
+                const payload = await apiClient.getStreamCapabilities();
+                if (payload?.success && payload.capabilities) {
+                    capabilitiesRef.current = payload.capabilities;
+                }
+            } catch (e) {}
+        }
+
+        const capabilities = capabilitiesRef.current || null;
+        const preferred = String(capabilities?.defaultTransport || 'jsmpeg').toLowerCase();
+        const jsmpegEnabled = capabilities?.transports?.jsmpeg?.enabled !== false;
+
+        if (preferred === 'webrtc' && jsmpegEnabled) {
+            setStatus('WebRTC policy selected. Falling back to JSMpeg transport in this build.');
+            return 'jsmpeg';
+        }
+        return jsmpegEnabled ? 'jsmpeg' : null;
+    };
+
+    const startJsmpegStream = () => {
         if (playerRef.current) playerRef.current.destroy();
 
         const configuredBase = (import.meta.env.VITE_STREAM_BASE_URL || '').trim();
@@ -54,6 +76,16 @@ const CameraStream = ({ camera }) => {
         }
     };
 
+    const startStream = async () => {
+        const selectedTransport = await resolveStreamTransport();
+        if (selectedTransport !== 'jsmpeg') {
+            setError('No stream transport available for this client.');
+            setStatus('Error de transporte de streaming.');
+            return;
+        }
+        startJsmpegStream();
+    };
+
     const handleRetry = () => {
         if (retryCount < 10) {
             const delay = Math.min(Math.pow(2, retryCount) * 1000, 15000);
@@ -80,6 +112,10 @@ const CameraStream = ({ camera }) => {
             alert('Error de red al actualizar');
         }
     };
+
+    useEffect(() => {
+        capabilitiesRef.current = null;
+    }, [localCamera.id]);
 
     useEffect(() => {
         startStream();

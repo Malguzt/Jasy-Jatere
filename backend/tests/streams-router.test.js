@@ -24,6 +24,10 @@ async function startAppWithRouter(router) {
 test('streams router returns local runtime snapshot when proxy is not configured', async () => {
     const router = createStreamsRouter({
         streamControlService: {
+            getCapabilities: () => ({
+                defaultTransport: 'jsmpeg',
+                transports: { webrtc: { enabled: false }, jsmpeg: { enabled: true } }
+            }),
             getRuntimeSnapshot: () => ({
                 summary: { streams: 1 },
                 streamStats: {},
@@ -36,6 +40,12 @@ test('streams router returns local runtime snapshot when proxy is not configured
 
     const { server, baseUrl } = await startAppWithRouter(router);
     try {
+        const capabilitiesRes = await fetch(`${baseUrl}/api/streams/capabilities`);
+        const capabilitiesPayload = await capabilitiesRes.json();
+        assert.equal(capabilitiesRes.status, 200);
+        assert.equal(capabilitiesPayload.success, true);
+        assert.equal(capabilitiesPayload.capabilities.defaultTransport, 'jsmpeg');
+
         const response = await fetch(`${baseUrl}/api/streams/runtime`);
         const payload = await response.json();
         assert.equal(response.status, 200);
@@ -52,6 +62,10 @@ test('streams router prefers proxy service when configured', async () => {
 
     const router = createStreamsRouter({
         streamControlService: {
+            getCapabilities: () => {
+                localCalled = true;
+                return { defaultTransport: 'jsmpeg' };
+            },
             getRuntimeSnapshot: () => {
                 localCalled = true;
                 return { summary: { streams: 99 } };
@@ -59,6 +73,13 @@ test('streams router prefers proxy service when configured', async () => {
             triggerManualSync: async () => ({ result: { success: true } })
         },
         streamControlProxyService: {
+            getCapabilities: async () => ({
+                defaultTransport: 'webrtc',
+                transports: {
+                    webrtc: { enabled: true },
+                    jsmpeg: { enabled: true }
+                }
+            }),
             getRuntimeSnapshot: async () => {
                 proxyCalled = true;
                 return {
@@ -77,6 +98,11 @@ test('streams router prefers proxy service when configured', async () => {
 
     const { server, baseUrl } = await startAppWithRouter(router);
     try {
+        const capabilitiesRes = await fetch(`${baseUrl}/api/streams/capabilities`);
+        const capabilitiesPayload = await capabilitiesRes.json();
+        assert.equal(capabilitiesRes.status, 200);
+        assert.equal(capabilitiesPayload.capabilities.defaultTransport, 'webrtc');
+
         const runtimeRes = await fetch(`${baseUrl}/api/streams/runtime`);
         const runtimePayload = await runtimeRes.json();
         assert.equal(runtimeRes.status, 200);

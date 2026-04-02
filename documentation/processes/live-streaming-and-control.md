@@ -55,12 +55,14 @@ The device control service should talk directly to the ONVIF camera and persist 
 
 As an intermediate migration step, the control plane can expose internal stream orchestration endpoints such as:
 
+- `GET /api/streams/capabilities` for transport negotiation policy (WebRTC optional, JSMpeg fallback).
 - `GET /api/streams/runtime` for current stream and keepalive runtime state.
 - `POST /api/streams/sync` for operator-triggered keepalive and reconstructor resynchronization.
 - `GET /api/internal/config/streams` for worker-consumable stream snapshots.
 
 When stream runtime is externalized, the control plane can proxy these APIs to `STREAM_GATEWAY_API_URL`.
 Frontend live tiles can target a dedicated stream gateway host via `VITE_STREAM_BASE_URL`.
+WebRTC policy can be enabled incrementally with `STREAM_WEBRTC_ENABLED` and constrained to secure contexts with `STREAM_WEBRTC_REQUIRE_HTTPS`.
 
 ## Target Outputs
 

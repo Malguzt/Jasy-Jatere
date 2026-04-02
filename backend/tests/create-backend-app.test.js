@@ -75,6 +75,12 @@ test('createBackendApp exposes internal worker config and perception ingest APIs
         });
         assert.equal(invalidObservation.status, 400);
 
+        const capabilitiesRes = await fetch(`${baseUrl}/api/streams/capabilities`);
+        const capabilitiesPayload = await capabilitiesRes.json();
+        assert.equal(capabilitiesRes.status, 200);
+        assert.equal(capabilitiesPayload.success, true);
+        assert.ok(capabilitiesPayload.capabilities);
+
         const liveRes = await fetch(`${baseUrl}/api/health/live`);
         const livePayload = await liveRes.json();
         assert.equal(liveRes.status, 200);

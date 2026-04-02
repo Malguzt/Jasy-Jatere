@@ -10,12 +10,53 @@ class StreamControlService {
     constructor({
         streamManager,
         streamSyncOrchestrator,
+        streamWebSocketGatewayEnabled = true,
+        streamWebRtcEnabled = false,
+        streamWebRtcRequireHttps = true,
         now = () => Date.now()
     } = {}) {
         this.streamManager = streamManager;
         this.streamSyncOrchestrator = streamSyncOrchestrator;
+        this.streamWebSocketGatewayEnabled = streamWebSocketGatewayEnabled !== false;
+        this.streamWebRtcEnabled = streamWebRtcEnabled === true;
+        this.streamWebRtcRequireHttps = streamWebRtcRequireHttps !== false;
         this.now = now;
         this.lastManualSync = null;
+    }
+
+    getCapabilities({ requestHeaders = {} } = {}) {
+        const forwardedProto = String(requestHeaders['x-forwarded-proto'] || '').trim().toLowerCase();
+        const origin = String(requestHeaders.origin || '').trim().toLowerCase();
+        const secureByOrigin = origin.startsWith('https://');
+        const secureByForwardedProto = forwardedProto === 'https';
+        const secureContext = secureByOrigin || secureByForwardedProto;
+
+        const webrtcConfigured = this.streamWebRtcEnabled;
+        const webrtcEnabled = webrtcConfigured && (!this.streamWebRtcRequireHttps || secureContext);
+        const webrtcReason = webrtcEnabled
+            ? null
+            : (webrtcConfigured && this.streamWebRtcRequireHttps && !secureContext
+                ? 'webrtc-requires-https'
+                : 'webrtc-disabled');
+
+        const jsmpegEnabled = this.streamWebSocketGatewayEnabled;
+        const defaultTransport = webrtcEnabled ? 'webrtc' : (jsmpegEnabled ? 'jsmpeg' : null);
+
+        return {
+            defaultTransport,
+            preferredOrder: ['webrtc', 'jsmpeg'],
+            transports: {
+                webrtc: {
+                    configured: webrtcConfigured,
+                    enabled: webrtcEnabled,
+                    requireHttps: this.streamWebRtcRequireHttps,
+                    reason: webrtcReason
+                },
+                jsmpeg: {
+                    enabled: jsmpegEnabled
+                }
+            }
+        };
     }
 
     getRuntimeSnapshot() {

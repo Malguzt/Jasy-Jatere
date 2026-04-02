@@ -100,7 +100,10 @@ function createBackendApp({
     });
     const streamControlService = new StreamControlService({
         streamManager,
-        streamSyncOrchestrator
+        streamSyncOrchestrator,
+        streamWebSocketGatewayEnabled: runtimeFlags.streamWebSocketGatewayEnabled,
+        streamWebRtcEnabled: runtimeFlags.streamWebRtcEnabled,
+        streamWebRtcRequireHttps: runtimeFlags.streamWebRtcRequireHttps
     });
     const streamGatewayApiUrl = String(process.env.STREAM_GATEWAY_API_URL || '').trim();
     const streamControlProxyService = streamGatewayApiUrl

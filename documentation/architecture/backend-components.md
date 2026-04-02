@@ -129,11 +129,13 @@ This domain decides:
 
 During migration, this domain can expose internal operational APIs for control-plane operators, for example:
 
+- `GET /api/streams/capabilities`
 - `GET /api/streams/runtime`
 - `POST /api/streams/sync`
 - `GET /api/internal/config/streams`
 
 Runtime toggles such as `STREAM_RUNTIME_ENABLED` and `STREAM_WEBSOCKET_GATEWAY_ENABLED` allow decoupling stream runtime lifecycle from the main control-plane HTTP process while extraction proceeds.
+Transport negotiation can be staged with `STREAM_WEBRTC_ENABLED` and `STREAM_WEBRTC_REQUIRE_HTTPS` while keeping JSMpeg fallback enabled.
 When stream runtime is externalized, control-plane stream APIs can proxy to `STREAM_GATEWAY_API_URL` while preserving the same frontend contracts.
 
 ### Observation ingest

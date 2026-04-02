@@ -64,6 +64,9 @@ export const apiClient = {
     getDetectorStatus() {
         return apiFetch('/api/detector/status');
     },
+    getStreamCapabilities() {
+        return apiFetch('/api/streams/capabilities');
+    },
     listRecordings(query = {}) {
         const params = new URLSearchParams();
         Object.entries(query || {}).forEach(([key, value]) => {

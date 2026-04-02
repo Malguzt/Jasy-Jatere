@@ -93,6 +93,14 @@ class StreamGatewayProxyService {
         }
         return payload.sync || null;
     }
+
+    async getCapabilities() {
+        const payload = await this.requestJson('/capabilities');
+        if (!payload?.success || !payload?.capabilities) {
+            throw streamControlError(502, 'Invalid capabilities payload from stream gateway', 'STREAM_GATEWAY_INVALID_CAPABILITIES');
+        }
+        return payload.capabilities;
+    }
 }
 
 module.exports = {

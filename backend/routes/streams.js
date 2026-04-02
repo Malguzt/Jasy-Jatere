@@ -33,6 +33,24 @@ function resolveStreamsService(streamControlService, streamControlProxyService) 
 function createStreamsRouter({ streamControlService, streamControlProxyService = null }) {
     const router = express.Router();
 
+    router.get('/capabilities', async (req, res) => {
+        try {
+            const service = resolveStreamsService(streamControlService, streamControlProxyService);
+            if (!service || typeof service.getCapabilities !== 'function') {
+                throw new Error('Streams capabilities service not configured');
+            }
+            const capabilities = await service.getCapabilities({
+                requestHeaders: req.headers || {}
+            });
+            return res.json({
+                success: true,
+                capabilities
+            });
+        } catch (error) {
+            return sendStreamsError(res, error, 'Failed to read stream capabilities');
+        }
+    });
+
     router.get('/runtime', async (req, res) => {
         try {
             const service = resolveStreamsService(streamControlService, streamControlProxyService);

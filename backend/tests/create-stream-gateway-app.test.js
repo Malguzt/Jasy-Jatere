@@ -29,6 +29,12 @@ test('createStreamGatewayApp exposes internal health and runtime endpoints', asy
         assert.equal(runtimePayload.success, true);
         assert.ok(runtimePayload.summary);
 
+        const capabilitiesRes = await fetch(`${baseUrl}/api/internal/streams/capabilities`);
+        const capabilitiesPayload = await capabilitiesRes.json();
+        assert.equal(capabilitiesRes.status, 200);
+        assert.equal(capabilitiesPayload.success, true);
+        assert.ok(capabilitiesPayload.capabilities);
+
         const livezRes = await fetch(`${baseUrl}/livez`);
         const livezPayload = await livezRes.json();
         assert.equal(livezRes.status, 200);

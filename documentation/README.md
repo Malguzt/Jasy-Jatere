@@ -73,7 +73,7 @@ If you want the shortest path through the redesign, use this order:
 - Sequence diagrams remain as standalone PlantUML files, one per core process.
 - The migration plan is intentionally phased so the current system can evolve incrementally instead of being rewritten in one step.
 - Stream runtime can now be split via a dedicated gateway process and control-plane proxy wiring as an incremental extraction path.
-- A compose profile (`stream-gateway`) and `make run-with-stream-gateway` target are available to test this split mode incrementally.
+- A compose profile (`stream-gateway`) and `make run-with-stream-gateway` target are available to run backend stream APIs in proxy mode (`STREAM_GATEWAY_API_URL=http://stream-gateway:4100`) while local stream runtime is disabled.
 - Backend and stream-gateway expose explicit readiness/liveness probes (`/readyz`, `/livez`) for operational checks.
 - Recording retention and cleanup are now modeled as control-plane runtime policy (`RECORDING_RETENTION_*`).
 - Detector recycle policy can be synchronized from `GET /api/internal/config/retention` (`USE_CONTROL_PLANE_RETENTION_CONFIG`) to avoid drift with control-plane retention settings.

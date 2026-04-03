@@ -45,6 +45,7 @@ test('resolveRuntimeFlags returns stream-related runtime toggles', () => {
     });
 
     assert.deepEqual(flags, {
+        detectorUrl: 'http://localhost:5000',
         streamGatewayApiUrl: 'http://stream-gateway:4100/api/internal/streams',
         streamPublicBaseUrl: 'https://streams.example.com',
         streamWebRtcSignalingUrl: 'http://stream-gateway:4100/webrtc/sessions',
@@ -65,6 +66,14 @@ test('resolveRuntimeFlags returns stream-related runtime toggles', () => {
         recordingsDeleteOldestBatch: 77,
         observationMaxEntries: 900
     });
+});
+
+test('resolveRuntimeFlags normalizes detector url from env', () => {
+    const flags = resolveRuntimeFlags({
+        DETECTOR_URL: 'http://detector:5000/'
+    });
+
+    assert.equal(flags.detectorUrl, 'http://detector:5000/');
 });
 
 test('resolveRuntimeFlags enables proxy mode by default when stream gateway api url is set', () => {

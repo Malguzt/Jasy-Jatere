@@ -26,6 +26,7 @@ function parseOptionalPositiveIntEnv(value) {
 }
 
 function resolveRuntimeFlags(env = process.env) {
+    const detectorUrl = String(env.DETECTOR_URL || 'http://localhost:5000').trim();
     const streamGatewayApiUrl = String(env.STREAM_GATEWAY_API_URL || '').trim();
     const streamPublicBaseUrl = String(env.STREAM_PUBLIC_BASE_URL || '').trim();
     const streamWebRtcSignalingUrl = String(env.STREAM_WEBRTC_SIGNALING_URL || '').trim();
@@ -34,6 +35,7 @@ function resolveRuntimeFlags(env = process.env) {
     const streamProxyRequired = parseBoolEnv(env.STREAM_PROXY_REQUIRED, streamProxyModeEnabled);
 
     return {
+        detectorUrl: detectorUrl || 'http://localhost:5000',
         streamGatewayApiUrl,
         streamPublicBaseUrl,
         streamWebRtcSignalingUrl,

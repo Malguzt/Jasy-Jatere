@@ -121,6 +121,7 @@ If you want the shortest path through the redesign, use this order:
 - Backend and stream-gateway app factories now also share a common Express bootstrap helper (`backend/src/app/create-http-app-base.js`) for CORS/JSON/correlation middleware wiring.
 - Backend and stream-gateway app factories now delegate HTTP route wiring to dedicated modules (`backend/src/app/create-backend-routes.js`, `backend/src/app/create-stream-gateway-routes.js`), reducing bootstrapping file coupling.
 - Backend and stream-gateway composition now share common runtime option mappers (`backend/src/app/composition-options.js`) for stream-control runtime flags.
+- Backend detector proxy configuration is now resolved through centralized runtime flags (`backend/src/app/runtime-flags.js`) instead of domain-level `process.env` reads.
 - Backend and stream-gateway composition now also share metadata bootstrap wiring through `backend/src/app/create-metadata-context.js` (driver normalization + SQLite migrate/bootstrap).
 - Camera inventory composition wiring (repository + inventory service) is now shared through `backend/src/app/create-camera-inventory-stack.js`.
 - Backend and stream-gateway app/service composition no longer accepts a `cameraFile` override in runtime bootstrap; camera inventory compatibility exports stay repository-owned and migration-only.

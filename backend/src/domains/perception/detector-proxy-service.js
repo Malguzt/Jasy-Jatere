@@ -1,6 +1,6 @@
 class DetectorProxyService {
     constructor({
-        detectorUrl = process.env.DETECTOR_URL || 'http://localhost:5000',
+        detectorUrl = 'http://localhost:5000',
         fetchImpl = fetch
     } = {}) {
         this.detectorUrl = String(detectorUrl || 'http://localhost:5000').replace(/\/$/, '');

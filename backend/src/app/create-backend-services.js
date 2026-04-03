@@ -126,7 +126,9 @@ function createBackendServices({
             })
             : streamRuntimeStack?.streamWebSocketGateway || null;
     const mapsService = new MapsService();
-    const detectorProxyService = new DetectorProxyService();
+    const detectorProxyService = new DetectorProxyService({
+        detectorUrl: runtimeFlags.detectorUrl
+    });
 
     return {
         metadataDriver: driver,

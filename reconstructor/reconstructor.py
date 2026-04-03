@@ -321,6 +321,11 @@ class AIReconstructor:
         healthy = bool(motion_state.get("healthy", False))
         source = motion_state.get("source") or source
 
+        if REQUIRE_CONTROL_PLANE_MOTION_API and not healthy:
+            self.camera_motion_healthy = False
+            self.motion_active = False
+            return False, source
+
         if motion is None:
             self.camera_motion_healthy = False
             if motion_state.get("strict_unavailable"):

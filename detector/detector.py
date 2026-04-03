@@ -1343,9 +1343,7 @@ def list_recordings():
             return jsonify({"success": True, "recordings": recordings[:50]})
         except Exception as e:
             print(f"[INGEST] recordings list via control-plane failed: {e}")
-            if REQUIRE_CONTROL_PLANE_RECORDING_CATALOG:
-                return jsonify({"success": False, "error": "Control-plane recordings unavailable"}), 502
-            print("[INGEST] falling back to local recordings listing.")
+            return jsonify({"success": False, "error": "Control-plane recordings unavailable"}), 502
 
     files = []
     q = (request.args.get("q") or "").strip().lower()

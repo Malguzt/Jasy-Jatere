@@ -90,6 +90,7 @@ If you want the shortest path through the redesign, use this order:
 - Recording retention and cleanup are now modeled as control-plane runtime policy (`RECORDING_RETENTION_*`).
 - Detector recycle policy can be synchronized from `GET /api/internal/config/retention` (`USE_CONTROL_PLANE_RETENTION_CONFIG`) to avoid drift with control-plane retention settings.
 - Detector camera config strict mode is now default (`REQUIRE_CONTROL_PLANE_CAMERA_CONFIG=1` unless explicitly disabled), so shared-file fallback requires explicit opt-out.
+- Detector retention config strict mode is now default in compose (`REQUIRE_CONTROL_PLANE_RETENTION_CONFIG=1`), so retention snapshot unavailability is treated as a strict control-plane dependency (with explicit logging).
 - Detector camera/retention config source resolution is now centralized in `detector/config_provider.py`, separating control-plane snapshot reads and legacy file fallback policy from detection runtime loops.
 - Detector control-plane ingest/catalog HTTP interactions are now centralized in `detector/control_plane_client.py`, keeping publish/list/delete integration boundaries explicit.
 - Reconstructor camera-motion polling is now centralized in `reconstructor/motion_client.py`, with strict control-plane motion mode default-enabled (`REQUIRE_CONTROL_PLANE_MOTION_API=1` unless explicitly disabled).

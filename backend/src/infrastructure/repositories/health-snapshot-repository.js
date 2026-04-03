@@ -15,12 +15,11 @@ class HealthSnapshotRepository {
     constructor({
         filePath = DEFAULT_FILE,
         driver = DEFAULT_DRIVER,
-        sqliteStore = null,
-        dualWriteFile = true
+        sqliteStore = null
     } = {}) {
         this.filePath = filePath;
         this.driver = String(driver || 'sqlite').toLowerCase();
-        this.dualWriteFile = this.driver === 'sqlite' ? false : dualWriteFile !== false;
+        this.writeJsonFile = this.driver !== 'sqlite';
         this.sqlite = this.driver === 'sqlite'
             ? new SqliteHealthSnapshotRepository({
                 store: sqliteStore || new MetadataSqliteStore({
@@ -51,7 +50,7 @@ class HealthSnapshotRepository {
         if (this.sqlite) {
             this.sqlite.save(safeSnapshot);
         }
-        if (this.dualWriteFile) {
+        if (this.writeJsonFile) {
             writeJsonFile(this.filePath, safeSnapshot);
         }
         return safeSnapshot;

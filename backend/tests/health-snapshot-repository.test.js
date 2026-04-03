@@ -26,8 +26,7 @@ test('HealthSnapshotRepository can disable legacy JSON dual-write in sqlite mode
     const repository = new HealthSnapshotRepository({
         filePath,
         driver: 'sqlite',
-        sqliteStore,
-        dualWriteFile: false
+        sqliteStore
     });
 
     repository.save(makeSnapshot('degraded'));
@@ -50,8 +49,7 @@ test('HealthSnapshotRepository does not read legacy JSON fallback in sqlite mode
     const repository = new HealthSnapshotRepository({
         filePath,
         driver: 'sqlite',
-        sqliteStore,
-        dualWriteFile: false
+        sqliteStore
     });
 
     const latest = repository.getLatest();

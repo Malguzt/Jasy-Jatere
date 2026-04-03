@@ -49,10 +49,6 @@ function makeService(overrides = {}) {
             createRequestSoap: () => '<soap/>',
             requestCommand: async () => ({ ok: true })
         },
-        fsModule: overrides.fsModule || {
-            existsSync: () => false,
-            readFileSync: () => '[]'
-        },
         osModule: overrides.osModule || {
             networkInterfaces: () => ({})
         },
@@ -70,7 +66,6 @@ function makeService(overrides = {}) {
             pass: pass || 'secret'
         })),
         cameraInventoryService: overrides.cameraInventoryService,
-        legacyFileFallbackEnabled: overrides.legacyFileFallbackEnabled,
         config: {
             discoverConcurrency: 1,
             discoverIpRange: '2-2',
@@ -128,29 +123,19 @@ test('discover uses active-scan-fallback when ws-discovery errors', async () => 
     assert.ok(result.warning.includes('probe failed'));
 });
 
-test('loadKnownIpPrefixes prefers inventory service and skips legacy file fallback when disabled', () => {
-    let fileReads = 0;
+test('loadKnownIpPrefixes prefers inventory service', () => {
     const service = makeService({
         cameraInventoryService: {
             listCameras: () => [
                 { id: 'cam-1', ip: 'http://192.168.77.15/onvif/device_service' },
                 { id: 'cam-2', rtspUrl: 'rtsp://admin:pass@192.168.88.20:554/onvif1' }
             ]
-        },
-        legacyFileFallbackEnabled: false,
-        fsModule: {
-            existsSync: () => true,
-            readFileSync: () => {
-                fileReads += 1;
-                return '[]';
-            }
         }
     });
 
     const prefixes = service.loadKnownIpPrefixes();
     assert.equal(prefixes.has('192.168.77'), true);
     assert.equal(prefixes.has('192.168.88'), true);
-    assert.equal(fileReads, 0);
 });
 
 test('connect injects combined AI profile when at least one RTSP stream exists', async () => {

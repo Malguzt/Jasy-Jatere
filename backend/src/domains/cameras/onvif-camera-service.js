@@ -1,14 +1,10 @@
 const onvif = require('node-onvif');
 const onvifSoap = require('node-onvif/lib/modules/soap');
 const url = require('url');
-const fs = require('fs');
-const path = require('path');
 const os = require('os');
 const net = require('net');
 const { resolveUserPass } = require('../../../camera-credentials');
 const { loadCameraInventory } = require('./camera-inventory-loader');
-
-const DEFAULT_CAMERA_DATA_FILE = path.join(__dirname, '../../../data/cameras.json');
 
 function toPositiveInt(value, fallback) {
     const num = Number(value);
@@ -63,27 +59,21 @@ class OnvifCameraService {
         onvifLib = onvif,
         onvifSoapModule = onvifSoap,
         urlModule = url,
-        fsModule = fs,
         osModule = os,
         netModule = net,
         fetchImpl = fetch,
         resolveUserPassFn = resolveUserPass,
-        cameraDataFile = DEFAULT_CAMERA_DATA_FILE,
         cameraInventoryService = null,
-        legacyFileFallbackEnabled = (process.env.LEGACY_COMPAT_EXPORTS_ENABLED === '1'),
         config = {}
     } = {}) {
         this.onvif = onvifLib;
         this.onvifSoap = onvifSoapModule;
         this.url = urlModule;
-        this.fs = fsModule;
         this.os = osModule;
         this.net = netModule;
         this.fetch = fetchImpl;
         this.resolveUserPass = resolveUserPassFn;
-        this.cameraDataFile = cameraDataFile;
         this.cameraInventoryService = cameraInventoryService;
-        this.legacyFileFallbackEnabled = legacyFileFallbackEnabled === true;
         this.config = buildConfig(config);
     }
 
@@ -154,12 +144,8 @@ class OnvifCameraService {
         const out = new Set();
         const cameras = loadCameraInventory({
             cameraInventoryService: this.cameraInventoryService,
-            legacyFilePath: this.cameraDataFile,
-            legacyFileFallbackEnabled: this.legacyFileFallbackEnabled,
-            fsModule: this.fs,
             logger: console,
-            serviceErrorPrefix: '[DISCOVER] No se pudieron leer prefijos de inventario:',
-            fileErrorPrefix: '[DISCOVER] No se pudieron leer prefijos conocidos:'
+            serviceErrorPrefix: '[DISCOVER] No se pudieron leer prefijos de inventario:'
         });
         this.collectKnownPrefixesFromCameras(cameras || [], out);
         return out;

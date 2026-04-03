@@ -98,8 +98,8 @@ If you want the shortest path through the redesign, use this order:
 - Stream websocket gateways (backend and stream-gateway) now resolve cameras from repository-backed inventory only (no direct `cameras.json` fallback in runtime stream paths).
 - Camera event monitoring now resolves cameras from repository-backed inventory only (no direct file fallback in runtime monitoring paths).
 - Stream-sync orchestration now resolves cameras from repository-backed inventory only (no direct file fallback path).
-- ONVIF discovery now prefers repository-backed inventory prefixes in control-plane composition; legacy file prefix fallback is gated by `LEGACY_COMPAT_EXPORTS_ENABLED`.
-- Camera inventory fallback logic is now centralized in a shared loader (`backend/src/domains/cameras/camera-inventory-loader.js`) and remains available for controlled transitional compatibility paths (for example ONVIF discovery).
+- ONVIF discovery now resolves known scan prefixes from repository-backed inventory only (no legacy file prefix fallback in runtime discovery paths).
+- Camera inventory fallback logic is now centralized in a shared loader (`backend/src/domains/cameras/camera-inventory-loader.js`) and remains available for controlled transitional compatibility paths where still required.
 - Camera inventory ID resolution (`findCamera`/`listCameras`) is also centralized in that shared loader and reused by stream websocket gateways.
 - Legacy map/correction JSON compatibility I/O is now centralized through a shared adapter (`backend/maps/legacy-json-adapter.js`) consumed by both `backend/maps/storage.js` and `backend/maps/corrections.js`.
 - Map persistence runtime flag resolution (`METADATA_*`, `LEGACY_COMPAT_EXPORTS_ENABLED`) is now centralized in `backend/maps/persistence-flags.js` to keep storage/corrections behavior aligned.

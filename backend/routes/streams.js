@@ -31,17 +31,34 @@ function resolveStreamsService(streamControlService, streamControlProxyService) 
     return streamControlProxyService || streamControlService || null;
 }
 
+async function callStreamsServiceMethod({
+    streamControlService,
+    streamControlProxyService,
+    method,
+    args = [],
+    missingServiceMessage
+}) {
+    const service = resolveStreamsService(streamControlService, streamControlProxyService);
+    const handler = service && typeof service[method] === 'function' ? service[method] : null;
+    if (!handler) {
+        throw new Error(missingServiceMessage || `Streams service method is not configured: ${method}`);
+    }
+    return handler.apply(service, args);
+}
+
 function createStreamsRouter({ streamControlService, streamControlProxyService = null }) {
     const router = express.Router();
 
     router.get('/capabilities', async (req, res) => {
         try {
-            const service = resolveStreamsService(streamControlService, streamControlProxyService);
-            if (!service || typeof service.getCapabilities !== 'function') {
-                throw new Error('Streams capabilities service not configured');
-            }
-            const capabilities = await service.getCapabilities({
-                requestHeaders: req.headers || {}
+            const capabilities = await callStreamsServiceMethod({
+                streamControlService,
+                streamControlProxyService,
+                method: 'getCapabilities',
+                args: [{
+                    requestHeaders: req.headers || {}
+                }],
+                missingServiceMessage: 'Streams capabilities service not configured'
             });
             return res.json({
                 success: true,
@@ -54,13 +71,15 @@ function createStreamsRouter({ streamControlService, streamControlProxyService =
 
     router.get('/sessions/:cameraId', async (req, res) => {
         try {
-            const service = resolveStreamsService(streamControlService, streamControlProxyService);
-            if (!service || typeof service.getSessionDescriptor !== 'function') {
-                throw new Error('Streams session service not configured');
-            }
-            const session = await service.getSessionDescriptor({
-                cameraId: req.params?.cameraId,
-                requestHeaders: req.headers || {}
+            const session = await callStreamsServiceMethod({
+                streamControlService,
+                streamControlProxyService,
+                method: 'getSessionDescriptor',
+                args: [{
+                    cameraId: req.params?.cameraId,
+                    requestHeaders: req.headers || {}
+                }],
+                missingServiceMessage: 'Streams session service not configured'
             });
             return res.json({
                 success: true,
@@ -73,11 +92,12 @@ function createStreamsRouter({ streamControlService, streamControlProxyService =
 
     router.get('/runtime', async (req, res) => {
         try {
-            const service = resolveStreamsService(streamControlService, streamControlProxyService);
-            if (!service || typeof service.getRuntimeSnapshot !== 'function') {
-                throw new Error('Streams service not configured');
-            }
-            const snapshot = await service.getRuntimeSnapshot();
+            const snapshot = await callStreamsServiceMethod({
+                streamControlService,
+                streamControlProxyService,
+                method: 'getRuntimeSnapshot',
+                missingServiceMessage: 'Streams service not configured'
+            });
             return res.json({
                 success: true,
                 ...snapshot
@@ -89,11 +109,12 @@ function createStreamsRouter({ streamControlService, streamControlProxyService =
 
     router.get('/metrics', async (req, res) => {
         try {
-            const service = resolveStreamsService(streamControlService, streamControlProxyService);
-            if (!service || typeof service.getRuntimeSnapshot !== 'function') {
-                throw new Error('Streams service not configured');
-            }
-            const snapshot = await service.getRuntimeSnapshot();
+            const snapshot = await callStreamsServiceMethod({
+                streamControlService,
+                streamControlProxyService,
+                method: 'getRuntimeSnapshot',
+                missingServiceMessage: 'Streams service not configured'
+            });
             const metricsText = renderStreamRuntimePrometheusMetrics(snapshot);
             res.set('Content-Type', 'text/plain; version=0.0.4; charset=utf-8');
             return res.send(metricsText);
@@ -104,17 +125,19 @@ function createStreamsRouter({ streamControlService, streamControlProxyService =
 
     router.post('/webrtc/sessions', validateBody('jasy-jatere/contracts/stream-webrtc-session-create-request/v1'), async (req, res) => {
         try {
-            const service = resolveStreamsService(streamControlService, streamControlProxyService);
-            if (!service || typeof service.createWebRtcSession !== 'function') {
-                throw new Error('Streams WebRTC session service not configured');
-            }
             const body = req.body || {};
             const offer = body.offer && typeof body.offer === 'object' ? body.offer : null;
-            const session = await service.createWebRtcSession({
-                cameraId: body.cameraId,
-                offerSdp: offer?.sdp || body.offerSdp,
-                offerType: offer?.type || body.offerType,
-                requestHeaders: req.headers || {}
+            const session = await callStreamsServiceMethod({
+                streamControlService,
+                streamControlProxyService,
+                method: 'createWebRtcSession',
+                args: [{
+                    cameraId: body.cameraId,
+                    offerSdp: offer?.sdp || body.offerSdp,
+                    offerType: offer?.type || body.offerType,
+                    requestHeaders: req.headers || {}
+                }],
+                missingServiceMessage: 'Streams WebRTC session service not configured'
             });
             return res.json({
                 success: true,
@@ -127,10 +150,6 @@ function createStreamsRouter({ streamControlService, streamControlProxyService =
 
     router.post('/webrtc/sessions/:sessionId/candidates', validateBody('jasy-jatere/contracts/stream-webrtc-candidate-request/v1'), async (req, res) => {
         try {
-            const service = resolveStreamsService(streamControlService, streamControlProxyService);
-            if (!service || typeof service.submitWebRtcCandidate !== 'function') {
-                throw new Error('Streams WebRTC candidate service not configured');
-            }
             const body = req.body || {};
             const rawCandidate = body.candidate;
             const candidate = typeof rawCandidate === 'object' && rawCandidate
@@ -140,14 +159,20 @@ function createStreamsRouter({ streamControlService, streamControlProxyService =
             const sdpMLineIndex = typeof rawCandidate === 'object' && rawCandidate ? rawCandidate.sdpMLineIndex : body.sdpMLineIndex;
             const usernameFragment = typeof rawCandidate === 'object' && rawCandidate ? rawCandidate.usernameFragment : body.usernameFragment;
 
-            const result = await service.submitWebRtcCandidate({
-                sessionId: req.params?.sessionId,
-                cameraId: body.cameraId,
-                candidate,
-                sdpMid,
-                sdpMLineIndex,
-                usernameFragment,
-                requestHeaders: req.headers || {}
+            const result = await callStreamsServiceMethod({
+                streamControlService,
+                streamControlProxyService,
+                method: 'submitWebRtcCandidate',
+                args: [{
+                    sessionId: req.params?.sessionId,
+                    cameraId: body.cameraId,
+                    candidate,
+                    sdpMid,
+                    sdpMLineIndex,
+                    usernameFragment,
+                    requestHeaders: req.headers || {}
+                }],
+                missingServiceMessage: 'Streams WebRTC candidate service not configured'
             });
             return res.json({
                 success: true,
@@ -160,15 +185,17 @@ function createStreamsRouter({ streamControlService, streamControlProxyService =
 
     router.delete('/webrtc/sessions/:sessionId', validateBody('jasy-jatere/contracts/stream-webrtc-session-close-request/v1'), async (req, res) => {
         try {
-            const service = resolveStreamsService(streamControlService, streamControlProxyService);
-            if (!service || typeof service.closeWebRtcSession !== 'function') {
-                throw new Error('Streams WebRTC close service not configured');
-            }
             const body = req.body || {};
-            const result = await service.closeWebRtcSession({
-                sessionId: req.params?.sessionId,
-                cameraId: body.cameraId,
-                requestHeaders: req.headers || {}
+            const result = await callStreamsServiceMethod({
+                streamControlService,
+                streamControlProxyService,
+                method: 'closeWebRtcSession',
+                args: [{
+                    sessionId: req.params?.sessionId,
+                    cameraId: body.cameraId,
+                    requestHeaders: req.headers || {}
+                }],
+                missingServiceMessage: 'Streams WebRTC close service not configured'
             });
             return res.json({
                 success: true,
@@ -181,11 +208,13 @@ function createStreamsRouter({ streamControlService, streamControlProxyService =
 
     router.post('/sync', validateBody('jasy-jatere/contracts/stream-sync-request/v1'), async (req, res) => {
         try {
-            const service = resolveStreamsService(streamControlService, streamControlProxyService);
-            if (!service || typeof service.triggerManualSync !== 'function') {
-                throw new Error('Streams service not configured');
-            }
-            const manualSync = await service.triggerManualSync(req.body || {});
+            const manualSync = await callStreamsServiceMethod({
+                streamControlService,
+                streamControlProxyService,
+                method: 'triggerManualSync',
+                args: [req.body || {}],
+                missingServiceMessage: 'Streams service not configured'
+            });
             return res.json({
                 success: true,
                 sync: manualSync

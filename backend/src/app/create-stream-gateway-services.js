@@ -1,16 +1,14 @@
 const streamManager = require('../../stream-manager');
 const { resolveCameraStreamUrls, deriveCompanionRtsp, parseResolutionHint } = require('../../rtsp-utils');
-const { CameraMetadataRepository } = require('../infrastructure/repositories/camera-metadata-repository');
-const { CameraInventoryService } = require('../domains/cameras/camera-inventory-service');
 const { StreamSyncOrchestrator } = require('../domains/streams/stream-sync-orchestrator');
 const { StreamWebSocketGateway } = require('../domains/streams/stream-websocket-gateway');
 const { StreamControlService } = require('../domains/streams/stream-control-service');
 const {
-    buildRepositoryCompatOptions,
     buildLegacyFileFallbackOptions,
     buildStreamControlRuntimeOptions
 } = require('./composition-options');
 const { createMetadataContext } = require('./create-metadata-context');
+const { createCameraInventoryStack } = require('./create-camera-inventory-stack');
 
 function createStreamGatewayServices({
     cameraFile,
@@ -20,19 +18,16 @@ function createStreamGatewayServices({
     const metadataContext = createMetadataContext({ metadataDriver });
     const driver = metadataContext.metadataDriver;
     const sqliteStore = metadataContext.sqliteStore;
-    const repositoryCompatOptions = buildRepositoryCompatOptions(runtimeFlags);
     const legacyFileFallbackOptions = buildLegacyFileFallbackOptions(runtimeFlags);
     const streamControlRuntimeOptions = buildStreamControlRuntimeOptions(runtimeFlags);
 
-    const cameraRepository = new CameraMetadataRepository({
-        legacyFile: cameraFile,
-        driver,
-        sqliteStore,
-        ...repositoryCompatOptions
+    const cameraInventoryStack = createCameraInventoryStack({
+        cameraFile,
+        runtimeFlags,
+        metadataDriver: driver,
+        sqliteStore
     });
-    const cameraInventoryService = new CameraInventoryService({
-        repository: cameraRepository
-    });
+    const cameraInventoryService = cameraInventoryStack.cameraInventoryService;
 
     const streamSyncOrchestrator = new StreamSyncOrchestrator({
         cameraFile,

@@ -11,11 +11,9 @@ const { StreamWebSocketGateway } = require('../domains/streams/stream-websocket-
 const { StreamWebSocketProxyGateway } = require('../domains/streams/stream-websocket-proxy-gateway');
 const { StreamControlService } = require('../domains/streams/stream-control-service');
 const { StreamGatewayProxyService } = require('../domains/streams/stream-gateway-proxy-service');
-const { CameraMetadataRepository } = require('../infrastructure/repositories/camera-metadata-repository');
 const { RecordingCatalogRepository } = require('../infrastructure/repositories/recording-catalog-repository');
 const { ObservationEventRepository } = require('../infrastructure/repositories/observation-event-repository');
 const { HealthSnapshotRepository } = require('../infrastructure/repositories/health-snapshot-repository');
-const { CameraInventoryService } = require('../domains/cameras/camera-inventory-service');
 const { SavedCamerasService } = require('../domains/cameras/saved-cameras-service');
 const { OnvifCameraService } = require('../domains/cameras/onvif-camera-service');
 const { WorkerConfigService } = require('../domains/platform/worker-config-service');
@@ -25,11 +23,11 @@ const { PerceptionIngestService } = require('../domains/perception/perception-in
 const { DetectorProxyService } = require('../domains/perception/detector-proxy-service');
 const { MapsService } = require('../domains/maps/maps-service');
 const {
-    buildRepositoryCompatOptions,
     buildLegacyFileFallbackOptions,
     buildStreamControlRuntimeOptions
 } = require('./composition-options');
 const { createMetadataContext } = require('./create-metadata-context');
+const { createCameraInventoryStack } = require('./create-camera-inventory-stack');
 
 function createBackendServices({
     cameraFile,
@@ -39,16 +37,19 @@ function createBackendServices({
     const metadataContext = createMetadataContext({ metadataDriver });
     const driver = metadataContext.metadataDriver;
     const sqliteStore = metadataContext.sqliteStore;
-    const repositoryCompatOptions = buildRepositoryCompatOptions(runtimeFlags);
     const legacyFileFallbackOptions = buildLegacyFileFallbackOptions(runtimeFlags);
     const streamControlRuntimeOptions = buildStreamControlRuntimeOptions(runtimeFlags);
 
-    const cameraRepository = new CameraMetadataRepository({
-        legacyFile: cameraFile,
-        driver,
-        sqliteStore,
-        ...repositoryCompatOptions
+    const cameraInventoryStack = createCameraInventoryStack({
+        cameraFile,
+        runtimeFlags,
+        metadataDriver: driver,
+        sqliteStore
     });
+    const cameraRepository = cameraInventoryStack.cameraRepository;
+    const cameraInventoryService = cameraInventoryStack.cameraInventoryService;
+    const repositoryCompatOptions = cameraInventoryStack.repositoryCompatOptions;
+
     const recordingCatalogRepository = new RecordingCatalogRepository({
         driver,
         sqliteStore,
@@ -65,9 +66,6 @@ function createBackendServices({
         sqliteStore,
         dualWriteFile: runtimeFlags.legacyCompatExportsEnabled,
         legacyReadFallback: runtimeFlags.legacyCompatExportsEnabled
-    });
-    const cameraInventoryService = new CameraInventoryService({
-        repository: cameraRepository
     });
     const savedCamerasService = new SavedCamerasService({
         repository: cameraRepository

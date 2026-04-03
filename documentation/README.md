@@ -108,4 +108,5 @@ If you want the shortest path through the redesign, use this order:
 - Backend and stream-gateway app factories now delegate HTTP route wiring to dedicated modules (`backend/src/app/create-backend-routes.js`, `backend/src/app/create-stream-gateway-routes.js`), reducing bootstrapping file coupling.
 - Backend and stream-gateway composition now share common runtime option mappers (`backend/src/app/composition-options.js`) for repository compatibility, legacy fallback wiring, and stream-control runtime flags.
 - Backend and stream-gateway composition now also share metadata bootstrap wiring through `backend/src/app/create-metadata-context.js` (driver normalization + SQLite migrate/bootstrap).
+- Camera inventory composition wiring (repository + inventory service + compatibility option mapping) is now shared through `backend/src/app/create-camera-inventory-stack.js`.
 - Frontend polling-heavy data hooks now reuse a shared polling helper (`frontend/src/api/polling.js`) to keep query cadence and cancellation behavior consistent across domains.

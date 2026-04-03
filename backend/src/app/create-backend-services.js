@@ -1,15 +1,11 @@
-const streamManager = require('../../stream-manager');
 const { CameraEventMonitor } = require('../../camera-event-monitor');
 const CameraConnectivityMonitor = require('../../camera-connectivity-monitor');
-const { resolveCameraStreamUrls, deriveCompanionRtsp, parseResolutionHint } = require('../../rtsp-utils');
+const streamManager = require('../../stream-manager');
 const { ContractsService } = require('../domains/contracts/contracts-service');
 const { ConnectivityMonitoringService } = require('../domains/monitoring/connectivity-monitoring-service');
 const { CameraMotionService } = require('../domains/monitoring/camera-motion-service');
 const { PlatformHealthService } = require('../domains/platform/platform-health-service');
-const { StreamSyncOrchestrator } = require('../domains/streams/stream-sync-orchestrator');
-const { StreamWebSocketGateway } = require('../domains/streams/stream-websocket-gateway');
 const { StreamWebSocketProxyGateway } = require('../domains/streams/stream-websocket-proxy-gateway');
-const { StreamControlService } = require('../domains/streams/stream-control-service');
 const { StreamGatewayProxyService } = require('../domains/streams/stream-gateway-proxy-service');
 const { RecordingCatalogRepository } = require('../infrastructure/repositories/recording-catalog-repository');
 const { ObservationEventRepository } = require('../infrastructure/repositories/observation-event-repository');
@@ -23,11 +19,11 @@ const { PerceptionIngestService } = require('../domains/perception/perception-in
 const { DetectorProxyService } = require('../domains/perception/detector-proxy-service');
 const { MapsService } = require('../domains/maps/maps-service');
 const {
-    buildLegacyFileFallbackOptions,
-    buildStreamControlRuntimeOptions
+    buildLegacyFileFallbackOptions
 } = require('./composition-options');
 const { createMetadataContext } = require('./create-metadata-context');
 const { createCameraInventoryStack } = require('./create-camera-inventory-stack');
+const { createStreamRuntimeStack } = require('./create-stream-runtime-stack');
 
 function createBackendServices({
     cameraFile,
@@ -38,7 +34,6 @@ function createBackendServices({
     const driver = metadataContext.metadataDriver;
     const sqliteStore = metadataContext.sqliteStore;
     const legacyFileFallbackOptions = buildLegacyFileFallbackOptions(runtimeFlags);
-    const streamControlRuntimeOptions = buildStreamControlRuntimeOptions(runtimeFlags);
 
     const cameraInventoryStack = createCameraInventoryStack({
         cameraFile,
@@ -92,21 +87,14 @@ function createBackendServices({
         connectivityMonitor,
         healthSnapshotRepository
     });
-    const streamSyncOrchestrator = new StreamSyncOrchestrator({
+    const streamRuntimeStack = createStreamRuntimeStack({
         cameraFile,
         cameraInventoryService,
-        streamManager,
-        resolveCameraStreamUrls,
-        deriveCompanionRtsp,
-        parseResolutionHint,
-        ...legacyFileFallbackOptions
+        runtimeFlags,
+        streamManagerInstance: streamManager
     });
-    const streamControlService = new StreamControlService({
-        streamManager,
-        cameraInventoryService,
-        streamSyncOrchestrator,
-        ...streamControlRuntimeOptions
-    });
+    const streamSyncOrchestrator = streamRuntimeStack.streamSyncOrchestrator;
+    const streamControlService = streamRuntimeStack.streamControlService;
     const streamGatewayApiUrl = String(runtimeFlags.streamGatewayApiUrl || '').trim();
     const streamControlProxyService = streamGatewayApiUrl
         ? new StreamGatewayProxyService({
@@ -150,13 +138,7 @@ function createBackendServices({
             ? new StreamWebSocketProxyGateway({
                 gatewayApiBaseUrl: streamGatewayApiUrl
             })
-            : new StreamWebSocketGateway({
-                cameraFile,
-                cameraInventoryService,
-                streamManager,
-                resolveCameraStreamUrls,
-                ...legacyFileFallbackOptions
-            });
+            : streamRuntimeStack.streamWebSocketGateway;
     const mapsService = new MapsService();
     const detectorProxyService = new DetectorProxyService();
 

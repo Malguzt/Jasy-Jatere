@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { apiClient } from './client';
+import { usePollingTask } from './polling';
 
 export function useRecordingsData() {
     const [recordings, setRecordings] = useState([]);
@@ -82,22 +83,12 @@ export function useConnectivityData({ pollMs = 5000 } = {}) {
         }
     };
 
-    useEffect(() => {
-        let cancelled = false;
-
-        const runOnce = async () => {
-            if (cancelled) return;
-            await refresh();
-        };
-
-        runOnce();
-        const timer = setInterval(runOnce, Math.max(1000, Number(pollMs) || 5000));
-
-        return () => {
-            cancelled = true;
-            clearInterval(timer);
-        };
-    }, [pollMs]);
+    usePollingTask({
+        task: refresh,
+        pollMs,
+        minPollMs: 1000,
+        deps: [pollMs]
+    });
 
     return {
         payload,
@@ -159,26 +150,19 @@ export function useSavedCamerasData() {
 export function useDetectorStatusData({ pollMs = 2000 } = {}) {
     const [detectorStatus, setDetectorStatus] = useState({});
 
-    useEffect(() => {
-        let cancelled = false;
-
-        const readStatus = async () => {
+    usePollingTask({
+        task: async () => {
             try {
                 const data = await apiClient.getDetectorStatus();
-                if (cancelled) return;
                 if (data?.cameras) {
                     setDetectorStatus(data.cameras);
                 }
             } catch (error) {}
-        };
-
-        readStatus();
-        const timer = setInterval(readStatus, Math.max(1000, Number(pollMs) || 2000));
-        return () => {
-            cancelled = true;
-            clearInterval(timer);
-        };
-    }, [pollMs]);
+        },
+        pollMs,
+        minPollMs: 1000,
+        deps: [pollMs]
+    });
 
     return {
         detectorStatus,

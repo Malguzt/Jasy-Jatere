@@ -90,6 +90,7 @@ If you want the shortest path through the redesign, use this order:
 - Recording retention and cleanup are now modeled as control-plane runtime policy (`RECORDING_RETENTION_*`).
 - Detector recycle policy can be synchronized from `GET /api/internal/config/retention` (`USE_CONTROL_PLANE_RETENTION_CONFIG`) to avoid drift with control-plane retention settings.
 - Detector camera/retention config source resolution is now centralized in `detector/config_provider.py`, separating control-plane snapshot reads and legacy file fallback policy from detection runtime loops.
+- Detector control-plane ingest/catalog HTTP interactions are now centralized in `detector/control_plane_client.py`, keeping publish/list/delete integration boundaries explicit.
 - Backend connectivity monitoring now prefers repository-backed camera inventory; direct `cameras.json` fallback is gated by `LEGACY_COMPAT_EXPORTS_ENABLED`.
 - Stream websocket gateways (backend and stream-gateway) now prefer repository-backed camera inventory; direct `cameras.json` fallback is gated by `LEGACY_COMPAT_EXPORTS_ENABLED`.
 - Camera event monitoring and stream-sync orchestration now also prefer repository-backed inventory; direct file fallback is gated by `LEGACY_COMPAT_EXPORTS_ENABLED`.

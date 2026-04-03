@@ -10,6 +10,7 @@ import urllib.error
 import urllib.parse
 from collections import deque
 from config_provider import DetectorConfigProvider
+from control_plane_client import ControlPlaneClient
 
 # Optional: Set global capture options if needed (currently commented out to allow auto-negotiation)
 # os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp"
@@ -135,6 +136,7 @@ device_lock = threading.Lock()
 motion_cache = {}   # cam_id -> {"ts": epoch, "motion": bool, "healthy": bool}
 recordings_index_lock = threading.Lock()
 config_provider = None
+control_plane_client = None
 
 os.makedirs(RECORDINGS_DIR, exist_ok=True)
 
@@ -761,54 +763,35 @@ def get_config_provider():
     return config_provider
 
 
+def get_control_plane_client():
+    global control_plane_client
+    if control_plane_client is None:
+        control_plane_client = ControlPlaneClient(
+            recordings_url=CONTROL_PLANE_RECORDINGS_URL,
+            perception_observations_url=CONTROL_PLANE_PERCEPTION_OBSERVATIONS_URL,
+            perception_recordings_url=CONTROL_PLANE_PERCEPTION_RECORDINGS_URL,
+            use_perception_ingest=USE_CONTROL_PLANE_PERCEPTION_INGEST,
+            use_recording_catalog=USE_CONTROL_PLANE_RECORDING_CATALOG,
+            http_json_func=http_json,
+            logger=print
+        )
+    return control_plane_client
+
+
 def publish_observation_event(event):
-    if not USE_CONTROL_PLANE_PERCEPTION_INGEST:
-        return
-    try:
-        http_json("POST", CONTROL_PLANE_PERCEPTION_OBSERVATIONS_URL, payload=event, timeout=2)
-    except Exception as e:
-        print(f"[INGEST] observation publish failed: {e}")
+    get_control_plane_client().publish_observation_event(event)
 
 
 def publish_recording_catalog(metadata):
-    if not USE_CONTROL_PLANE_RECORDING_CATALOG:
-        return
-    try:
-        http_json("POST", CONTROL_PLANE_PERCEPTION_RECORDINGS_URL, payload=metadata, timeout=2)
-    except Exception as e:
-        print(f"[INGEST] recording metadata publish failed: {e}")
+    get_control_plane_client().publish_recording_catalog(metadata)
 
 
 def delete_recording_catalog_entry(filename):
-    if not USE_CONTROL_PLANE_RECORDING_CATALOG:
-        return
-    if not filename:
-        return
-    try:
-        safe = urllib.parse.quote(str(filename), safe="")
-        http_json("DELETE", f"{CONTROL_PLANE_RECORDINGS_URL}/{safe}", timeout=2)
-    except Exception as e:
-        print(f"[INGEST] recording metadata delete failed: {e}")
+    get_control_plane_client().delete_recording_catalog_entry(filename)
 
 
 def list_recordings_from_control_plane(query):
-    params = {}
-    for key in ("q", "camera_id", "category", "object", "date_from", "date_to"):
-        value = query.get(key)
-        if value is None:
-            continue
-        text = str(value).strip()
-        if text:
-            params[key] = text
-
-    url = CONTROL_PLANE_RECORDINGS_URL
-    if params:
-        url = f"{url}?{urllib.parse.urlencode(params)}"
-
-    payload = http_json("GET", url, timeout=4)
-    if isinstance(payload, dict) and payload.get("success") and isinstance(payload.get("recordings"), list):
-        return payload.get("recordings", [])
-    raise ValueError("Invalid control-plane recordings payload")
+    return get_control_plane_client().list_recordings(query)
 
 
 def get_camera_motion_trigger(cam_id):

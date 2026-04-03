@@ -72,16 +72,14 @@ function createBackendServices({
     });
     const cameraEventMonitor = new CameraEventMonitor({
         cameraFile,
-        cameraInventoryService,
-        ...legacyFileFallbackOptions
+        cameraInventoryService
     });
 
     const connectivityMonitor = new CameraConnectivityMonitor({
         cameraFile,
         streamManager,
         cameraEventMonitor,
-        cameraInventoryService,
-        ...legacyFileFallbackOptions
+        cameraInventoryService
     });
     const monitoringService = new ConnectivityMonitoringService({
         connectivityMonitor,

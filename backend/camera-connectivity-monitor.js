@@ -1,4 +1,3 @@
-const path = require('path');
 const { spawn } = require('child_process');
 const { withCameraAuth, deriveCompanionRtsp } = require('./rtsp-utils');
 const { loadCameraInventory } = require('./src/domains/cameras/camera-inventory-loader');
@@ -53,14 +52,12 @@ class CameraConnectivityMonitor {
         cameraFile,
         streamManager,
         cameraEventMonitor,
-        cameraInventoryService = null,
-        legacyFileFallbackEnabled = (process.env.LEGACY_COMPAT_EXPORTS_ENABLED === '1')
+        cameraInventoryService = null
     }) {
-        this.cameraFile = cameraFile || path.join(__dirname, 'data', 'cameras.json');
+        this.cameraFile = cameraFile;
         this.streamManager = streamManager;
         this.cameraEventMonitor = cameraEventMonitor;
         this.cameraInventoryService = cameraInventoryService;
-        this.legacyFileFallbackEnabled = legacyFileFallbackEnabled === true;
         this.intervalMs = clamp(DEFAULT_INTERVAL_MS, 8000, 120000);
         this.historySize = clamp(DEFAULT_HISTORY_SIZE, 30, 720);
         this.timer = null;
@@ -93,11 +90,8 @@ class CameraConnectivityMonitor {
     loadCameras() {
         return loadCameraInventory({
             cameraInventoryService: this.cameraInventoryService,
-            legacyFilePath: this.cameraFile,
-            legacyFileFallbackEnabled: this.legacyFileFallbackEnabled,
             logger: console,
-            serviceErrorPrefix: '[MON] failed to load cameras from inventory service:',
-            fileErrorPrefix: '[MON] failed to load cameras:'
+            serviceErrorPrefix: '[MON] failed to load cameras from inventory service:'
         });
     }
 

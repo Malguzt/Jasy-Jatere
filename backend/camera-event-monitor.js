@@ -1,11 +1,8 @@
-const path = require('path');
 const url = require('url');
 const onvif = require('node-onvif');
 const onvifSoap = require('node-onvif/lib/modules/soap');
 const { resolveCameraCredentials } = require('./camera-credentials');
 const { loadCameraInventory } = require('./src/domains/cameras/camera-inventory-loader');
-
-const DATA_FILE = path.join(__dirname, 'data', 'cameras.json');
 const EVENTS_XMLNS = [
     'xmlns:wsa="http://www.w3.org/2005/08/addressing"',
     'xmlns:tev="http://www.onvif.org/ver10/events/wsdl"',
@@ -63,13 +60,11 @@ function motionFromNotification(notification) {
 
 class CameraEventMonitor {
     constructor({
-        cameraFile = DATA_FILE,
-        cameraInventoryService = null,
-        legacyFileFallbackEnabled = (process.env.LEGACY_COMPAT_EXPORTS_ENABLED === '1')
+        cameraFile = null,
+        cameraInventoryService = null
     } = {}) {
-        this.cameraFile = cameraFile || DATA_FILE;
+        this.cameraFile = cameraFile;
         this.cameraInventoryService = cameraInventoryService;
-        this.legacyFileFallbackEnabled = legacyFileFallbackEnabled === true;
         this.running = false;
         this.monitors = new Map(); // camId -> monitor state
         this.motion = new Map(); // camId -> { motion, lastMotionAt, lastEventAt, source, healthy, error, topic }
@@ -117,11 +112,8 @@ class CameraEventMonitor {
     loadCameras() {
         return loadCameraInventory({
             cameraInventoryService: this.cameraInventoryService,
-            legacyFilePath: this.cameraFile,
-            legacyFileFallbackEnabled: this.legacyFileFallbackEnabled,
             logger: console,
-            serviceErrorPrefix: '[EVT] Error loading inventory cameras:',
-            fileErrorPrefix: '[EVT] Error loading camera file:'
+            serviceErrorPrefix: '[EVT] Error loading inventory cameras:'
         });
     }
 

@@ -12,8 +12,7 @@ function resolveMapPersistenceFlags(env = process.env) {
     return {
         metadataDriver,
         legacyCompatExportsEnabled,
-        exportCompatJson: parseBool(env.METADATA_DUAL_WRITE_JSON_EXPORTS, legacyCompatExportsEnabled),
-        legacyReadFallback: parseBool(env.METADATA_LEGACY_READ_FALLBACK, legacyCompatExportsEnabled)
+        exportCompatJson: parseBool(env.METADATA_DUAL_WRITE_JSON_EXPORTS, legacyCompatExportsEnabled)
     };
 }
 

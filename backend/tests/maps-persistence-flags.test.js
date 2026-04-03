@@ -19,27 +19,23 @@ test('resolveMapPersistenceFlags defaults to sqlite with legacy compat disabled'
     assert.equal(flags.metadataDriver, 'sqlite');
     assert.equal(flags.legacyCompatExportsEnabled, false);
     assert.equal(flags.exportCompatJson, false);
-    assert.equal(flags.legacyReadFallback, false);
 });
 
-test('resolveMapPersistenceFlags derives dual-write and fallback defaults from legacy compat flag', () => {
+test('resolveMapPersistenceFlags derives dual-write defaults from legacy compat flag', () => {
     const flags = resolveMapPersistenceFlags({
         METADATA_STORE_DRIVER: 'sqlite',
         LEGACY_COMPAT_EXPORTS_ENABLED: '1'
     });
     assert.equal(flags.legacyCompatExportsEnabled, true);
     assert.equal(flags.exportCompatJson, true);
-    assert.equal(flags.legacyReadFallback, true);
 });
 
-test('resolveMapPersistenceFlags allows explicit override of dual-write and fallback flags', () => {
+test('resolveMapPersistenceFlags allows explicit override of dual-write flags', () => {
     const flags = resolveMapPersistenceFlags({
         METADATA_STORE_DRIVER: 'sqlite',
         LEGACY_COMPAT_EXPORTS_ENABLED: '1',
-        METADATA_DUAL_WRITE_JSON_EXPORTS: '0',
-        METADATA_LEGACY_READ_FALLBACK: '0'
+        METADATA_DUAL_WRITE_JSON_EXPORTS: '0'
     });
     assert.equal(flags.legacyCompatExportsEnabled, true);
     assert.equal(flags.exportCompatJson, false);
-    assert.equal(flags.legacyReadFallback, false);
 });

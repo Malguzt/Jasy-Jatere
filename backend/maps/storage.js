@@ -21,7 +21,6 @@ const mapPersistenceFlags = resolveMapPersistenceFlags();
 const METADATA_DRIVER = mapPersistenceFlags.metadataDriver;
 const SQLITE_DB_PATH = process.env.METADATA_SQLITE_PATH || path.join(MAPS_DIR, 'metadata.db');
 const EXPORT_COMPAT_JSON = mapPersistenceFlags.exportCompatJson;
-const LEGACY_READ_FALLBACK = mapPersistenceFlags.legacyReadFallback;
 
 let sqliteStore = null;
 let sqliteMaps = null;
@@ -141,7 +140,7 @@ function bootstrapSqliteFromLegacy({ force = false } = {}) {
     if (!useSqlite()) return;
     ensureSqliteRepositories();
     if (sqliteBootstrapped) return;
-    if (!force && !LEGACY_READ_FALLBACK) return;
+    if (!force) return;
 
     if (sqliteMaps.count() === 0) {
         const legacyIndex = legacyGetIndex();

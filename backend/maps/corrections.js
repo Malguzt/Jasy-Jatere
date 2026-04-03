@@ -1,10 +1,9 @@
-const fs = require('fs');
 const path = require('path');
 const { MAPS_DIR } = require('./storage');
 const { MetadataSqliteStore } = require('../src/infrastructure/sqlite/metadata-sqlite-store');
 const { SqliteMapCorrectionsRepository } = require('../src/infrastructure/sqlite/sqlite-map-corrections-repository');
+const { createLegacyJsonAdapter } = require('./legacy-json-adapter');
 
-const CORRECTIONS_FILE = path.join(MAPS_DIR, 'manual-corrections.json');
 const MAX_HISTORY = Number(process.env.MAP_CORRECTION_HISTORY_LIMIT || 20);
 const METADATA_DRIVER = String(process.env.METADATA_STORE_DRIVER || 'sqlite').toLowerCase();
 const SQLITE_DB_PATH = process.env.METADATA_SQLITE_PATH || path.join(MAPS_DIR, 'metadata.db');
@@ -20,6 +19,16 @@ const DEFAULT_CORRECTIONS = {
     objectHints: [],
     history: []
 };
+const legacyAdapter = createLegacyJsonAdapter({
+    mapsDir: MAPS_DIR,
+    defaultIndex: {
+        schemaVersion: '1.0',
+        activeMapId: null,
+        maps: []
+    },
+    defaultCorrections: DEFAULT_CORRECTIONS
+});
+const CORRECTIONS_FILE = legacyAdapter.correctionsFile;
 
 let sqliteStore = null;
 let sqliteCorrections = null;
@@ -45,17 +54,9 @@ function ensureSqliteRepository() {
     sqliteCorrections = new SqliteMapCorrectionsRepository({ store: sqliteStore });
 }
 
-function ensureLegacyFile() {
-    fs.mkdirSync(MAPS_DIR, { recursive: true });
-    if (!fs.existsSync(CORRECTIONS_FILE)) {
-        fs.writeFileSync(CORRECTIONS_FILE, `${JSON.stringify(DEFAULT_CORRECTIONS, null, 2)}\n`);
-    }
-}
-
 function legacyReadCorrections() {
     try {
-        ensureLegacyFile();
-        const raw = JSON.parse(fs.readFileSync(CORRECTIONS_FILE, 'utf8'));
+        const raw = legacyAdapter.readCorrections({ ensure: true });
         if (!raw || typeof raw !== 'object') return { ...DEFAULT_CORRECTIONS };
         return {
             schemaVersion: raw.schemaVersion || '1.0',
@@ -82,9 +83,8 @@ function sanitizeCorrections(data) {
 }
 
 function legacyWriteCorrections(data) {
-    ensureLegacyFile();
     const safe = sanitizeCorrections(data);
-    fs.writeFileSync(CORRECTIONS_FILE, `${JSON.stringify(safe, null, 2)}\n`);
+    legacyAdapter.writeCorrections(safe);
     return safe;
 }
 

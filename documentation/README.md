@@ -94,6 +94,7 @@ If you want the shortest path through the redesign, use this order:
 - Camera event monitoring and stream-sync orchestration now also prefer repository-backed inventory; direct file fallback is gated by `LEGACY_COMPAT_EXPORTS_ENABLED`.
 - ONVIF discovery now prefers repository-backed inventory prefixes in control-plane composition; legacy file prefix fallback is gated by `LEGACY_COMPAT_EXPORTS_ENABLED`.
 - Camera inventory fallback logic is now centralized in a shared loader (`backend/src/domains/cameras/camera-inventory-loader.js`) and reused by connectivity/event monitors, stream sync orchestration, and ONVIF discovery to keep legacy fallback behavior consistent.
+- Legacy map/correction JSON compatibility I/O is now centralized through a shared adapter (`backend/maps/legacy-json-adapter.js`) consumed by both `backend/maps/storage.js` and `backend/maps/corrections.js`.
 - Camera onboarding routes now use composition-injected domain services (`/api/cameras`, `/api/saved-cameras`) so repository/runtime wiring is owned by control-plane bootstrap rather than route-local singletons.
 - Map and detector API routes are also composition-injected (`/api/maps`, `/api/detector`) to keep bootstrap ownership explicit and testable.
 - Backend service wiring is now centralized in a dedicated composition factory (`backend/src/app/create-backend-services.js`) so app bootstrap focuses on HTTP/runtime lifecycle only.

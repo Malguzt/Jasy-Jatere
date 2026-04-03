@@ -1,20 +1,24 @@
-const fs = require('fs');
 const path = require('path');
 const { MetadataSqliteStore } = require('../src/infrastructure/sqlite/metadata-sqlite-store');
 const { SqliteMapVersionRepository } = require('../src/infrastructure/sqlite/sqlite-map-version-repository');
 const { SqliteMapJobRepository } = require('../src/infrastructure/sqlite/sqlite-map-job-repository');
+const { createLegacyJsonAdapter } = require('./legacy-json-adapter');
 
 const MAPS_DIR = process.env.MAPS_DATA_DIR
     ? path.resolve(process.env.MAPS_DATA_DIR)
     : path.join(__dirname, '..', 'data', 'maps');
-const INDEX_FILE = path.join(MAPS_DIR, 'index.json');
-const JOBS_FILE = path.join(MAPS_DIR, 'jobs.json');
-
 const DEFAULT_INDEX = {
     schemaVersion: '1.0',
     activeMapId: null,
     maps: []
 };
+const legacyAdapter = createLegacyJsonAdapter({
+    mapsDir: MAPS_DIR,
+    defaultIndex: DEFAULT_INDEX,
+    defaultCorrections: {}
+});
+const INDEX_FILE = legacyAdapter.indexFile;
+const JOBS_FILE = legacyAdapter.jobsFile;
 
 const METADATA_DRIVER = String(process.env.METADATA_STORE_DRIVER || 'sqlite').toLowerCase();
 const SQLITE_DB_PATH = process.env.METADATA_SQLITE_PATH || path.join(MAPS_DIR, 'metadata.db');
@@ -49,28 +53,7 @@ function ensureSqliteRepositories() {
 }
 
 function ensureStorage() {
-    fs.mkdirSync(MAPS_DIR, { recursive: true });
-    if (!fs.existsSync(INDEX_FILE)) {
-        writeJsonAtomic(INDEX_FILE, DEFAULT_INDEX);
-    }
-    if (!fs.existsSync(JOBS_FILE)) {
-        writeJsonAtomic(JOBS_FILE, []);
-    }
-}
-
-function readJsonSafe(filePath, fallbackValue) {
-    try {
-        if (!fs.existsSync(filePath)) return fallbackValue;
-        return JSON.parse(fs.readFileSync(filePath, 'utf8'));
-    } catch (error) {
-        return fallbackValue;
-    }
-}
-
-function writeJsonAtomic(filePath, data) {
-    const tempFile = `${filePath}.tmp`;
-    fs.writeFileSync(tempFile, JSON.stringify(data, null, 2));
-    fs.renameSync(tempFile, filePath);
+    legacyAdapter.ensureStorageFiles();
 }
 
 function toSummary(mapDoc) {
@@ -88,13 +71,8 @@ function toSummary(mapDoc) {
     };
 }
 
-function getMapPath(mapId) {
-    return path.join(MAPS_DIR, `${mapId}.json`);
-}
-
 function legacyGetIndex() {
-    ensureStorage();
-    const raw = readJsonSafe(INDEX_FILE, DEFAULT_INDEX);
+    const raw = legacyAdapter.readIndex({ ensure: true });
     const maps = Array.isArray(raw?.maps) ? raw.maps : [];
     return {
         schemaVersion: raw?.schemaVersion || '1.0',
@@ -104,24 +82,17 @@ function legacyGetIndex() {
 }
 
 function legacySaveIndex(index) {
-    ensureStorage();
     const next = {
         schemaVersion: index?.schemaVersion || '1.0',
         activeMapId: index?.activeMapId || null,
         maps: Array.isArray(index?.maps) ? index.maps : []
     };
-    writeJsonAtomic(INDEX_FILE, next);
+    legacyAdapter.writeIndex(next);
     return next;
 }
 
 function legacySaveMap(mapDoc) {
-    ensureStorage();
-    if (!mapDoc || !mapDoc.mapId) {
-        throw new Error('mapDoc/mapId is required');
-    }
-
-    const mapPath = getMapPath(mapDoc.mapId);
-    writeJsonAtomic(mapPath, mapDoc);
+    legacyAdapter.writeMap(mapDoc);
 
     const summary = toSummary(mapDoc);
     const index = legacyGetIndex();
@@ -138,10 +109,7 @@ function legacySaveMap(mapDoc) {
 }
 
 function legacyGetMap(mapId) {
-    ensureStorage();
-    if (!mapId) return null;
-    const filePath = getMapPath(mapId);
-    return readJsonSafe(filePath, null);
+    return legacyAdapter.readMap(mapId, null);
 }
 
 function legacyListMapSummaries() {
@@ -169,17 +137,14 @@ function legacyPromoteMap(mapId) {
 }
 
 function legacyLoadJobs() {
-    ensureStorage();
-    const jobs = readJsonSafe(JOBS_FILE, []);
-    if (!Array.isArray(jobs)) return [];
+    const jobs = legacyAdapter.readJobs({ ensure: true });
     return jobs.sort((a, b) => Number(b.requestedAt || 0) - Number(a.requestedAt || 0));
 }
 
 function legacySaveJobs(jobs) {
-    ensureStorage();
     const safeJobs = Array.isArray(jobs) ? jobs : [];
     const sorted = [...safeJobs].sort((a, b) => Number(b.requestedAt || 0) - Number(a.requestedAt || 0));
-    writeJsonAtomic(JOBS_FILE, sorted);
+    legacyAdapter.writeJobs(sorted);
     return sorted;
 }
 

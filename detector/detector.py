@@ -9,6 +9,7 @@ import urllib.request
 import urllib.error
 import urllib.parse
 from collections import deque
+from config_provider import DetectorConfigProvider
 
 # Optional: Set global capture options if needed (currently commented out to allow auto-negotiation)
 # os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp"
@@ -133,14 +134,7 @@ device_round_robin = 0
 device_lock = threading.Lock()
 motion_cache = {}   # cam_id -> {"ts": epoch, "motion": bool, "healthy": bool}
 recordings_index_lock = threading.Lock()
-retention_policy_lock = threading.Lock()
-retention_policy_state = {
-    "recordings_max_size_gb": float(DEFAULT_RECORDINGS_MAX_SIZE_GB),
-    "delete_oldest_batch": int(DEFAULT_DELETE_OLDEST_BATCH),
-    "last_fetch_ts": 0.0,
-    "last_success_ts": 0.0,
-    "source": "defaults"
-}
+config_provider = None
 
 os.makedirs(RECORDINGS_DIR, exist_ok=True)
 
@@ -445,108 +439,27 @@ def get_category(class_id):
 
 
 def load_cameras_from_control_plane():
-    try:
-        payload = http_json("GET", CONTROL_PLANE_CAMERA_CONFIG_URL, timeout=4)
-        cameras = payload.get("cameras") if isinstance(payload, dict) else None
-        if payload.get("success") and isinstance(cameras, list):
-            return cameras
-    except Exception as e:
-        print(f"[CFG] Control-plane camera config unavailable: {e}")
-    return None
+    return get_config_provider().load_cameras_from_control_plane()
 
 
 def load_cameras():
-    if USE_CONTROL_PLANE_CAMERA_CONFIG:
-        cameras = load_cameras_from_control_plane()
-        if isinstance(cameras, list):
-            return cameras
-        if REQUIRE_CONTROL_PLANE_CAMERA_CONFIG:
-            print("[CFG] Control-plane camera config is required; skipping shared-file fallback.")
-            return []
-
-    try:
-        if os.path.exists(DATA_FILE):
-            with open(DATA_FILE, "r") as f:
-                return json.load(f)
-    except Exception as e:
-        print(f"Error loading cameras: {e}")
-    return []
+    return get_config_provider().load_cameras()
 
 
 def load_retention_from_control_plane():
-    try:
-        payload = http_json("GET", CONTROL_PLANE_RETENTION_CONFIG_URL, timeout=4)
-        retention = payload.get("retention") if isinstance(payload, dict) else None
-        if payload.get("success") and isinstance(retention, dict):
-            return retention
-    except Exception as e:
-        print(f"[CFG] Control-plane retention config unavailable: {e}")
-    return None
+    return get_config_provider().load_retention_from_control_plane()
 
 
 def retention_snapshot_to_policy(retention):
-    if not isinstance(retention, dict):
-        return None
-    detector_recycle = retention.get("detectorRecycle")
-    max_size_gb = None
-    delete_batch = None
-    if isinstance(detector_recycle, dict):
-        max_size_gb = detector_recycle.get("recordingsMaxSizeGb")
-        delete_batch = detector_recycle.get("deleteOldestBatch")
-    if max_size_gb is None:
-        max_size_gb = retention.get("recordingsMaxSizeGb")
-    if delete_batch is None:
-        delete_batch = retention.get("deleteOldestBatch")
-
-    try:
-        max_size_gb = float(max_size_gb)
-    except Exception:
-        max_size_gb = 0.0
-    try:
-        delete_batch = int(delete_batch)
-    except Exception:
-        delete_batch = 0
-
-    if max_size_gb <= 0 or delete_batch <= 0:
-        return None
-    return {
-        "recordings_max_size_gb": max_size_gb,
-        "delete_oldest_batch": delete_batch
-    }
+    return get_config_provider().retention_snapshot_to_policy(retention)
 
 
 def refresh_retention_policy(force=False):
-    if not USE_CONTROL_PLANE_RETENTION_CONFIG:
-        return False
-
-    now = time.time()
-    with retention_policy_lock:
-        last_fetch = float(retention_policy_state.get("last_fetch_ts", 0.0))
-    if not force and (now - last_fetch) < float(RETENTION_CONFIG_TTL_SEC):
-        return True
-
-    retention = load_retention_from_control_plane()
-    policy = retention_snapshot_to_policy(retention)
-    with retention_policy_lock:
-        retention_policy_state["last_fetch_ts"] = now
-        if policy:
-            retention_policy_state.update(policy)
-            retention_policy_state["last_success_ts"] = now
-            retention_policy_state["source"] = "control-plane"
-            return True
-
-        if REQUIRE_CONTROL_PLANE_RETENTION_CONFIG and retention_policy_state.get("last_success_ts", 0.0) <= 0:
-            print("[CFG] Control-plane retention config is required but unavailable; continuing with detector defaults.")
-        return False
+    return get_config_provider().refresh_retention_policy(force=force)
 
 
 def get_active_retention_policy():
-    refresh_retention_policy()
-    with retention_policy_lock:
-        max_size_gb = float(retention_policy_state.get("recordings_max_size_gb", DEFAULT_RECORDINGS_MAX_SIZE_GB))
-        delete_batch = int(retention_policy_state.get("delete_oldest_batch", DEFAULT_DELETE_OLDEST_BATCH))
-    max_size_bytes = int(max_size_gb * 1024 * 1024 * 1024)
-    return max_size_bytes, delete_batch, max_size_gb
+    return get_config_provider().get_active_retention_policy()
 
 
 def resolve_camera_credentials(cam):
@@ -826,6 +739,26 @@ def http_json(method, url, payload=None, timeout=2):
     with urllib.request.urlopen(req, timeout=timeout) as resp:
         body = resp.read().decode("utf-8", "ignore")
         return json.loads(body) if body else {}
+
+
+def get_config_provider():
+    global config_provider
+    if config_provider is None:
+        config_provider = DetectorConfigProvider(
+            data_file=DATA_FILE,
+            control_plane_camera_config_url=CONTROL_PLANE_CAMERA_CONFIG_URL,
+            control_plane_retention_config_url=CONTROL_PLANE_RETENTION_CONFIG_URL,
+            use_control_plane_camera_config=USE_CONTROL_PLANE_CAMERA_CONFIG,
+            require_control_plane_camera_config=REQUIRE_CONTROL_PLANE_CAMERA_CONFIG,
+            use_control_plane_retention_config=USE_CONTROL_PLANE_RETENTION_CONFIG,
+            require_control_plane_retention_config=REQUIRE_CONTROL_PLANE_RETENTION_CONFIG,
+            retention_config_ttl_sec=RETENTION_CONFIG_TTL_SEC,
+            default_recordings_max_size_gb=DEFAULT_RECORDINGS_MAX_SIZE_GB,
+            default_delete_oldest_batch=DEFAULT_DELETE_OLDEST_BATCH,
+            http_json_func=http_json,
+            logger=print
+        )
+    return config_provider
 
 
 def publish_observation_event(event):

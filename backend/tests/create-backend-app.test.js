@@ -5,9 +5,7 @@ const { createBackendApp } = require('../src/app/create-backend-app');
 const { validateBySchemaId } = require('../src/contracts/validator');
 
 test('createBackendApp returns express app and runtime coordinator', () => {
-    const built = createBackendApp({
-        cameraFile: '/tmp/non-existent-cameras.json'
-    });
+    const built = createBackendApp();
 
     assert.equal(typeof built, 'object');
     assert.equal(typeof built.app, 'function');
@@ -16,9 +14,7 @@ test('createBackendApp returns express app and runtime coordinator', () => {
 });
 
 test('createBackendApp serves canonical camera API namespace and retires legacy aliases', async () => {
-    const built = createBackendApp({
-        cameraFile: '/tmp/non-existent-cameras.json'
-    });
+    const built = createBackendApp();
 
     const server = await new Promise((resolve, reject) => {
         const instance = built.app.listen(0, '127.0.0.1');
@@ -56,7 +52,6 @@ test('createBackendApp serves canonical camera API namespace and retires legacy 
 
 test('createBackendApp exposes internal worker config and perception ingest APIs', async () => {
     const built = createBackendApp({
-        cameraFile: '/tmp/non-existent-cameras.json',
         runtimeFlags: {
             streamGatewayApiUrl: '',
             streamProxyModeEnabled: false,
@@ -199,7 +194,6 @@ test('createBackendApp exposes internal worker config and perception ingest APIs
 
 test('createBackendApp degrades readiness when stream proxy mode is required and gateway is unreachable', async () => {
     const built = createBackendApp({
-        cameraFile: '/tmp/non-existent-cameras.json',
         runtimeFlags: {
             streamGatewayApiUrl: 'http://127.0.0.1:9/api/internal/streams',
             streamProxyModeEnabled: true,

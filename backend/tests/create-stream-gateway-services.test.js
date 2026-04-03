@@ -19,7 +19,6 @@ function makeRuntimeFlags(overrides = {}) {
 
 test('createStreamGatewayServices returns composed stream-gateway services', () => {
     const services = createStreamGatewayServices({
-        cameraFile: '/tmp/non-existent-cameras-gateway-services.json',
         runtimeFlags: makeRuntimeFlags()
     });
 

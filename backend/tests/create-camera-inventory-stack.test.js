@@ -23,7 +23,6 @@ test('createCameraInventoryStack builds repository and inventory service', () =>
     };
 
     const stack = createCameraInventoryStack({
-        cameraFile: '/tmp/non-existent-cameras-stack.json',
         metadataDriver: 'sqlite',
         sqliteStore
     });

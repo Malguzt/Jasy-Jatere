@@ -123,5 +123,6 @@ If you want the shortest path through the redesign, use this order:
 - Backend and stream-gateway composition now share common runtime option mappers (`backend/src/app/composition-options.js`) for stream-control runtime flags.
 - Backend and stream-gateway composition now also share metadata bootstrap wiring through `backend/src/app/create-metadata-context.js` (driver normalization + SQLite migrate/bootstrap).
 - Camera inventory composition wiring (repository + inventory service) is now shared through `backend/src/app/create-camera-inventory-stack.js`.
+- Backend and stream-gateway app/service composition no longer accepts a `cameraFile` override in runtime bootstrap; camera inventory compatibility exports stay repository-owned and migration-only.
 - Stream runtime composition wiring (sync orchestrator + stream control + websocket gateway) is now shared through `backend/src/app/create-stream-runtime-stack.js`.
 - Frontend polling-heavy data hooks now reuse a shared polling helper (`frontend/src/api/polling.js`) to keep query cadence and cancellation behavior consistent across domains.

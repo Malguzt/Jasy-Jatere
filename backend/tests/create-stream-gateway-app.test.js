@@ -4,9 +4,7 @@ const assert = require('node:assert/strict');
 const { createStreamGatewayApp } = require('../src/app/create-stream-gateway-app');
 
 test('createStreamGatewayApp exposes internal health and runtime endpoints', async () => {
-    const built = createStreamGatewayApp({
-        cameraFile: '/tmp/non-existent-cameras-for-gateway.json'
-    });
+    const built = createStreamGatewayApp();
 
     const server = await new Promise((resolve, reject) => {
         const instance = built.app.listen(0, '127.0.0.1');

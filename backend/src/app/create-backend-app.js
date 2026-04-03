@@ -1,5 +1,4 @@
 const express = require('express');
-const path = require('path');
 const { PlatformRuntimeCoordinator } = require('./platform-runtime-coordinator');
 const { createBackendServices } = require('./create-backend-services');
 const { registerBackendRoutes } = require('./create-backend-routes');
@@ -7,13 +6,11 @@ const { resolveRuntimeFlags } = require('./runtime-flags');
 const { createHttpAppBase } = require('./create-http-app-base');
 
 function createBackendApp({
-    cameraFile = path.join(__dirname, '..', '..', 'data', 'cameras.json'),
     runtimeFlags = resolveRuntimeFlags()
 } = {}) {
     const app = createHttpAppBase();
 
     const services = createBackendServices({
-        cameraFile,
         runtimeFlags
     });
     const platformRuntimeCoordinator = new PlatformRuntimeCoordinator({

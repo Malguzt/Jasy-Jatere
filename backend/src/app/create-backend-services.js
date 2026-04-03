@@ -23,7 +23,6 @@ const { createCameraInventoryStack } = require('./create-camera-inventory-stack'
 const { createStreamRuntimeStack } = require('./create-stream-runtime-stack');
 
 function createBackendServices({
-    cameraFile,
     runtimeFlags,
     metadataDriver
 }) {
@@ -32,7 +31,6 @@ function createBackendServices({
     const sqliteStore = metadataContext.sqliteStore;
 
     const cameraInventoryStack = createCameraInventoryStack({
-        cameraFile,
         metadataDriver: driver,
         sqliteStore
     });

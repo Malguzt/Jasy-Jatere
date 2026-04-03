@@ -29,7 +29,6 @@ function makeRuntimeFlags(overrides = {}) {
 
 test('createBackendServices returns composed control-plane services', () => {
     const services = createBackendServices({
-        cameraFile: '/tmp/non-existent-cameras-services.json',
         runtimeFlags: makeRuntimeFlags()
     });
 
@@ -43,7 +42,6 @@ test('createBackendServices returns composed control-plane services', () => {
 
 test('createBackendServices skips local stream runtime stack when proxy runtime is active', () => {
     const services = createBackendServices({
-        cameraFile: '/tmp/non-existent-cameras-services-proxy.json',
         runtimeFlags: makeRuntimeFlags({
             streamProxyModeEnabled: true,
             streamProxyRequired: true,

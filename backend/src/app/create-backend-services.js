@@ -24,6 +24,7 @@ const { createStreamRuntimeStack } = require('./create-stream-runtime-stack');
 const mapsStorage = require('../../maps/storage');
 const mapsJobs = require('../../maps/job-queue');
 const mapsCorrections = require('../../maps/corrections');
+const { loadSchemaSummaries } = require('../contracts/schema-registry');
 
 function createBackendServices({
     runtimeFlags,
@@ -92,7 +93,9 @@ function createBackendServices({
     const cameraMotionService = new CameraMotionService({
         cameraEventMonitor
     });
-    const contractsService = new ContractsService();
+    const contractsService = new ContractsService({
+        loadSchemaSummariesFn: loadSchemaSummaries
+    });
     const workerConfigService = new WorkerConfigService({
         cameraInventoryService,
         streamSyncOrchestrator,

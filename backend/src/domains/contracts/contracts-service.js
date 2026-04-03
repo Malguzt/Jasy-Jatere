@@ -1,9 +1,10 @@
-const { loadSchemaSummaries } = require('../../contracts/schema-registry');
-
 class ContractsService {
     constructor({
-        loadSchemaSummariesFn = loadSchemaSummaries
+        loadSchemaSummariesFn
     } = {}) {
+        if (typeof loadSchemaSummariesFn !== 'function') {
+            throw new Error('loadSchemaSummariesFn is required');
+        }
         this.loadSchemaSummaries = loadSchemaSummariesFn;
     }
 

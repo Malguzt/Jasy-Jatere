@@ -3,6 +3,13 @@ const assert = require('node:assert/strict');
 
 const { ContractsService } = require('../src/domains/contracts/contracts-service');
 
+test('constructor requires loadSchemaSummariesFn injection', () => {
+    assert.throws(
+        () => new ContractsService(),
+        /loadSchemaSummariesFn is required/
+    );
+});
+
 test('getCatalog returns summary and strips internal filePath field', () => {
     const service = new ContractsService({
         loadSchemaSummariesFn: () => ([

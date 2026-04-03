@@ -315,10 +315,9 @@ export function useMapData({ pollMs = 1800 } = {}) {
         refreshMapData(false).catch(() => {});
     }, []);
 
-    useEffect(() => {
-        if (!job || !['queued', 'running'].includes(job.status)) return undefined;
-
-        const interval = setInterval(async () => {
+    usePollingTask({
+        enabled: !!job && ['queued', 'running'].includes(job.status),
+        task: async () => {
             try {
                 const payload = await apiClient.getMapJob(job.id);
                 const nextJob = payload?.job || null;
@@ -334,10 +333,11 @@ export function useMapData({ pollMs = 1800 } = {}) {
             } catch (pollError) {
                 setError(pollError?.message || 'Error consultando estado de generación');
             }
-        }, Math.max(1200, Number(pollMs) || 1800));
-
-        return () => clearInterval(interval);
-    }, [job?.id, job?.status, pollMs]);
+        },
+        pollMs,
+        minPollMs: 1200,
+        deps: [job?.id, job?.status, pollMs]
+    });
 
     return {
         latestMap,

@@ -4,15 +4,11 @@ const { SqliteMapVersionRepository } = require('../src/infrastructure/sqlite/sql
 const { SqliteMapJobRepository } = require('../src/infrastructure/sqlite/sqlite-map-job-repository');
 const { createLegacyJsonAdapter } = require('./legacy-json-adapter');
 const { resolveMapPersistenceFlags } = require('./persistence-flags');
+const { DEFAULT_INDEX } = require('./defaults');
 
 const MAPS_DIR = process.env.MAPS_DATA_DIR
     ? path.resolve(process.env.MAPS_DATA_DIR)
     : path.join(__dirname, '..', 'data', 'maps');
-const DEFAULT_INDEX = {
-    schemaVersion: '1.0',
-    activeMapId: null,
-    maps: []
-};
 const legacyAdapter = createLegacyJsonAdapter({
     mapsDir: MAPS_DIR,
     defaultIndex: DEFAULT_INDEX,

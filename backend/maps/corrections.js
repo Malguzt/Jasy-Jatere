@@ -4,6 +4,7 @@ const { MetadataSqliteStore } = require('../src/infrastructure/sqlite/metadata-s
 const { SqliteMapCorrectionsRepository } = require('../src/infrastructure/sqlite/sqlite-map-corrections-repository');
 const { createLegacyJsonAdapter } = require('./legacy-json-adapter');
 const { resolveMapPersistenceFlags } = require('./persistence-flags');
+const { DEFAULT_INDEX, DEFAULT_CORRECTIONS } = require('./defaults');
 
 const MAX_HISTORY = Number(process.env.MAP_CORRECTION_HISTORY_LIMIT || 20);
 const mapPersistenceFlags = resolveMapPersistenceFlags();
@@ -12,21 +13,9 @@ const SQLITE_DB_PATH = process.env.METADATA_SQLITE_PATH || path.join(MAPS_DIR, '
 const EXPORT_COMPAT_JSON = mapPersistenceFlags.exportCompatJson;
 const LEGACY_READ_FALLBACK = mapPersistenceFlags.legacyReadFallback;
 
-const DEFAULT_CORRECTIONS = {
-    schemaVersion: '1.0',
-    updatedAt: null,
-    lastManualMapId: null,
-    manualCameraLayout: [],
-    objectHints: [],
-    history: []
-};
 const legacyAdapter = createLegacyJsonAdapter({
     mapsDir: MAPS_DIR,
-    defaultIndex: {
-        schemaVersion: '1.0',
-        activeMapId: null,
-        maps: []
-    },
+    defaultIndex: DEFAULT_INDEX,
     defaultCorrections: DEFAULT_CORRECTIONS
 });
 const CORRECTIONS_FILE = legacyAdapter.correctionsFile;

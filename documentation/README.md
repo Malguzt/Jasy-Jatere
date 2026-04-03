@@ -96,6 +96,7 @@ If you want the shortest path through the redesign, use this order:
 - Camera inventory fallback logic is now centralized in a shared loader (`backend/src/domains/cameras/camera-inventory-loader.js`) and reused by connectivity/event monitors, stream sync orchestration, and ONVIF discovery to keep legacy fallback behavior consistent.
 - Legacy map/correction JSON compatibility I/O is now centralized through a shared adapter (`backend/maps/legacy-json-adapter.js`) consumed by both `backend/maps/storage.js` and `backend/maps/corrections.js`.
 - Map persistence runtime flag resolution (`METADATA_*`, `LEGACY_COMPAT_EXPORTS_ENABLED`) is now centralized in `backend/maps/persistence-flags.js` to keep storage/corrections behavior aligned.
+- Shared map domain defaults are now centralized in `backend/maps/defaults.js` to avoid drift across storage/corrections and compatibility adapters.
 - Camera onboarding routes now use composition-injected domain services (`/api/cameras`, `/api/saved-cameras`) so repository/runtime wiring is owned by control-plane bootstrap rather than route-local singletons.
 - Map and detector API routes are also composition-injected (`/api/maps`, `/api/detector`) to keep bootstrap ownership explicit and testable.
 - Backend service wiring is now centralized in a dedicated composition factory (`backend/src/app/create-backend-services.js`) so app bootstrap focuses on HTTP/runtime lifecycle only.

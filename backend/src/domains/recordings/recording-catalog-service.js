@@ -76,13 +76,15 @@ class RecordingCatalogService {
             const filePath = path.join(this.recordingsDir, entry.filename);
             const thumbnailName = String(entry.thumbnail || '').trim() || entry.filename.replace(/\.mp4$/i, '.jpg');
             const thumbnailPath = path.join(this.recordingsDir, thumbnailName);
-            const exists = this.fs.existsSync(filePath);
-            const sizeMb = exists ? Number((this.fs.statSync(filePath).size / 1024 / 1024).toFixed(1)) : (entry.size_mb ?? null);
-            const created = exists ? new Date(this.fs.statSync(filePath).ctimeMs).toISOString() : (entry.created || entry.created_at || null);
+            const videoExists = this.fs.existsSync(filePath);
+            const videoStats = videoExists ? this.fs.statSync(filePath) : null;
+            const thumbnailExists = this.fs.existsSync(thumbnailPath);
+            const sizeMb = videoStats ? Number((videoStats.size / 1024 / 1024).toFixed(1)) : (entry.size_mb ?? null);
+            const created = videoStats ? new Date(videoStats.ctimeMs).toISOString() : (entry.created || entry.created_at || null);
 
             return {
                 filename: entry.filename,
-                thumbnail: this.fs.existsSync(thumbnailPath) ? thumbnailName : null,
+                thumbnail: thumbnailExists ? thumbnailName : null,
                 size_mb: sizeMb,
                 created,
                 camera_id: entry.camera_id || null,

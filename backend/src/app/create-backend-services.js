@@ -59,12 +59,10 @@ function createBackendServices({
         cameraInventoryService
     });
     const cameraEventMonitor = new CameraEventMonitor({
-        cameraFile,
         cameraInventoryService
     });
 
     const connectivityMonitor = new CameraConnectivityMonitor({
-        cameraFile,
         streamManager,
         cameraEventMonitor,
         cameraInventoryService

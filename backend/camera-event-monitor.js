@@ -60,10 +60,8 @@ function motionFromNotification(notification) {
 
 class CameraEventMonitor {
     constructor({
-        cameraFile = null,
         cameraInventoryService = null
     } = {}) {
-        this.cameraFile = cameraFile;
         this.cameraInventoryService = cameraInventoryService;
         this.running = false;
         this.monitors = new Map(); // camId -> monitor state

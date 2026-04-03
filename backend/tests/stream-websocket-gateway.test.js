@@ -5,7 +5,6 @@ const { StreamWebSocketGateway } = require('../src/domains/streams/stream-websoc
 
 function makeGateway(overrides = {}) {
     return new StreamWebSocketGateway({
-        cameraFile: '/tmp/cameras.json',
         cameraInventoryService: overrides.cameraInventoryService,
         streamManager: overrides.streamManager || { handleConnection: () => {} },
         resolveCameraStreamUrls: overrides.resolveCameraStreamUrls || ((camera) => ({

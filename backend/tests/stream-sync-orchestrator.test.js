@@ -5,7 +5,6 @@ const { StreamSyncOrchestrator } = require('../src/domains/streams/stream-sync-o
 
 function makeOrchestrator(overrides = {}) {
     return new StreamSyncOrchestrator({
-        cameraFile: '/tmp/cameras.json',
         cameraInventoryService: overrides.cameraInventoryService,
         streamManager: overrides.streamManager || { syncKeepaliveConfigs: () => {} },
         resolveCameraStreamUrls: overrides.resolveCameraStreamUrls || ((camera) => ({

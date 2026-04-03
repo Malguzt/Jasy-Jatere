@@ -49,12 +49,10 @@ function parseErrorSummary(stderr = '') {
 
 class CameraConnectivityMonitor {
     constructor({
-        cameraFile,
         streamManager,
         cameraEventMonitor,
         cameraInventoryService = null
     }) {
-        this.cameraFile = cameraFile;
         this.streamManager = streamManager;
         this.cameraEventMonitor = cameraEventMonitor;
         this.cameraInventoryService = cameraInventoryService;

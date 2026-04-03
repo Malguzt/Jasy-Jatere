@@ -28,7 +28,7 @@ const { createStreamRuntimeStack } = require('./create-stream-runtime-stack');
 function createBackendServices({
     cameraFile,
     runtimeFlags,
-    metadataDriver = String(process.env.METADATA_STORE_DRIVER || 'sqlite').toLowerCase()
+    metadataDriver
 }) {
     const metadataContext = createMetadataContext({ metadataDriver });
     const driver = metadataContext.metadataDriver;

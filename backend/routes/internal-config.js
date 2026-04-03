@@ -16,9 +16,9 @@ function createInternalConfigRouter({ workerConfigService }) {
         }
     });
 
-    router.get('/streams', (req, res) => {
+    router.get('/streams', async (req, res) => {
         try {
-            const snapshot = workerConfigService.getStreamSnapshot();
+            const snapshot = await workerConfigService.getStreamSnapshot();
             return res.json({ success: true, ...snapshot });
         } catch (error) {
             return internalError(res, {

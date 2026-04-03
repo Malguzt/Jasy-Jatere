@@ -18,7 +18,7 @@ test('getCameraSnapshot returns current inventory with timestamp', () => {
     assert.equal(snapshot.cameraCount, 2);
 });
 
-test('getStreamSnapshot resolves reconstructor pair for combined camera sources', () => {
+test('getStreamSnapshot resolves reconstructor pair for combined camera sources', async () => {
     const service = new WorkerConfigService({
         cameraInventoryService: {
             listCameras() {
@@ -42,7 +42,7 @@ test('getStreamSnapshot resolves reconstructor pair for combined camera sources'
         now: () => 5678
     });
 
-    const snapshot = service.getStreamSnapshot();
+    const snapshot = await service.getStreamSnapshot();
     assert.equal(snapshot.snapshotAt, 5678);
     assert.equal(snapshot.streamCount, 1);
     assert.ok(snapshot.streams[0].reconstructor.main.endsWith('/onvif1'));
@@ -50,7 +50,7 @@ test('getStreamSnapshot resolves reconstructor pair for combined camera sources'
     assert.equal(snapshot.runtime.ok, true);
 });
 
-test('getStreamSnapshot keeps runtime as null when local stream orchestrator is not configured', () => {
+test('getStreamSnapshot keeps runtime as null when local stream orchestrator is not configured', async () => {
     const service = new WorkerConfigService({
         cameraInventoryService: {
             listCameras() {
@@ -61,10 +61,32 @@ test('getStreamSnapshot keeps runtime as null when local stream orchestrator is 
         now: () => 7777
     });
 
-    const snapshot = service.getStreamSnapshot();
+    const snapshot = await service.getStreamSnapshot();
     assert.equal(snapshot.snapshotAt, 7777);
     assert.equal(snapshot.streamCount, 1);
     assert.equal(snapshot.runtime, null);
+});
+
+test('getStreamSnapshot can source runtime from proxy service when local orchestrator is unavailable', async () => {
+    const service = new WorkerConfigService({
+        cameraInventoryService: {
+            listCameras() {
+                return [{ id: 'cam-1', type: 'single', rtspUrl: 'rtsp://cam-1/main' }];
+            }
+        },
+        streamSyncOrchestrator: null,
+        streamControlProxyService: {
+            async getRuntimeSnapshot() {
+                return { summary: { cameraCount: 1, activeStreams: 0 } };
+            }
+        },
+        now: () => 8888
+    });
+
+    const snapshot = await service.getStreamSnapshot();
+    assert.equal(snapshot.snapshotAt, 8888);
+    assert.equal(snapshot.streamCount, 1);
+    assert.deepEqual(snapshot.runtime, { summary: { cameraCount: 1, activeStreams: 0 } });
 });
 
 test('getRetentionSnapshot returns control-plane and detector retention policies', () => {

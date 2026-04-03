@@ -31,11 +31,13 @@ class WorkerConfigService {
     constructor({
         cameraInventoryService,
         streamSyncOrchestrator,
+        streamControlProxyService,
         runtimeFlags = {},
         now = () => Date.now()
     } = {}) {
         this.cameraInventoryService = cameraInventoryService;
         this.streamSyncOrchestrator = streamSyncOrchestrator;
+        this.streamControlProxyService = streamControlProxyService;
         this.runtimeFlags = runtimeFlags || {};
         this.now = now;
     }
@@ -96,7 +98,7 @@ class WorkerConfigService {
         };
     }
 
-    getStreamSnapshot() {
+    async getStreamSnapshot() {
         const cameraSnapshot = this.getCameraSnapshot();
         const streams = cameraSnapshot.cameras
             .map((camera) => {
@@ -112,10 +114,21 @@ class WorkerConfigService {
             })
             .filter((item) => !!item.id);
 
-        const runtime =
+        let runtime =
             this.streamSyncOrchestrator && typeof this.streamSyncOrchestrator.getRuntimeState === 'function'
                 ? this.streamSyncOrchestrator.getRuntimeState()
                 : null;
+        if (
+            !runtime &&
+            this.streamControlProxyService &&
+            typeof this.streamControlProxyService.getRuntimeSnapshot === 'function'
+        ) {
+            try {
+                runtime = await this.streamControlProxyService.getRuntimeSnapshot();
+            } catch (error) {
+                runtime = null;
+            }
+        }
 
         return {
             snapshotAt: this.now(),

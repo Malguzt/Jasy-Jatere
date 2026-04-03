@@ -95,6 +95,7 @@ function createBackendServices({
     const workerConfigService = new WorkerConfigService({
         cameraInventoryService,
         streamSyncOrchestrator,
+        streamControlProxyService,
         runtimeFlags
     });
     const recordingCatalogService = new RecordingCatalogService({

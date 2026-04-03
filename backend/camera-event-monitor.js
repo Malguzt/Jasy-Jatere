@@ -1,9 +1,9 @@
-const fs = require('fs');
 const path = require('path');
 const url = require('url');
 const onvif = require('node-onvif');
 const onvifSoap = require('node-onvif/lib/modules/soap');
 const { resolveCameraCredentials } = require('./camera-credentials');
+const { loadCameraInventory } = require('./src/domains/cameras/camera-inventory-loader');
 
 const DATA_FILE = path.join(__dirname, 'data', 'cameras.json');
 const EVENTS_XMLNS = [
@@ -115,27 +115,14 @@ class CameraEventMonitor {
     }
 
     loadCameras() {
-        if (this.cameraInventoryService && typeof this.cameraInventoryService.listCameras === 'function') {
-            try {
-                const cameras = this.cameraInventoryService.listCameras();
-                if (Array.isArray(cameras)) return cameras;
-                if (!this.legacyFileFallbackEnabled) return [];
-            } catch (error) {
-                console.error('[EVT] Error loading inventory cameras:', error?.message || error);
-                if (!this.legacyFileFallbackEnabled) return [];
-            }
-        }
-
-        if (!this.legacyFileFallbackEnabled) return [];
-
-        try {
-            if (!fs.existsSync(this.cameraFile)) return [];
-            const data = JSON.parse(fs.readFileSync(this.cameraFile, 'utf8'));
-            return Array.isArray(data) ? data : [];
-        } catch (e) {
-            console.error('[EVT] Error loading camera file:', e.message);
-            return [];
-        }
+        return loadCameraInventory({
+            cameraInventoryService: this.cameraInventoryService,
+            legacyFilePath: this.cameraFile,
+            legacyFileFallbackEnabled: this.legacyFileFallbackEnabled,
+            logger: console,
+            serviceErrorPrefix: '[EVT] Error loading inventory cameras:',
+            fileErrorPrefix: '[EVT] Error loading camera file:'
+        });
     }
 
     reloadNow() {

@@ -1,7 +1,7 @@
-const fs = require('fs');
 const path = require('path');
 const { spawn } = require('child_process');
 const { withCameraAuth, deriveCompanionRtsp } = require('./rtsp-utils');
+const { loadCameraInventory } = require('./src/domains/cameras/camera-inventory-loader');
 
 const DEFAULT_INTERVAL_MS = Number(process.env.CAMERA_MONITOR_INTERVAL_MS || 20000);
 const DEFAULT_HISTORY_SIZE = Number(process.env.CAMERA_MONITOR_HISTORY_SIZE || 180);
@@ -91,26 +91,14 @@ class CameraConnectivityMonitor {
     }
 
     loadCameras() {
-        if (this.cameraInventoryService && typeof this.cameraInventoryService.listCameras === 'function') {
-            try {
-                const cameras = this.cameraInventoryService.listCameras();
-                if (Array.isArray(cameras)) return cameras;
-                if (!this.legacyFileFallbackEnabled) return [];
-            } catch (error) {
-                console.error('[MON] failed to load cameras from inventory service:', error?.message || error);
-                if (!this.legacyFileFallbackEnabled) return [];
-            }
-        }
-
-        if (!this.legacyFileFallbackEnabled) return [];
-
-        try {
-            if (!fs.existsSync(this.cameraFile)) return [];
-            return JSON.parse(fs.readFileSync(this.cameraFile, 'utf8'));
-        } catch (e) {
-            console.error('[MON] failed to load cameras:', e?.message || e);
-            return [];
-        }
+        return loadCameraInventory({
+            cameraInventoryService: this.cameraInventoryService,
+            legacyFilePath: this.cameraFile,
+            legacyFileFallbackEnabled: this.legacyFileFallbackEnabled,
+            logger: console,
+            serviceErrorPrefix: '[MON] failed to load cameras from inventory service:',
+            fileErrorPrefix: '[MON] failed to load cameras:'
+        });
     }
 
     getProbeSources(camera) {

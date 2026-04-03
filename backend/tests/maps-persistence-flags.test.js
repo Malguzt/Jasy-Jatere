@@ -17,25 +17,21 @@ test('parseBool handles common truthy and falsy values', () => {
 test('resolveMapPersistenceFlags defaults to sqlite with legacy compat disabled', () => {
     const flags = resolveMapPersistenceFlags({});
     assert.equal(flags.metadataDriver, 'sqlite');
-    assert.equal(flags.legacyCompatExportsEnabled, false);
     assert.equal(flags.exportCompatJson, false);
 });
 
-test('resolveMapPersistenceFlags derives dual-write defaults from legacy compat flag', () => {
+test('resolveMapPersistenceFlags keeps compatibility exports disabled even when legacy flag is enabled', () => {
     const flags = resolveMapPersistenceFlags({
         METADATA_STORE_DRIVER: 'sqlite',
         LEGACY_COMPAT_EXPORTS_ENABLED: '1'
     });
-    assert.equal(flags.legacyCompatExportsEnabled, true);
-    assert.equal(flags.exportCompatJson, true);
+    assert.equal(flags.exportCompatJson, false);
 });
 
-test('resolveMapPersistenceFlags allows explicit override of dual-write flags', () => {
+test('resolveMapPersistenceFlags ignores explicit dual-write overrides', () => {
     const flags = resolveMapPersistenceFlags({
         METADATA_STORE_DRIVER: 'sqlite',
-        LEGACY_COMPAT_EXPORTS_ENABLED: '1',
-        METADATA_DUAL_WRITE_JSON_EXPORTS: '0'
+        METADATA_DUAL_WRITE_JSON_EXPORTS: '1'
     });
-    assert.equal(flags.legacyCompatExportsEnabled, true);
     assert.equal(flags.exportCompatJson, false);
 });

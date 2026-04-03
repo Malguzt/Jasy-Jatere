@@ -20,7 +20,7 @@ class HealthSnapshotRepository {
     } = {}) {
         this.filePath = filePath;
         this.driver = String(driver || 'sqlite').toLowerCase();
-        this.dualWriteFile = this.driver === 'sqlite' ? dualWriteFile === true : dualWriteFile !== false;
+        this.dualWriteFile = this.driver === 'sqlite' ? false : dualWriteFile !== false;
         this.sqlite = this.driver === 'sqlite'
             ? new SqliteHealthSnapshotRepository({
                 store: sqliteStore || new MetadataSqliteStore({

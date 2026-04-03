@@ -39,23 +39,19 @@ function createBackendServices({
     });
     const cameraRepository = cameraInventoryStack.cameraRepository;
     const cameraInventoryService = cameraInventoryStack.cameraInventoryService;
-    const repositoryCompatOptions = cameraInventoryStack.repositoryCompatOptions;
 
     const recordingCatalogRepository = new RecordingCatalogRepository({
         driver,
-        sqliteStore,
-        ...repositoryCompatOptions
+        sqliteStore
     });
     const observationRepository = new ObservationEventRepository({
         driver,
         sqliteStore,
-        maxEntries: runtimeFlags.observationMaxEntries,
-        dualWriteLegacy: runtimeFlags.legacyCompatExportsEnabled
+        maxEntries: runtimeFlags.observationMaxEntries
     });
     const healthSnapshotRepository = new HealthSnapshotRepository({
         driver,
-        sqliteStore,
-        dualWriteFile: runtimeFlags.legacyCompatExportsEnabled
+        sqliteStore
     });
     const savedCamerasService = new SavedCamerasService({
         repository: cameraRepository

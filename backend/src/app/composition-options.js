@@ -1,11 +1,3 @@
-function buildRepositoryCompatOptions(runtimeFlags = {}) {
-    const enabled = runtimeFlags.legacyCompatExportsEnabled === true;
-    return {
-        dualWritePrimary: enabled,
-        dualWriteLegacy: enabled
-    };
-}
-
 function buildLegacyFileFallbackOptions(runtimeFlags = {}) {
     return {
         legacyFileFallbackEnabled: runtimeFlags.legacyCompatExportsEnabled === true
@@ -26,7 +18,6 @@ function buildStreamControlRuntimeOptions(runtimeFlags = {}) {
 }
 
 module.exports = {
-    buildRepositoryCompatOptions,
     buildLegacyFileFallbackOptions,
     buildStreamControlRuntimeOptions
 };

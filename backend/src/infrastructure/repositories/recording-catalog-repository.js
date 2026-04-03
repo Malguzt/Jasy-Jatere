@@ -43,8 +43,8 @@ class RecordingCatalogRepository {
         this.primaryFile = primaryFile;
         this.legacyFile = legacyFile;
         this.driver = String(driver || 'sqlite').toLowerCase();
-        this.dualWritePrimary = this.driver === 'sqlite' ? dualWritePrimary === true : true;
-        this.dualWriteLegacy = this.driver === 'sqlite' ? dualWriteLegacy === true : dualWriteLegacy !== false;
+        this.dualWritePrimary = this.driver === 'sqlite' ? false : true;
+        this.dualWriteLegacy = this.driver === 'sqlite' ? false : dualWriteLegacy !== false;
         this.sqlite = this.driver === 'sqlite'
             ? new SqliteRecordingCatalogRepository({
                 store: sqliteStore || new MetadataSqliteStore({
@@ -94,6 +94,9 @@ class RecordingCatalogRepository {
         if (!normalized) return null;
         if (this.sqlite) {
             this.sqlite.upsert(normalized);
+            if (!this.dualWritePrimary && !this.dualWriteLegacy) {
+                return normalized;
+            }
         }
         const existing = this.readJsonPrimaryOrLegacy().filter((item) => item.filename !== normalized.filename);
         const next = sortByEventTimeDesc([normalized, ...existing]);
@@ -109,12 +112,16 @@ class RecordingCatalogRepository {
     remove(filename) {
         const safe = String(filename || '').trim();
         if (!safe) return false;
+        let removedFromSqlite = false;
         if (this.sqlite) {
-            this.sqlite.remove(safe);
+            removedFromSqlite = this.sqlite.remove(safe);
+            if (!this.dualWritePrimary && !this.dualWriteLegacy) {
+                return removedFromSqlite;
+            }
         }
         const current = this.readJsonPrimaryOrLegacy();
         const next = current.filter((entry) => entry.filename !== safe);
-        if (next.length === current.length) return false;
+        if (next.length === current.length) return removedFromSqlite;
         if (this.dualWritePrimary) {
             writeJsonFile(this.primaryFile, next);
         }

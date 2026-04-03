@@ -71,9 +71,7 @@ test('storage saves and retrieves maps in isolated directory', () => {
         MAPS_DATA_DIR: tempDir,
         METADATA_DRIVER: 'sqlite',
         METADATA_SQLITE_PATH: path.join(tempDir, 'metadata.db'),
-        LEGACY_COMPAT_EXPORTS_ENABLED: '0',
-        METADATA_LEGACY_READ_FALLBACK: '0',
-        METADATA_DUAL_WRITE_JSON_EXPORTS: undefined
+        LEGACY_COMPAT_EXPORTS_ENABLED: '0'
     }, () => {
         const storage = freshRequire('../maps/storage');
 
@@ -106,9 +104,7 @@ test('manual corrections are persisted and exposed as hints', () => {
         MAPS_DATA_DIR: tempDir,
         METADATA_DRIVER: 'sqlite',
         METADATA_SQLITE_PATH: path.join(tempDir, 'metadata.db'),
-        LEGACY_COMPAT_EXPORTS_ENABLED: '0',
-        METADATA_LEGACY_READ_FALLBACK: '0',
-        METADATA_DUAL_WRITE_JSON_EXPORTS: undefined
+        LEGACY_COMPAT_EXPORTS_ENABLED: '0'
     }, () => {
         freshRequire('../maps/storage');
         const corrections = freshRequire('../maps/corrections');
@@ -136,9 +132,7 @@ test('maps modules skip legacy JSON compatibility files when legacy exports are 
         MAPS_DATA_DIR: tempDir,
         METADATA_DRIVER: 'sqlite',
         METADATA_SQLITE_PATH: path.join(tempDir, 'metadata.db'),
-        LEGACY_COMPAT_EXPORTS_ENABLED: '0',
-        METADATA_LEGACY_READ_FALLBACK: '0',
-        METADATA_DUAL_WRITE_JSON_EXPORTS: undefined
+        LEGACY_COMPAT_EXPORTS_ENABLED: '0'
     }, () => {
         const storage = freshRequire('../maps/storage');
         const corrections = freshRequire('../maps/corrections');
@@ -202,9 +196,7 @@ test('maps legacy bootstrap can be forced for migration flows', () => {
         MAPS_DATA_DIR: tempDir,
         METADATA_DRIVER: 'sqlite',
         METADATA_SQLITE_PATH: path.join(tempDir, 'metadata.db'),
-        LEGACY_COMPAT_EXPORTS_ENABLED: '0',
-        METADATA_LEGACY_READ_FALLBACK: '0',
-        METADATA_DUAL_WRITE_JSON_EXPORTS: undefined
+        LEGACY_COMPAT_EXPORTS_ENABLED: '0'
     }, () => {
         const storage = freshRequire('../maps/storage');
         const corrections = freshRequire('../maps/corrections');

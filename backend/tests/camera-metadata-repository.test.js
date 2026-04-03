@@ -30,7 +30,8 @@ test('CameraMetadataRepository replace writes both primary and legacy stores', (
     const legacy = path.join(tmpDir, 'cameras.json');
     const repository = new CameraMetadataRepository({
         primaryFile: primary,
-        legacyFile: legacy
+        legacyFile: legacy,
+        driver: 'json'
     });
 
     repository.replace([{ id: 'cam-2', name: 'Primary Cam' }]);
@@ -78,6 +79,7 @@ test('CameraMetadataRepository can disable legacy compatibility export writes', 
     const repository = new CameraMetadataRepository({
         primaryFile: primary,
         legacyFile: legacy,
+        driver: 'json',
         dualWriteLegacy: false
     });
 

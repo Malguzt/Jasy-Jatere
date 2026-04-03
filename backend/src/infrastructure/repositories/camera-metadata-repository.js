@@ -32,8 +32,8 @@ class CameraMetadataRepository {
         this.primaryFile = primaryFile;
         this.legacyFile = legacyFile;
         this.driver = String(driver || 'sqlite').toLowerCase();
-        this.dualWritePrimary = this.driver === 'sqlite' ? dualWritePrimary === true : true;
-        this.dualWriteLegacy = this.driver === 'sqlite' ? dualWriteLegacy === true : dualWriteLegacy !== false;
+        this.dualWritePrimary = this.driver === 'sqlite' ? false : true;
+        this.dualWriteLegacy = this.driver === 'sqlite' ? false : dualWriteLegacy !== false;
         this.credentialCipher = credentialCipher;
         this.sqlite = this.driver === 'sqlite'
             ? new SqliteCameraRepository({

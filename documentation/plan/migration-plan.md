@@ -478,12 +478,9 @@ Current incremental implementation:
 - `backend/scripts/import-legacy-to-sqlite.js` now exposes a testable `run()` entrypoint and keeps CLI behavior via `require.main === module`.
 - migration tests now validate import of legacy cameras, recordings, observations, health snapshot, maps, map jobs, and correction history into repository-backed SQLite adapters.
 - migration hardening now includes dedicated unit coverage for the shared legacy maps JSON adapter (`maps/legacy-json-adapter`) used by storage and corrections modules.
-- map persistence flag parsing is now centralized (`maps/persistence-flags`) with dedicated unit tests, preventing drift between storage/corrections compatibility behavior.
+- map persistence flag parsing is now centralized (`maps/persistence-flags`) with dedicated unit tests, and runtime compatibility dual-write is retired in favor of explicit migration/bootstrap paths.
 - legacy camera API aliases under `/api/*` are retired; `/api/cameras/*` remains the canonical namespace.
-- compatibility dual-write exports are now runtime-gated with `LEGACY_COMPAT_EXPORTS_ENABLED` (default disabled in compose defaults).
-- observation event repository compatibility JSON writes are now also gated by `LEGACY_COMPAT_EXPORTS_ENABLED` when running on SQLite.
-- map/corrections compatibility JSON exports and health snapshot JSON fallback/write paths are now aligned to `LEGACY_COMPAT_EXPORTS_ENABLED`, with explicit forced bootstrap hooks reserved for migration/import workflows.
-- camera inventory and recording catalog repositories now align primary/legacy JSON write and legacy-read fallback behavior to `LEGACY_COMPAT_EXPORTS_ENABLED` in SQLite runtime mode.
+- SQLite runtime repositories now avoid implicit legacy JSON read/write compatibility paths; legacy artifacts are handled through explicit migration/import tooling only.
 
 ### Current code touch points
 

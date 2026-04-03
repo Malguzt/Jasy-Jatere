@@ -22,7 +22,7 @@ class ObservationEventRepository {
         this.filePath = filePath;
         this.maxEntries = Number.isFinite(Number(maxEntries)) ? Math.max(100, Number(maxEntries)) : 2500;
         this.driver = String(driver || 'sqlite').toLowerCase();
-        this.legacyCompatEnabled = this.driver === 'sqlite' ? Boolean(dualWriteLegacy) : true;
+        this.legacyCompatEnabled = this.driver === 'sqlite' ? false : true;
         this.sqlite = this.driver === 'sqlite'
             ? new SqliteObservationEventRepository({
                 store: sqliteStore || new MetadataSqliteStore({

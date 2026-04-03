@@ -1,7 +1,6 @@
 const { CameraMetadataRepository } = require('../infrastructure/repositories/camera-metadata-repository');
 const { CameraInventoryService } = require('../domains/cameras/camera-inventory-service');
 const {
-    buildRepositoryCompatOptions,
     buildLegacyFileFallbackOptions
 } = require('./composition-options');
 
@@ -11,14 +10,12 @@ function createCameraInventoryStack({
     metadataDriver,
     sqliteStore
 }) {
-    const repositoryCompatOptions = buildRepositoryCompatOptions(runtimeFlags);
     const legacyFileFallbackOptions = buildLegacyFileFallbackOptions(runtimeFlags);
 
     const cameraRepository = new CameraMetadataRepository({
         legacyFile: cameraFile,
         driver: metadataDriver,
-        sqliteStore,
-        ...repositoryCompatOptions
+        sqliteStore
     });
     const cameraInventoryService = new CameraInventoryService({
         repository: cameraRepository
@@ -27,7 +24,6 @@ function createCameraInventoryStack({
     return {
         cameraRepository,
         cameraInventoryService,
-        repositoryCompatOptions,
         legacyFileFallbackOptions
     };
 }

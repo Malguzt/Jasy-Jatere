@@ -8,11 +8,9 @@ function parseBool(value, fallback = true) {
 
 function resolveMapPersistenceFlags(env = process.env) {
     const metadataDriver = String(env.METADATA_STORE_DRIVER || 'sqlite').toLowerCase();
-    const legacyCompatExportsEnabled = parseBool(env.LEGACY_COMPAT_EXPORTS_ENABLED, false);
     return {
         metadataDriver,
-        legacyCompatExportsEnabled,
-        exportCompatJson: parseBool(env.METADATA_DUAL_WRITE_JSON_EXPORTS, legacyCompatExportsEnabled)
+        exportCompatJson: false
     };
 }
 

@@ -2,16 +2,9 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 const {
-    buildRepositoryCompatOptions,
     buildLegacyFileFallbackOptions,
     buildStreamControlRuntimeOptions
 } = require('../src/app/composition-options');
-
-test('buildRepositoryCompatOptions enables dual-write when legacy compat is enabled', () => {
-    const options = buildRepositoryCompatOptions({ legacyCompatExportsEnabled: true });
-    assert.equal(options.dualWritePrimary, true);
-    assert.equal(options.dualWriteLegacy, true);
-});
 
 test('buildLegacyFileFallbackOptions maps legacy compat flag to fallback option', () => {
     assert.equal(

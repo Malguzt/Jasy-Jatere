@@ -39,7 +39,7 @@ test('ObservationEventRepository can disable legacy JSON dual-write while using 
     assert.equal(fs.existsSync(legacyFile), false);
 });
 
-test('ObservationEventRepository keeps legacy JSON compatibility writes when dual-write is enabled', () => {
+test('ObservationEventRepository writes legacy JSON when running in json mode', () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'obs-repo-legacy-'));
     const legacyFile = path.join(tmpDir, 'observations.json');
     const sqliteStore = new MetadataSqliteStore({
@@ -49,7 +49,7 @@ test('ObservationEventRepository keeps legacy JSON compatibility writes when dua
 
     const repository = new ObservationEventRepository({
         filePath: legacyFile,
-        driver: 'sqlite',
+        driver: 'json',
         sqliteStore,
         dualWriteLegacy: true
     });

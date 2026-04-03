@@ -5,6 +5,7 @@ const os = require('os');
 const path = require('path');
 
 const { SavedCamerasService } = require('../src/domains/cameras/saved-cameras-service');
+const { CameraMetadataRepository } = require('../src/infrastructure/repositories/camera-metadata-repository');
 
 function makeTmpDir(prefix = 'saved-cameras-test') {
     return fs.mkdtempSync(path.join(os.tmpdir(), `${prefix}-`));
@@ -13,8 +14,14 @@ function makeTmpDir(prefix = 'saved-cameras-test') {
 function makeService({ validator, now } = {}) {
     const tmpDir = makeTmpDir();
     const dataFile = path.join(tmpDir, 'cameras.json');
+    const repository = new CameraMetadataRepository({
+        primaryFile: dataFile,
+        legacyFile: dataFile,
+        driver: 'json'
+    });
     const service = new SavedCamerasService({
         dataFile,
+        repository,
         validateRtsp: validator || (async () => ({ ok: true, errors: [], checks: [], warnings: [] })),
         now: now || (() => 1700000000000)
     });

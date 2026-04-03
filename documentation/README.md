@@ -92,6 +92,7 @@ If you want the shortest path through the redesign, use this order:
 - Detector camera config strict mode is now default (`REQUIRE_CONTROL_PLANE_CAMERA_CONFIG=1` unless explicitly disabled), so shared-file fallback requires explicit opt-out.
 - Detector camera/retention config source resolution is now centralized in `detector/config_provider.py`, separating control-plane snapshot reads and legacy file fallback policy from detection runtime loops.
 - Detector control-plane ingest/catalog HTTP interactions are now centralized in `detector/control_plane_client.py`, keeping publish/list/delete integration boundaries explicit.
+- Reconstructor camera-motion polling is now centralized in `reconstructor/motion_client.py`, with strict control-plane motion mode default-enabled (`REQUIRE_CONTROL_PLANE_MOTION_API=1` unless explicitly disabled).
 - Backend connectivity monitoring now prefers repository-backed camera inventory; direct `cameras.json` fallback is gated by `LEGACY_COMPAT_EXPORTS_ENABLED`.
 - Stream websocket gateways (backend and stream-gateway) now prefer repository-backed camera inventory; direct `cameras.json` fallback is gated by `LEGACY_COMPAT_EXPORTS_ENABLED`.
 - Camera event monitoring and stream-sync orchestration now also prefer repository-backed inventory; direct file fallback is gated by `LEGACY_COMPAT_EXPORTS_ENABLED`.

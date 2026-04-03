@@ -13,6 +13,7 @@ from collections import deque
 import requests
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+from motion_client import CameraMotionClient
 
 # Optional: Try to import MMagic if available
 MMAGIC_IMPORT_ERROR = None
@@ -27,6 +28,17 @@ except Exception as e:
 app = Flask(__name__)
 CORS(app)
 
+def parse_bool_env(name, default=True):
+    raw = os.getenv(name)
+    if raw is None:
+        return bool(default)
+    normalized = str(raw).strip().lower()
+    if normalized in {"1", "true", "yes", "on"}:
+        return True
+    if normalized in {"0", "false", "no", "off"}:
+        return False
+    return bool(default)
+
 # Global store for active reconstruction processes
 # stream_id -> client count
 active_streams = {}
@@ -37,10 +49,13 @@ MAIN_INPUT_WIDTH = 1280
 MAIN_INPUT_HEIGHT = 720
 LOW_INPUT_WIDTH = 640
 LOW_INPUT_HEIGHT = 360
-MOTION_API_BASE = os.environ.get("MOTION_API_BASE", "http://localhost:4000/api/camera-motion")
+CONTROL_PLANE_URL = (os.getenv("CONTROL_PLANE_URL", "http://localhost:4000") or "http://localhost:4000").rstrip("/")
+MOTION_API_BASE = (os.environ.get("MOTION_API_BASE") or f"{CONTROL_PLANE_URL}/api/camera-motion").rstrip("/")
 MOTION_POLL_INTERVAL = 0.6
 MOTION_HOLD_SECONDS = 5.0
 MOTION_API_TIMEOUT = 1.5
+USE_CONTROL_PLANE_MOTION_API = parse_bool_env("USE_CONTROL_PLANE_MOTION_API", True)
+REQUIRE_CONTROL_PLANE_MOTION_API = parse_bool_env("REQUIRE_CONTROL_PLANE_MOTION_API", True)
 SOFT_MOTION_SIZE = (320, 180)
 SOFT_MOTION_DELTA_THRESHOLD = 16
 SOFT_MOTION_SCORE_THRESHOLD = 0.010
@@ -63,6 +78,21 @@ gpu_assign_lock = threading.Lock()
 gpu_stream_counts = {}
 camera_gpu_assignment = {}
 camera_gpu_refcounts = {}
+motion_client = None
+
+
+def get_motion_client():
+    global motion_client
+    if motion_client is None:
+        motion_client = CameraMotionClient(
+            motion_api_base=MOTION_API_BASE,
+            timeout_sec=MOTION_API_TIMEOUT,
+            use_control_plane_motion_api=USE_CONTROL_PLANE_MOTION_API,
+            require_control_plane_motion_api=REQUIRE_CONTROL_PLANE_MOTION_API,
+            http_get=requests.get,
+            logger=print
+        )
+    return motion_client
 
 class FFmpegRawReader:
     """Read BGR frames from an RTSP source via ffmpeg rawvideo pipe."""
@@ -286,20 +316,16 @@ class AIReconstructor:
         source = "camera-events-unavailable"
         healthy = False
 
-        try:
-            resp = requests.get(f"{MOTION_API_BASE}/{self.cam_id}", timeout=MOTION_API_TIMEOUT)
-            if resp.ok:
-                data = resp.json()
-                if data.get("success"):
-                    healthy = bool(data.get("healthy", False))
-                    source = data.get("source") or "camera-events"
-                    if healthy:
-                        motion = bool(data.get("motion", False))
-        except Exception:
-            motion = None
+        motion_state = get_motion_client().get_motion(self.cam_id)
+        motion = motion_state.get("motion")
+        healthy = bool(motion_state.get("healthy", False))
+        source = motion_state.get("source") or source
 
         if motion is None:
             self.camera_motion_healthy = False
+            if motion_state.get("strict_unavailable"):
+                self.motion_active = False
+                return False, source
             if self.soft_last_motion_ts > 0 and (now - self.soft_last_motion_ts) <= SOFT_MOTION_HOLD_SECONDS:
                 self.soft_motion_active = True
             self.motion_active = self.soft_motion_active

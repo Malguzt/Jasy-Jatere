@@ -158,6 +158,9 @@ services:
       context: ./reconstructor
     container_name: ipcam-reconstructor
     environment:
+      - CONTROL_PLANE_URL=http://backend:4000
+      - USE_CONTROL_PLANE_MOTION_API=1
+      - REQUIRE_CONTROL_PLANE_MOTION_API=1
       - TEMPORAL_WINDOW_SIZE=7
       - TEMPORAL_MIN_FRAMES=4
       - TEMPORAL_DIFF_SIGMA=20.0

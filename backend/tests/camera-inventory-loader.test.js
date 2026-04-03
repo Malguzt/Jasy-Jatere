@@ -4,7 +4,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const { loadCameraInventory } = require('../src/domains/cameras/camera-inventory-loader');
+const { loadCameraInventory, loadCameraById } = require('../src/domains/cameras/camera-inventory-loader');
 
 test('loadCameraInventory returns cameras from inventory service when available', () => {
     const cameras = loadCameraInventory({
@@ -71,4 +71,59 @@ test('loadCameraInventory returns empty list on malformed legacy file', () => {
     });
 
     assert.deepEqual(cameras, []);
+});
+
+test('loadCameraById prefers inventory service findCamera when available', () => {
+    const loaded = loadCameraById({
+        cameraId: 'cam-1',
+        cameraInventoryService: {
+            findCamera(id) {
+                return { id, name: 'Cam 1' };
+            }
+        },
+        legacyFilePath: '/tmp/non-existent-cameras.json',
+        legacyFileFallbackEnabled: true
+    });
+    assert.equal(loaded.reason, null);
+    assert.equal(loaded.camera?.id, 'cam-1');
+});
+
+test('loadCameraById returns inventory-unavailable when service fails and fallback is disabled', () => {
+    const loaded = loadCameraById({
+        cameraId: 'cam-1',
+        cameraInventoryService: {
+            findCamera() {
+                throw new Error('inventory down');
+            }
+        },
+        legacyFileFallbackEnabled: false,
+        logger: { error() {} }
+    });
+    assert.equal(loaded.camera, null);
+    assert.equal(loaded.reason, 'inventory-unavailable');
+});
+
+test('loadCameraById returns missing-camera-file when fallback file does not exist', () => {
+    const loaded = loadCameraById({
+        cameraId: 'cam-1',
+        legacyFilePath: '/tmp/missing-cameras-file.json',
+        legacyFileFallbackEnabled: true
+    });
+    assert.equal(loaded.camera, null);
+    assert.equal(loaded.reason, 'missing-camera-file');
+});
+
+test('loadCameraById returns camera-file-read-error when fallback file is malformed', () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'camera-loader-by-id-malformed-'));
+    const legacyFilePath = path.join(tmpDir, 'cameras.json');
+    fs.writeFileSync(legacyFilePath, '{invalid-json}');
+
+    const loaded = loadCameraById({
+        cameraId: 'cam-1',
+        legacyFilePath,
+        legacyFileFallbackEnabled: true,
+        logger: { error() {} }
+    });
+    assert.equal(loaded.camera, null);
+    assert.equal(loaded.reason, 'camera-file-read-error');
 });

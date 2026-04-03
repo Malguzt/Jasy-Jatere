@@ -1,6 +1,6 @@
 const fs = require('fs');
 const WebSocket = require('ws');
-const { loadCameraInventory } = require('../cameras/camera-inventory-loader');
+const { loadCameraById } = require('../cameras/camera-inventory-loader');
 
 class StreamWebSocketGateway {
     constructor({
@@ -30,36 +30,20 @@ class StreamWebSocketGateway {
     }
 
     loadCameraById(cameraId) {
-        if (this.cameraInventoryService && typeof this.cameraInventoryService.findCamera === 'function') {
-            try {
-                const camera = this.cameraInventoryService.findCamera(cameraId);
-                return { camera, reason: camera ? null : 'camera-not-found' };
-            } catch (error) {
-                this.logger.error('[WS] Error cargando inventario de cámaras:', error?.message || error);
-                if (!this.legacyFileFallbackEnabled) {
-                    return { camera: null, reason: 'inventory-unavailable' };
-                }
-            }
-        }
-
-        if (!this.legacyFileFallbackEnabled) {
-            return { camera: null, reason: 'inventory-unavailable' };
-        }
-
-        const cameras = loadCameraInventory({
-            cameraInventoryService: null,
+        const loaded = loadCameraById({
+            cameraId,
+            cameraInventoryService: this.cameraInventoryService,
             legacyFilePath: this.cameraFile,
             legacyFileFallbackEnabled: this.legacyFileFallbackEnabled,
             fsModule: this.fs,
             logger: this.logger,
+            serviceErrorPrefix: '[WS] Error cargando inventario de cámaras:',
             fileErrorPrefix: '[WS] Error cargando cámaras:'
         });
-        if (cameras.length === 0 && !this.fs.existsSync(this.cameraFile)) {
+        if (loaded.reason === 'missing-camera-file') {
             this.logger.error('[WS] cameras.json no existe');
-            return { camera: null, reason: 'missing-camera-file' };
         }
-        const camera = cameras.find((item) => item.id === cameraId) || null;
-        return { camera, reason: camera ? null : 'camera-not-found' };
+        return loaded;
     }
 
     handleConnection(ws, req) {

@@ -73,14 +73,18 @@ function createBackendServices({
         connectivityMonitor,
         healthSnapshotRepository
     });
-    const streamRuntimeStack = createStreamRuntimeStack({
-        cameraInventoryService,
-        runtimeFlags,
-        streamManagerInstance: streamManager
-    });
-    const streamSyncOrchestrator = streamRuntimeStack.streamSyncOrchestrator;
-    const streamControlService = streamRuntimeStack.streamControlService;
     const streamGatewayApiUrl = String(runtimeFlags.streamGatewayApiUrl || '').trim();
+    const streamProxyRuntimeActive =
+        runtimeFlags.streamProxyModeEnabled === true && streamGatewayApiUrl.length > 0;
+    const streamRuntimeStack = streamProxyRuntimeActive
+        ? null
+        : createStreamRuntimeStack({
+            cameraInventoryService,
+            runtimeFlags,
+            streamManagerInstance: streamManager
+        });
+    const streamSyncOrchestrator = streamRuntimeStack?.streamSyncOrchestrator || null;
+    const streamControlService = streamRuntimeStack?.streamControlService || null;
     const streamControlProxyService = streamGatewayApiUrl
         ? new StreamGatewayProxyService({
             gatewayApiBaseUrl: streamGatewayApiUrl
@@ -119,11 +123,11 @@ function createBackendServices({
         recordingCatalogService
     });
     const streamWebSocketGateway =
-        runtimeFlags.streamProxyModeEnabled && streamGatewayApiUrl
+        streamProxyRuntimeActive
             ? new StreamWebSocketProxyGateway({
                 gatewayApiBaseUrl: streamGatewayApiUrl
             })
-            : streamRuntimeStack.streamWebSocketGateway;
+            : streamRuntimeStack?.streamWebSocketGateway || null;
     const mapsService = new MapsService();
     const detectorProxyService = new DetectorProxyService();
 

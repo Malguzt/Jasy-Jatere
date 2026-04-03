@@ -40,3 +40,20 @@ test('createBackendServices returns composed control-plane services', () => {
     assert.equal(typeof services.streamWebSocketGateway?.attach, 'function');
     assert.equal(typeof services.recordingRetentionJob?.runOnce, 'function');
 });
+
+test('createBackendServices skips local stream runtime stack when proxy runtime is active', () => {
+    const services = createBackendServices({
+        cameraFile: '/tmp/non-existent-cameras-services-proxy.json',
+        runtimeFlags: makeRuntimeFlags({
+            streamProxyModeEnabled: true,
+            streamProxyRequired: true,
+            streamGatewayApiUrl: 'http://stream-gateway:4100/api/internal/streams',
+            streamRuntimeEnabled: false
+        })
+    });
+
+    assert.equal(typeof services.streamControlProxyService?.getRuntimeSnapshot, 'function');
+    assert.equal(services.streamControlService, null);
+    assert.equal(services.streamSyncOrchestrator, null);
+    assert.equal(typeof services.streamWebSocketGateway?.attach, 'function');
+});

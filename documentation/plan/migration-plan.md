@@ -212,10 +212,10 @@ Remove worker dependence on shared filesystem metadata.
 
 ### Migration strategy
 
-- Add compatibility readers first.
 - Flip services one by one behind feature flags:
   - `USE_CONTROL_PLANE_CAMERA_CONFIG`
   - `USE_CONTROL_PLANE_STREAM_POLICY`
+- Keep legacy file usage only in explicit import/bootstrap tooling, not in runtime readers.
 
 ### Exit criteria
 
@@ -513,7 +513,7 @@ The safest order is:
 
 - Use feature flags for every ownership shift.
 - Keep import/export tooling for legacy JSON until the new stores are trusted.
-- Prefer dual-read or dual-write transitions over sudden cutovers.
+- Prefer explicit migration/bootstrap entrypoints over implicit runtime dual-read or dual-write behavior.
 - Add tests before deleting compatibility code.
 - Do not change stream transport and metadata storage in the same release if it can be avoided.
 

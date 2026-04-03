@@ -25,14 +25,13 @@ class CameraMetadataRepository {
         legacyFile = DEFAULT_LEGACY_FILE,
         driver = DEFAULT_DRIVER,
         sqliteStore = null,
-        dualWritePrimary = true,
         dualWriteLegacy = true,
         credentialCipher = createCameraCredentialCipher()
     } = {}) {
         this.primaryFile = primaryFile;
         this.legacyFile = legacyFile;
         this.driver = String(driver || 'sqlite').toLowerCase();
-        this.dualWritePrimary = this.driver === 'sqlite' ? false : true;
+        this.writePrimaryJson = this.driver !== 'sqlite';
         this.dualWriteLegacy = this.driver === 'sqlite' ? false : dualWriteLegacy !== false;
         this.credentialCipher = credentialCipher;
         this.sqlite = this.driver === 'sqlite'
@@ -106,7 +105,7 @@ class CameraMetadataRepository {
         if (this.sqlite) {
             this.sqlite.replace(persisted);
         }
-        if (this.dualWritePrimary) {
+        if (this.writePrimaryJson) {
             writeJsonFile(this.primaryFile, persisted);
         }
         if (this.dualWriteLegacy) {

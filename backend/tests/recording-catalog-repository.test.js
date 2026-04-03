@@ -14,7 +14,6 @@ test('RecordingCatalogRepository can disable all JSON compatibility writes in sq
         primaryFile: primary,
         legacyFile: legacy,
         driver: 'sqlite',
-        dualWritePrimary: false,
         dualWriteLegacy: false
     });
 
@@ -43,7 +42,6 @@ test('RecordingCatalogRepository does not read legacy file in sqlite mode', () =
         primaryFile: primary,
         legacyFile: legacy,
         driver: 'sqlite',
-        dualWritePrimary: false,
         dualWriteLegacy: false
     });
 

@@ -27,8 +27,7 @@ test('ObservationEventRepository can disable legacy JSON dual-write while using 
     const repository = new ObservationEventRepository({
         filePath: legacyFile,
         driver: 'sqlite',
-        sqliteStore,
-        dualWriteLegacy: false
+        sqliteStore
     });
 
     repository.append(createEvent('cam-1'));
@@ -50,8 +49,7 @@ test('ObservationEventRepository writes legacy JSON when running in json mode', 
     const repository = new ObservationEventRepository({
         filePath: legacyFile,
         driver: 'json',
-        sqliteStore,
-        dualWriteLegacy: true
+        sqliteStore
     });
 
     repository.append(createEvent('cam-3'));

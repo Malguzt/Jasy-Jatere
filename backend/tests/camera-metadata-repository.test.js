@@ -98,7 +98,6 @@ test('CameraMetadataRepository can disable all JSON compatibility writes in sqli
         primaryFile: primary,
         legacyFile: legacy,
         driver: 'sqlite',
-        dualWritePrimary: false,
         dualWriteLegacy: false
     });
 
@@ -121,7 +120,6 @@ test('CameraMetadataRepository does not bootstrap from JSON files in sqlite mode
         primaryFile: primary,
         legacyFile: legacy,
         driver: 'sqlite',
-        dualWritePrimary: false,
         dualWriteLegacy: false
     });
 

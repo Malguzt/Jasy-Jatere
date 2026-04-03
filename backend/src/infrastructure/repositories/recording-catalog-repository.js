@@ -37,13 +37,12 @@ class RecordingCatalogRepository {
         legacyFile = DEFAULT_LEGACY_FILE,
         driver = DEFAULT_DRIVER,
         sqliteStore = null,
-        dualWritePrimary = true,
         dualWriteLegacy = true
     } = {}) {
         this.primaryFile = primaryFile;
         this.legacyFile = legacyFile;
         this.driver = String(driver || 'sqlite').toLowerCase();
-        this.dualWritePrimary = this.driver === 'sqlite' ? false : true;
+        this.writePrimaryJson = this.driver !== 'sqlite';
         this.dualWriteLegacy = this.driver === 'sqlite' ? false : dualWriteLegacy !== false;
         this.sqlite = this.driver === 'sqlite'
             ? new SqliteRecordingCatalogRepository({
@@ -81,13 +80,13 @@ class RecordingCatalogRepository {
         if (!normalized) return null;
         if (this.sqlite) {
             this.sqlite.upsert(normalized);
-            if (!this.dualWritePrimary && !this.dualWriteLegacy) {
+            if (!this.writePrimaryJson && !this.dualWriteLegacy) {
                 return normalized;
             }
         }
         const existing = this.readJsonPrimaryOrLegacy().filter((item) => item.filename !== normalized.filename);
         const next = sortByEventTimeDesc([normalized, ...existing]);
-        if (this.dualWritePrimary) {
+        if (this.writePrimaryJson) {
             writeJsonFile(this.primaryFile, next);
         }
         if (this.dualWriteLegacy) {
@@ -102,14 +101,14 @@ class RecordingCatalogRepository {
         let removedFromSqlite = false;
         if (this.sqlite) {
             removedFromSqlite = this.sqlite.remove(safe);
-            if (!this.dualWritePrimary && !this.dualWriteLegacy) {
+            if (!this.writePrimaryJson && !this.dualWriteLegacy) {
                 return removedFromSqlite;
             }
         }
         const current = this.readJsonPrimaryOrLegacy();
         const next = current.filter((entry) => entry.filename !== safe);
         if (next.length === current.length) return removedFromSqlite;
-        if (this.dualWritePrimary) {
+        if (this.writePrimaryJson) {
             writeJsonFile(this.primaryFile, next);
         }
         if (this.dualWriteLegacy) {

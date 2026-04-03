@@ -16,8 +16,7 @@ class ObservationEventRepository {
         filePath = DEFAULT_FILE,
         maxEntries = Number(process.env.OBSERVATION_MAX_ENTRIES || 2500),
         driver = DEFAULT_DRIVER,
-        sqliteStore = null,
-        dualWriteLegacy = true
+        sqliteStore = null
     } = {}) {
         this.filePath = filePath;
         this.maxEntries = Number.isFinite(Number(maxEntries)) ? Math.max(100, Number(maxEntries)) : 2500;

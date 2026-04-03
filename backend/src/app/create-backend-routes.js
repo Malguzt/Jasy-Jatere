@@ -16,27 +16,74 @@ function registerBackendRoutes({
     app,
     services
 }) {
-    app.use('/api/contracts', createContractsRouter({ contractsService: services.contractsService }));
+    const routeRegistrations = [
+        {
+            path: '/api/contracts',
+            router: createContractsRouter({ contractsService: services.contractsService })
+        },
+        {
+            path: '/api/cameras',
+            router: createCameraRouter({ cameraService: services.onvifCameraService })
+        },
+        {
+            path: '/api/saved-cameras',
+            router: createSavedCamerasRouter({ savedCamerasService: services.savedCamerasService })
+        },
+        {
+            path: '/api/maps',
+            router: createMapsRouter({ mapsService: services.mapsService })
+        },
+        {
+            path: '/api/detector',
+            router: createDetectorRouter({ detectorProxyService: services.detectorProxyService })
+        },
+        {
+            path: '/api/monitoring',
+            router: createMonitoringApiRouter({ monitoringService: services.monitoringService })
+        },
+        {
+            path: '/api/streams',
+            router: createStreamsRouter({
+                streamControlService: services.streamControlService,
+                streamControlProxyService: services.streamControlProxyService
+            })
+        },
+        {
+            path: '/api/camera-motion',
+            router: createCameraMotionRouter({ cameraMotionService: services.cameraMotionService })
+        },
+        {
+            path: '/api/health',
+            router: createHealthRouter({ platformHealthService: services.platformHealthService })
+        },
+        {
+            path: '/api/internal/config',
+            router: createInternalConfigRouter({ workerConfigService: services.workerConfigService })
+        },
+        {
+            path: '/api/recordings',
+            router: createRecordingsRouter({ recordingCatalogService: services.recordingCatalogService })
+        },
+        {
+            path: '/api/perception',
+            router: createPerceptionRouter({ perceptionIngestService: services.perceptionIngestService })
+        },
+        {
+            path: '/',
+            router: createMetricsRouter({
+                monitoringService: services.monitoringService,
+                streamRuntimeService: services.streamControlProxyService || services.streamControlService
+            })
+        },
+        {
+            path: '/',
+            router: createControlPlaneProbesRouter({ platformHealthService: services.platformHealthService })
+        }
+    ];
 
-    app.use('/api/cameras', createCameraRouter({ cameraService: services.onvifCameraService }));
-    app.use('/api/saved-cameras', createSavedCamerasRouter({ savedCamerasService: services.savedCamerasService }));
-    app.use('/api/maps', createMapsRouter({ mapsService: services.mapsService }));
-    app.use('/api/detector', createDetectorRouter({ detectorProxyService: services.detectorProxyService }));
-    app.use('/api/monitoring', createMonitoringApiRouter({ monitoringService: services.monitoringService }));
-    app.use('/api/streams', createStreamsRouter({
-        streamControlService: services.streamControlService,
-        streamControlProxyService: services.streamControlProxyService
-    }));
-    app.use('/api/camera-motion', createCameraMotionRouter({ cameraMotionService: services.cameraMotionService }));
-    app.use('/api/health', createHealthRouter({ platformHealthService: services.platformHealthService }));
-    app.use('/api/internal/config', createInternalConfigRouter({ workerConfigService: services.workerConfigService }));
-    app.use('/api/recordings', createRecordingsRouter({ recordingCatalogService: services.recordingCatalogService }));
-    app.use('/api/perception', createPerceptionRouter({ perceptionIngestService: services.perceptionIngestService }));
-    app.use('/', createMetricsRouter({
-        monitoringService: services.monitoringService,
-        streamRuntimeService: services.streamControlProxyService || services.streamControlService
-    }));
-    app.use('/', createControlPlaneProbesRouter({ platformHealthService: services.platformHealthService }));
+    routeRegistrations.forEach(({ path, router }) => {
+        app.use(path, router);
+    });
 }
 
 module.exports = {

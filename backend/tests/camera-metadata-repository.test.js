@@ -15,7 +15,8 @@ test('CameraMetadataRepository falls back to legacy export when primary metadata
 
     const repository = new CameraMetadataRepository({
         primaryFile: primary,
-        legacyFile: legacy
+        legacyFile: legacy,
+        driver: 'json'
     });
 
     const listed = repository.list();
@@ -96,8 +97,7 @@ test('CameraMetadataRepository can disable all JSON compatibility writes in sqli
         legacyFile: legacy,
         driver: 'sqlite',
         dualWritePrimary: false,
-        dualWriteLegacy: false,
-        legacyReadFallback: false
+        dualWriteLegacy: false
     });
 
     repository.replace([{ id: 'cam-4', name: 'SQLite Only' }]);

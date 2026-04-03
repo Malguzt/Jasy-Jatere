@@ -59,8 +59,7 @@ function createBackendServices({
     const healthSnapshotRepository = new HealthSnapshotRepository({
         driver,
         sqliteStore,
-        dualWriteFile: runtimeFlags.legacyCompatExportsEnabled,
-        legacyReadFallback: runtimeFlags.legacyCompatExportsEnabled
+        dualWriteFile: runtimeFlags.legacyCompatExportsEnabled
     });
     const savedCamerasService = new SavedCamerasService({
         repository: cameraRepository

@@ -31,6 +31,5 @@ test('createCameraInventoryStack builds repository, inventory service, and compa
 
     assert.equal(typeof stack.cameraRepository.list, 'function');
     assert.equal(typeof stack.cameraInventoryService.listCameras, 'function');
-    assert.equal(stack.repositoryCompatOptions.legacyReadFallback, false);
     assert.equal(stack.legacyFileFallbackOptions.legacyFileFallbackEnabled, false);
 });

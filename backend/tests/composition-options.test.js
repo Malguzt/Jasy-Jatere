@@ -7,11 +7,10 @@ const {
     buildStreamControlRuntimeOptions
 } = require('../src/app/composition-options');
 
-test('buildRepositoryCompatOptions enables dual-write and fallback when legacy compat is enabled', () => {
+test('buildRepositoryCompatOptions enables dual-write when legacy compat is enabled', () => {
     const options = buildRepositoryCompatOptions({ legacyCompatExportsEnabled: true });
     assert.equal(options.dualWritePrimary, true);
     assert.equal(options.dualWriteLegacy, true);
-    assert.equal(options.legacyReadFallback, true);
 });
 
 test('buildLegacyFileFallbackOptions maps legacy compat flag to fallback option', () => {

@@ -27,8 +27,7 @@ test('HealthSnapshotRepository can disable legacy JSON dual-write in sqlite mode
         filePath,
         driver: 'sqlite',
         sqliteStore,
-        dualWriteFile: false,
-        legacyReadFallback: false
+        dualWriteFile: false
     });
 
     repository.save(makeSnapshot('degraded'));
@@ -37,7 +36,7 @@ test('HealthSnapshotRepository can disable legacy JSON dual-write in sqlite mode
     assert.equal(fs.existsSync(filePath), false);
 });
 
-test('HealthSnapshotRepository can read legacy JSON fallback when explicitly enabled', () => {
+test('HealthSnapshotRepository does not read legacy JSON fallback in sqlite mode', () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'health-repo-legacy-read-'));
     const filePath = path.join(tmpDir, 'health-snapshot.json');
     const legacySnapshot = makeSnapshot('legacy-online');
@@ -52,10 +51,9 @@ test('HealthSnapshotRepository can read legacy JSON fallback when explicitly ena
         filePath,
         driver: 'sqlite',
         sqliteStore,
-        dualWriteFile: false,
-        legacyReadFallback: true
+        dualWriteFile: false
     });
 
     const latest = repository.getLatest();
-    assert.equal(latest.status, 'legacy-online');
+    assert.equal(latest, null);
 });

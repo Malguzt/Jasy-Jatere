@@ -38,15 +38,13 @@ class RecordingCatalogRepository {
         driver = DEFAULT_DRIVER,
         sqliteStore = null,
         dualWritePrimary = true,
-        dualWriteLegacy = true,
-        legacyReadFallback = true
+        dualWriteLegacy = true
     } = {}) {
         this.primaryFile = primaryFile;
         this.legacyFile = legacyFile;
         this.driver = String(driver || 'sqlite').toLowerCase();
         this.dualWritePrimary = this.driver === 'sqlite' ? dualWritePrimary === true : true;
         this.dualWriteLegacy = this.driver === 'sqlite' ? dualWriteLegacy === true : dualWriteLegacy !== false;
-        this.legacyReadFallback = this.driver === 'sqlite' ? legacyReadFallback === true : true;
         this.sqlite = this.driver === 'sqlite'
             ? new SqliteRecordingCatalogRepository({
                 store: sqliteStore || new MetadataSqliteStore({
@@ -64,7 +62,7 @@ class RecordingCatalogRepository {
             }
             return [];
         }
-        if (!this.legacyReadFallback) return [];
+        if (this.driver === 'sqlite') return [];
         const legacy = readJsonFile(this.legacyFile, []);
         if (!Array.isArray(legacy)) return [];
         return sortByEventTimeDesc(legacy.map((entry) => normalizeEntry(entry)).filter(Boolean));

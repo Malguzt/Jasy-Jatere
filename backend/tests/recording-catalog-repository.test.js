@@ -15,8 +15,7 @@ test('RecordingCatalogRepository can disable all JSON compatibility writes in sq
         legacyFile: legacy,
         driver: 'sqlite',
         dualWritePrimary: false,
-        dualWriteLegacy: false,
-        legacyReadFallback: false
+        dualWriteLegacy: false
     });
 
     const upserted = repository.upsert({
@@ -30,7 +29,7 @@ test('RecordingCatalogRepository can disable all JSON compatibility writes in sq
     assert.equal(fs.existsSync(legacy), false);
 });
 
-test('RecordingCatalogRepository can ignore legacy fallback reads in sqlite mode', () => {
+test('RecordingCatalogRepository does not read legacy file in sqlite mode', () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'recording-repo-no-fallback-'));
     const primary = path.join(tmpDir, 'metadata', 'recordings-catalog.json');
     const legacy = path.join(tmpDir, 'recordings-index.json');
@@ -45,8 +44,7 @@ test('RecordingCatalogRepository can ignore legacy fallback reads in sqlite mode
         legacyFile: legacy,
         driver: 'sqlite',
         dualWritePrimary: false,
-        dualWriteLegacy: false,
-        legacyReadFallback: false
+        dualWriteLegacy: false
     });
 
     assert.equal(repository.list().length, 0);

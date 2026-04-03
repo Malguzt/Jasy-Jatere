@@ -2,8 +2,7 @@ function buildRepositoryCompatOptions(runtimeFlags = {}) {
     const enabled = runtimeFlags.legacyCompatExportsEnabled === true;
     return {
         dualWritePrimary: enabled,
-        dualWriteLegacy: enabled,
-        legacyReadFallback: enabled
+        dualWriteLegacy: enabled
     };
 }
 

@@ -8,7 +8,6 @@ const {
 } = require('./composition-options');
 
 function createStreamRuntimeStack({
-    cameraFile,
     cameraInventoryService,
     runtimeFlags,
     streamManagerInstance = streamManager
@@ -16,7 +15,6 @@ function createStreamRuntimeStack({
     const streamControlRuntimeOptions = buildStreamControlRuntimeOptions(runtimeFlags);
 
     const streamSyncOrchestrator = new StreamSyncOrchestrator({
-        cameraFile,
         cameraInventoryService,
         streamManager: streamManagerInstance,
         resolveCameraStreamUrls,
@@ -32,7 +30,6 @@ function createStreamRuntimeStack({
     });
 
     const streamWebSocketGateway = new StreamWebSocketGateway({
-        cameraFile,
         cameraInventoryService,
         streamManager: streamManagerInstance,
         resolveCameraStreamUrls

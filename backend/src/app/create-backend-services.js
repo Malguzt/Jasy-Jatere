@@ -86,7 +86,6 @@ function createBackendServices({
         healthSnapshotRepository
     });
     const streamRuntimeStack = createStreamRuntimeStack({
-        cameraFile,
         cameraInventoryService,
         runtimeFlags,
         streamManagerInstance: streamManager

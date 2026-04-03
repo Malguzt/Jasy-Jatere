@@ -8,7 +8,6 @@ function toPositiveInt(value, fallback) {
 
 class StreamSyncOrchestrator {
     constructor({
-        cameraFile,
         cameraInventoryService,
         streamManager,
         resolveCameraStreamUrls,
@@ -24,7 +23,6 @@ class StreamSyncOrchestrator {
         clearTimeoutFn = clearTimeout,
         clearIntervalFn = clearInterval
     } = {}) {
-        this.cameraFile = cameraFile;
         this.cameraInventoryService = cameraInventoryService;
         this.streamManager = streamManager;
         this.resolveCameraStreamUrls = resolveCameraStreamUrls;

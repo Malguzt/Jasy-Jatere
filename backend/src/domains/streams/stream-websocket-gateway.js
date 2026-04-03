@@ -3,14 +3,12 @@ const { loadCameraById } = require('../cameras/camera-inventory-loader');
 
 class StreamWebSocketGateway {
     constructor({
-        cameraFile,
         cameraInventoryService,
         streamManager,
         resolveCameraStreamUrls,
         webSocketLib = WebSocket,
         logger = console
     } = {}) {
-        this.cameraFile = cameraFile;
         this.cameraInventoryService = cameraInventoryService;
         this.streamManager = streamManager;
         this.resolveCameraStreamUrls = resolveCameraStreamUrls;

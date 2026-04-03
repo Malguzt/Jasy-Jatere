@@ -13,7 +13,6 @@ function makeRuntimeFlags(overrides = {}) {
         streamWebRtcIceServersJson: '',
         streamWebRtcSignalingRetries: 1,
         streamPublicBaseUrl: '',
-        legacyCompatExportsEnabled: false,
         ...overrides
     };
 }

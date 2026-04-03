@@ -70,8 +70,7 @@ test('storage saves and retrieves maps in isolated directory', () => {
     withEnv({
         MAPS_DATA_DIR: tempDir,
         METADATA_DRIVER: 'sqlite',
-        METADATA_SQLITE_PATH: path.join(tempDir, 'metadata.db'),
-        LEGACY_COMPAT_EXPORTS_ENABLED: '0'
+        METADATA_SQLITE_PATH: path.join(tempDir, 'metadata.db')
     }, () => {
         const storage = freshRequire('../maps/storage');
 
@@ -103,8 +102,7 @@ test('manual corrections are persisted and exposed as hints', () => {
     withEnv({
         MAPS_DATA_DIR: tempDir,
         METADATA_DRIVER: 'sqlite',
-        METADATA_SQLITE_PATH: path.join(tempDir, 'metadata.db'),
-        LEGACY_COMPAT_EXPORTS_ENABLED: '0'
+        METADATA_SQLITE_PATH: path.join(tempDir, 'metadata.db')
     }, () => {
         freshRequire('../maps/storage');
         const corrections = freshRequire('../maps/corrections');
@@ -126,13 +124,12 @@ test('manual corrections are persisted and exposed as hints', () => {
     });
 });
 
-test('maps modules skip legacy JSON compatibility files when legacy exports are disabled', () => {
+test('maps modules skip legacy JSON compatibility files in repository-first runtime mode', () => {
     const tempDir = makeTmpDir('maps-no-legacy-exports');
     withEnv({
         MAPS_DATA_DIR: tempDir,
         METADATA_DRIVER: 'sqlite',
-        METADATA_SQLITE_PATH: path.join(tempDir, 'metadata.db'),
-        LEGACY_COMPAT_EXPORTS_ENABLED: '0'
+        METADATA_SQLITE_PATH: path.join(tempDir, 'metadata.db')
     }, () => {
         const storage = freshRequire('../maps/storage');
         const corrections = freshRequire('../maps/corrections');
@@ -195,8 +192,7 @@ test('maps legacy bootstrap can be forced for migration flows', () => {
     withEnv({
         MAPS_DATA_DIR: tempDir,
         METADATA_DRIVER: 'sqlite',
-        METADATA_SQLITE_PATH: path.join(tempDir, 'metadata.db'),
-        LEGACY_COMPAT_EXPORTS_ENABLED: '0'
+        METADATA_SQLITE_PATH: path.join(tempDir, 'metadata.db')
     }, () => {
         const storage = freshRequire('../maps/storage');
         const corrections = freshRequire('../maps/corrections');

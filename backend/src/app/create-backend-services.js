@@ -33,7 +33,6 @@ function createBackendServices({
 
     const cameraInventoryStack = createCameraInventoryStack({
         cameraFile,
-        runtimeFlags,
         metadataDriver: driver,
         sqliteStore
     });

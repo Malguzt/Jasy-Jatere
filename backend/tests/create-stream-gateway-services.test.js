@@ -13,7 +13,6 @@ function makeRuntimeFlags(overrides = {}) {
         streamWebRtcIceServersJson: '',
         streamWebRtcSignalingRetries: 1,
         streamPublicBaseUrl: '',
-        legacyCompatExportsEnabled: false,
         ...overrides
     };
 }
@@ -30,4 +29,3 @@ test('createStreamGatewayServices returns composed stream-gateway services', () 
     assert.equal(typeof services.streamControlService?.getRuntimeSnapshot, 'function');
     assert.equal(typeof services.streamWebSocketGateway?.attach, 'function');
 });
-

@@ -1,21 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const {
-    buildLegacyFileFallbackOptions,
-    buildStreamControlRuntimeOptions
-} = require('../src/app/composition-options');
-
-test('buildLegacyFileFallbackOptions maps legacy compat flag to fallback option', () => {
-    assert.equal(
-        buildLegacyFileFallbackOptions({ legacyCompatExportsEnabled: true }).legacyFileFallbackEnabled,
-        true
-    );
-    assert.equal(
-        buildLegacyFileFallbackOptions({ legacyCompatExportsEnabled: false }).legacyFileFallbackEnabled,
-        false
-    );
-});
+const { buildStreamControlRuntimeOptions } = require('../src/app/composition-options');
 
 test('buildStreamControlRuntimeOptions maps stream runtime flags transparently', () => {
     const options = buildStreamControlRuntimeOptions({

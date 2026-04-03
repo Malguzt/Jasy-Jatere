@@ -12,7 +12,6 @@ function createStreamGatewayServices({
     const sqliteStore = metadataContext.sqliteStore;
     const cameraInventoryStack = createCameraInventoryStack({
         cameraFile,
-        runtimeFlags,
         metadataDriver: driver,
         sqliteStore
     });

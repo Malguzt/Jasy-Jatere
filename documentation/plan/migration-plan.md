@@ -10,8 +10,8 @@ Each phase should produce a working system and avoid a large-bang rewrite.
 ## Implementation Progress Snapshot (April 2, 2026)
 
 - Phase 0: in progress with schema-validated contracts extended for stream sync, perception ingest, recording catalog upsert payloads, internal worker-config snapshots (`/api/internal/config/cameras|streams|retention`), and composed WebRTC request rules via `anyOf/oneOf` for session create/candidate/close APIs.
-- Phase 1: in progress with backend app composition split into domain services, runtime coordinator, and dedicated routers, including injected camera/saved-camera/maps/detector route services wired from control-plane composition instead of route-local singleton instantiation, plus service graph extraction into dedicated composition factories for control-plane and stream-gateway bootstrap (`create-backend-services`, `create-stream-gateway-services`), shared composition option mappers (`composition-options`) for runtime/repository compatibility toggles, shared metadata bootstrap context (`create-metadata-context`) for driver/store initialization, shared camera-inventory stack composition helper (`create-camera-inventory-stack`), shared stream-runtime stack composition helper (`create-stream-runtime-stack`), shared app bootstrap middleware helper (`create-http-app-base`), dedicated route-registration modules for each app (`create-backend-routes`, `create-stream-gateway-routes`), dedicated gateway internal-stream router wiring (`routes/internal-streams-gateway`), extracted liveness/readiness probe routers (`routes/control-plane-probes`, `routes/stream-gateway-probes`), and shared HTTP runtime lifecycle bootstrap (`http-runtime-bootstrap`) reused by both backend entrypoints.
-- Phase 2: in progress with SQLite-backed metadata repositories for camera inventory, recording catalog, observations, map versions, map jobs, and manual map corrections, with legacy JSON retained as compatibility export paths while implicit runtime legacy-read fallback is retired.
+- Phase 1: in progress with backend app composition split into domain services, runtime coordinator, and dedicated routers, including injected camera/saved-camera/maps/detector route services wired from control-plane composition instead of route-local singleton instantiation, plus service graph extraction into dedicated composition factories for control-plane and stream-gateway bootstrap (`create-backend-services`, `create-stream-gateway-services`), shared composition option mappers (`composition-options`) for stream runtime options, shared metadata bootstrap context (`create-metadata-context`) for driver/store initialization, shared camera-inventory stack composition helper (`create-camera-inventory-stack`), shared stream-runtime stack composition helper (`create-stream-runtime-stack`), shared app bootstrap middleware helper (`create-http-app-base`), dedicated route-registration modules for each app (`create-backend-routes`, `create-stream-gateway-routes`), dedicated gateway internal-stream router wiring (`routes/internal-streams-gateway`), extracted liveness/readiness probe routers (`routes/control-plane-probes`, `routes/stream-gateway-probes`), and shared HTTP runtime lifecycle bootstrap (`http-runtime-bootstrap`) reused by both backend entrypoints.
+- Phase 2: in progress with SQLite-backed metadata repositories for camera inventory, recording catalog, observations, map versions, map jobs, and manual map corrections, with legacy JSON handled through explicit migration/import tooling while implicit runtime legacy-read fallback is retired.
 - Phase 3: in progress with worker-facing internal config APIs (`/api/internal/config/*`), detector camera-config and retention-policy consumption through control-plane snapshots, strict no-shared-file mode via `REQUIRE_CONTROL_PLANE_CAMERA_CONFIG` (now default-enabled in detector unless explicitly disabled), strict retention snapshot dependency defaults in compose via `REQUIRE_CONTROL_PLANE_RETENTION_CONFIG=1`, backend connectivity monitor, stream websocket camera lookup, stream-sync camera loading, camera-event monitoring, and ONVIF discovery prefix loading all aligned to repository-only runtime inventory ownership, shared camera-inventory fallback loading extracted to a reusable domain helper (`camera-inventory-loader`) consumed across monitor/stream/discovery domains, detector camera/retention config-source policy extraction into a dedicated provider module (`detector/config_provider.py`), detector control-plane ingest/catalog HTTP extraction into a dedicated client module (`detector/control_plane_client.py`), and reconstructor camera-motion control-plane polling extraction into a dedicated client module (`reconstructor/motion_client.py`) with strict-mode policy defaults.
 - Phase 4A: in progress with stream orchestration extracted into stream control services and WS gateway modules, plus lifecycle toggles (`STREAM_RUNTIME_ENABLED`, `STREAM_WEBSOCKET_GATEWAY_ENABLED`), transport capability negotiation (`GET /api/streams/capabilities`, `STREAM_WEBRTC_ENABLED`, `STREAM_WEBRTC_REQUIRE_HTTPS`), logical session descriptors (`GET /api/streams/sessions/:cameraId`), WebRTC signaling handoff (`POST /api/streams/webrtc/sessions`, `POST /api/streams/webrtc/sessions/:sessionId/candidates`, `DELETE /api/streams/webrtc/sessions/:sessionId`, `STREAM_WEBRTC_SIGNALING_URL`), schema-validated WebRTC request contracts (`stream-webrtc-session-create-request`, `stream-webrtc-candidate-request`, `stream-webrtc-session-close-request`), signaling hardening (`STREAM_WEBRTC_SIGNALING_RETRIES`, `STREAM_WEBRTC_SIGNALING_TIMEOUT_MS`, `STREAM_WEBRTC_ICE_SERVERS_JSON`), stream-runtime Prometheus metrics (`GET /api/streams/metrics`, `GET /api/internal/streams/metrics`), proxy support (`STREAM_GATEWAY_API_URL`) to support gradual runtime separation, compose defaults wired for proxy ownership (`STREAM_PROXY_MODE_ENABLED=1`, `STREAM_PROXY_REQUIRED=1`), backend WS tunnel mode that relays `/stream/:cameraId` to the gateway when proxy mode is enabled, and optional externally reachable session URL publication via `STREAM_PUBLIC_BASE_URL`.
 - Phase 5: in progress with perception ingest and control-plane-owned recording catalog APIs (`/api/perception/*`, `/api/recordings`), retirement of detector recording aliases (`/api/detector/recordings*` -> `410`), retirement of detector-local `/recordings*` compatibility endpoints (`410`), and detector-local catalog artifacts (`recordings-index.json`, `*.meta.json`) retired from runtime ownership.
@@ -57,7 +57,7 @@ Especially in:
 
 This prevents each refactor from inventing a new payload shape.
 
-### 5. Preserve compatibility through feature flags and dual-write stages
+### 5. Preserve compatibility through explicit migration stages
 
 The migration should keep the old behavior alive until the new behavior is verified.
 
@@ -162,9 +162,7 @@ Stop treating JSON files as the system source of truth.
   - map versions,
   - manual corrections.
 - Add migration scripts for schema creation.
-- Introduce dual-write mode:
-  - write to SQLite,
-  - still write legacy JSON outputs temporarily.
+- Keep runtime ownership repository-first and use explicit import/bootstrap tooling for legacy JSON artifacts.
 
 ### Current code touch points
 
@@ -501,7 +499,7 @@ The safest order is:
 
 1. Contracts
 2. Backend modularization
-3. Metadata store with dual-write
+3. Metadata store with explicit migration tooling
 4. Worker config APIs
 5. Stream gateway extraction
 6. Observation ingest and recording catalog ownership

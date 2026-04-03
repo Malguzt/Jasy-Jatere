@@ -11,7 +11,7 @@ function makeTempSqlitePath() {
     return path.join(dir, 'metadata.db');
 }
 
-test('createCameraInventoryStack builds repository, inventory service, and compat options', () => {
+test('createCameraInventoryStack builds repository and inventory service', () => {
     const sqlitePath = makeTempSqlitePath();
     const sqliteStore = {
         dbPath: sqlitePath,
@@ -24,12 +24,10 @@ test('createCameraInventoryStack builds repository, inventory service, and compa
 
     const stack = createCameraInventoryStack({
         cameraFile: '/tmp/non-existent-cameras-stack.json',
-        runtimeFlags: { legacyCompatExportsEnabled: false },
         metadataDriver: 'sqlite',
         sqliteStore
     });
 
     assert.equal(typeof stack.cameraRepository.list, 'function');
     assert.equal(typeof stack.cameraInventoryService.listCameras, 'function');
-    assert.equal(stack.legacyFileFallbackOptions.legacyFileFallbackEnabled, false);
 });

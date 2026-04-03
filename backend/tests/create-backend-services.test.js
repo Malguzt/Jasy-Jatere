@@ -16,7 +16,6 @@ function makeRuntimeFlags(overrides = {}) {
         streamWebRtcIceServersJson: '',
         streamWebRtcSignalingRetries: 1,
         streamPublicBaseUrl: '',
-        legacyCompatExportsEnabled: false,
         recordingRetentionEnabled: false,
         recordingRetentionIntervalMs: 60000,
         recordingRetentionMaxAgeDays: null,

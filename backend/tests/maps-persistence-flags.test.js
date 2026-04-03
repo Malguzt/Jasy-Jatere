@@ -14,24 +14,16 @@ test('parseBool handles common truthy and falsy values', () => {
     assert.equal(parseBool('off', true), false);
 });
 
-test('resolveMapPersistenceFlags defaults to sqlite with legacy compat disabled', () => {
+test('resolveMapPersistenceFlags defaults to sqlite with repository-first runtime behavior', () => {
     const flags = resolveMapPersistenceFlags({});
     assert.equal(flags.metadataDriver, 'sqlite');
     assert.equal(flags.exportCompatJson, false);
 });
 
-test('resolveMapPersistenceFlags keeps compatibility exports disabled even when legacy flag is enabled', () => {
+test('resolveMapPersistenceFlags normalizes configured metadata driver', () => {
     const flags = resolveMapPersistenceFlags({
-        METADATA_STORE_DRIVER: 'sqlite',
-        LEGACY_COMPAT_EXPORTS_ENABLED: '1'
+        METADATA_STORE_DRIVER: 'json'
     });
-    assert.equal(flags.exportCompatJson, false);
-});
-
-test('resolveMapPersistenceFlags ignores explicit dual-write overrides', () => {
-    const flags = resolveMapPersistenceFlags({
-        METADATA_STORE_DRIVER: 'sqlite',
-        METADATA_DUAL_WRITE_JSON_EXPORTS: '1'
-    });
+    assert.equal(flags.metadataDriver, 'json');
     assert.equal(flags.exportCompatJson, false);
 });

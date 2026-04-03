@@ -50,7 +50,6 @@ function resolveRuntimeFlags(env = process.env) {
             : parseBoolEnv(env.STREAM_WEBSOCKET_GATEWAY_ENABLED, true),
         streamWebRtcEnabled: parseBoolEnv(env.STREAM_WEBRTC_ENABLED, false),
         streamWebRtcRequireHttps: parseBoolEnv(env.STREAM_WEBRTC_REQUIRE_HTTPS, true),
-        legacyCompatExportsEnabled: parseBoolEnv(env.LEGACY_COMPAT_EXPORTS_ENABLED, false),
         recordingRetentionEnabled: parseBoolEnv(env.RECORDING_RETENTION_ENABLED, false),
         recordingRetentionIntervalMs: parsePositiveIntEnv(env.RECORDING_RETENTION_INTERVAL_MS, 60 * 60 * 1000),
         recordingRetentionMaxAgeDays: parseOptionalPositiveIntEnv(env.RECORDING_RETENTION_MAX_AGE_DAYS),

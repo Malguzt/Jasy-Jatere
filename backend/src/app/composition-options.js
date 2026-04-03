@@ -1,9 +1,3 @@
-function buildLegacyFileFallbackOptions(runtimeFlags = {}) {
-    return {
-        legacyFileFallbackEnabled: runtimeFlags.legacyCompatExportsEnabled === true
-    };
-}
-
 function buildStreamControlRuntimeOptions(runtimeFlags = {}) {
     return {
         streamWebSocketGatewayEnabled: runtimeFlags.streamWebSocketGatewayEnabled,
@@ -18,6 +12,5 @@ function buildStreamControlRuntimeOptions(runtimeFlags = {}) {
 }
 
 module.exports = {
-    buildLegacyFileFallbackOptions,
     buildStreamControlRuntimeOptions
 };

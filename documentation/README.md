@@ -99,7 +99,7 @@ If you want the shortest path through the redesign, use this order:
 - Camera event monitoring now resolves cameras from repository-backed inventory only (no direct file fallback in runtime monitoring paths).
 - Stream-sync orchestration now resolves cameras from repository-backed inventory only (no direct file fallback path).
 - ONVIF discovery now resolves known scan prefixes from repository-backed inventory only (no legacy file prefix fallback in runtime discovery paths).
-- Camera inventory fallback logic is now centralized in a shared loader (`backend/src/domains/cameras/camera-inventory-loader.js`) and remains available for controlled transitional compatibility paths where still required.
+- Camera inventory fallback logic is now centralized in a shared loader (`backend/src/domains/cameras/camera-inventory-loader.js`) and should only be used by explicit migration/bootstrap tooling.
 - Camera inventory ID resolution (`findCamera`/`listCameras`) is also centralized in that shared loader and reused by stream websocket gateways.
 - SQLite-backed repositories now treat legacy JSON as compatibility export targets only; implicit runtime legacy-read fallback is retired (migration/import paths remain explicit).
 - Legacy map/correction JSON compatibility I/O is now centralized through a shared adapter (`backend/maps/legacy-json-adapter.js`) consumed by both `backend/maps/storage.js` and `backend/maps/corrections.js`.
@@ -115,8 +115,8 @@ If you want the shortest path through the redesign, use this order:
 - Shared server lifecycle wiring (listen/start/shutdown signal handling) is now centralized in `backend/src/app/http-runtime-bootstrap.js`, reused by both `server.js` and `stream-gateway-server.js`.
 - Backend and stream-gateway app factories now also share a common Express bootstrap helper (`backend/src/app/create-http-app-base.js`) for CORS/JSON/correlation middleware wiring.
 - Backend and stream-gateway app factories now delegate HTTP route wiring to dedicated modules (`backend/src/app/create-backend-routes.js`, `backend/src/app/create-stream-gateway-routes.js`), reducing bootstrapping file coupling.
-- Backend and stream-gateway composition now share common runtime option mappers (`backend/src/app/composition-options.js`) for repository compatibility, legacy fallback wiring, and stream-control runtime flags.
+- Backend and stream-gateway composition now share common runtime option mappers (`backend/src/app/composition-options.js`) for stream-control runtime flags.
 - Backend and stream-gateway composition now also share metadata bootstrap wiring through `backend/src/app/create-metadata-context.js` (driver normalization + SQLite migrate/bootstrap).
-- Camera inventory composition wiring (repository + inventory service + compatibility option mapping) is now shared through `backend/src/app/create-camera-inventory-stack.js`.
+- Camera inventory composition wiring (repository + inventory service) is now shared through `backend/src/app/create-camera-inventory-stack.js`.
 - Stream runtime composition wiring (sync orchestrator + stream control + websocket gateway) is now shared through `backend/src/app/create-stream-runtime-stack.js`.
 - Frontend polling-heavy data hooks now reuse a shared polling helper (`frontend/src/api/polling.js`) to keep query cadence and cancellation behavior consistent across domains.

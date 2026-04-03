@@ -3,6 +3,7 @@ const { MetadataSqliteStore } = require('../src/infrastructure/sqlite/metadata-s
 const { SqliteMapVersionRepository } = require('../src/infrastructure/sqlite/sqlite-map-version-repository');
 const { SqliteMapJobRepository } = require('../src/infrastructure/sqlite/sqlite-map-job-repository');
 const { createLegacyJsonAdapter } = require('./legacy-json-adapter');
+const { resolveMapPersistenceFlags } = require('./persistence-flags');
 
 const MAPS_DIR = process.env.MAPS_DATA_DIR
     ? path.resolve(process.env.MAPS_DATA_DIR)
@@ -20,24 +21,16 @@ const legacyAdapter = createLegacyJsonAdapter({
 const INDEX_FILE = legacyAdapter.indexFile;
 const JOBS_FILE = legacyAdapter.jobsFile;
 
-const METADATA_DRIVER = String(process.env.METADATA_STORE_DRIVER || 'sqlite').toLowerCase();
+const mapPersistenceFlags = resolveMapPersistenceFlags();
+const METADATA_DRIVER = mapPersistenceFlags.metadataDriver;
 const SQLITE_DB_PATH = process.env.METADATA_SQLITE_PATH || path.join(MAPS_DIR, 'metadata.db');
-const LEGACY_COMPAT_EXPORTS_ENABLED = parseBool(process.env.LEGACY_COMPAT_EXPORTS_ENABLED, false);
-const EXPORT_COMPAT_JSON = parseBool(process.env.METADATA_DUAL_WRITE_JSON_EXPORTS, LEGACY_COMPAT_EXPORTS_ENABLED);
-const LEGACY_READ_FALLBACK = parseBool(process.env.METADATA_LEGACY_READ_FALLBACK, LEGACY_COMPAT_EXPORTS_ENABLED);
+const EXPORT_COMPAT_JSON = mapPersistenceFlags.exportCompatJson;
+const LEGACY_READ_FALLBACK = mapPersistenceFlags.legacyReadFallback;
 
 let sqliteStore = null;
 let sqliteMaps = null;
 let sqliteJobs = null;
 let sqliteBootstrapped = false;
-
-function parseBool(value, fallback = true) {
-    if (value === undefined || value === null || value === '') return fallback;
-    const normalized = String(value).trim().toLowerCase();
-    if (['1', 'true', 'yes', 'on'].includes(normalized)) return true;
-    if (['0', 'false', 'no', 'off'].includes(normalized)) return false;
-    return fallback;
-}
 
 function useSqlite() {
     return METADATA_DRIVER === 'sqlite';

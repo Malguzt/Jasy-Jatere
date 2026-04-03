@@ -3,13 +3,14 @@ const { MAPS_DIR } = require('./storage');
 const { MetadataSqliteStore } = require('../src/infrastructure/sqlite/metadata-sqlite-store');
 const { SqliteMapCorrectionsRepository } = require('../src/infrastructure/sqlite/sqlite-map-corrections-repository');
 const { createLegacyJsonAdapter } = require('./legacy-json-adapter');
+const { resolveMapPersistenceFlags } = require('./persistence-flags');
 
 const MAX_HISTORY = Number(process.env.MAP_CORRECTION_HISTORY_LIMIT || 20);
-const METADATA_DRIVER = String(process.env.METADATA_STORE_DRIVER || 'sqlite').toLowerCase();
+const mapPersistenceFlags = resolveMapPersistenceFlags();
+const METADATA_DRIVER = mapPersistenceFlags.metadataDriver;
 const SQLITE_DB_PATH = process.env.METADATA_SQLITE_PATH || path.join(MAPS_DIR, 'metadata.db');
-const LEGACY_COMPAT_EXPORTS_ENABLED = parseBool(process.env.LEGACY_COMPAT_EXPORTS_ENABLED, false);
-const EXPORT_COMPAT_JSON = parseBool(process.env.METADATA_DUAL_WRITE_JSON_EXPORTS, LEGACY_COMPAT_EXPORTS_ENABLED);
-const LEGACY_READ_FALLBACK = parseBool(process.env.METADATA_LEGACY_READ_FALLBACK, LEGACY_COMPAT_EXPORTS_ENABLED);
+const EXPORT_COMPAT_JSON = mapPersistenceFlags.exportCompatJson;
+const LEGACY_READ_FALLBACK = mapPersistenceFlags.legacyReadFallback;
 
 const DEFAULT_CORRECTIONS = {
     schemaVersion: '1.0',
@@ -33,14 +34,6 @@ const CORRECTIONS_FILE = legacyAdapter.correctionsFile;
 let sqliteStore = null;
 let sqliteCorrections = null;
 let sqliteBootstrapped = false;
-
-function parseBool(value, fallback = true) {
-    if (value === undefined || value === null || value === '') return fallback;
-    const normalized = String(value).trim().toLowerCase();
-    if (['1', 'true', 'yes', 'on'].includes(normalized)) return true;
-    if (['0', 'false', 'no', 'off'].includes(normalized)) return false;
-    return fallback;
-}
 
 function useSqlite() {
     return METADATA_DRIVER === 'sqlite';

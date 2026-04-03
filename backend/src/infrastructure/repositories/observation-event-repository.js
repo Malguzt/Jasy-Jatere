@@ -39,17 +39,8 @@ class ObservationEventRepository {
         return entries.filter((entry) => entry && typeof entry === 'object');
     }
 
-    ensureSqliteBootstrapped() {
-        if (!this.sqlite) return;
-        const current = this.sqlite.list(1);
-        if (current.length > 0) return;
-        const legacy = this.readJsonEvents();
-        legacy.forEach((entry) => this.sqlite.append(entry));
-    }
-
     list(limit = null) {
         if (this.sqlite) {
-            this.ensureSqliteBootstrapped();
             const rows = this.sqlite.list(limit);
             if (rows.length > 0) return rows;
             if (!this.legacyCompatEnabled) return [];

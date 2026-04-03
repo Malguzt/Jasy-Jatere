@@ -13,7 +13,7 @@ const PLAN_B_ENABLED = parseBool(process.env.MAP_PLAN_B_ENABLED, true);
 const PLAN_C_ENABLED = parseBool(process.env.MAP_PLAN_C_ENABLED, true);
 const PLAN_D_ENABLED = parseBool(process.env.MAP_PLAN_D_ENABLED, true);
 const APPLY_MANUAL_CORRECTIONS = parseBool(process.env.MAP_APPLY_MANUAL_CORRECTIONS, true);
-const USE_DETECTOR_EVENTS_FALLBACK = parseBool(process.env.MAP_USE_DETECTOR_EVENTS_FALLBACK, true);
+const USE_DETECTOR_EVENTS_FALLBACK = parseBool(process.env.MAP_USE_DETECTOR_EVENTS_FALLBACK, false);
 const cameraRepository = new CameraMetadataRepository();
 const observationRepository = new ObservationEventRepository();
 

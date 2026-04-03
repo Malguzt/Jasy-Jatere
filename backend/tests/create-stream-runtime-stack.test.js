@@ -35,7 +35,6 @@ test('createStreamRuntimeStack returns composed stream runtime services', () => 
     };
 
     const stack = createStreamRuntimeStack({
-        cameraFile: '/tmp/non-existent-cameras-stream-runtime.json',
         cameraInventoryService,
         runtimeFlags: makeRuntimeFlags(),
         streamManagerInstance

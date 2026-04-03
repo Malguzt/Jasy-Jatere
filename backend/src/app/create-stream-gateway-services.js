@@ -17,7 +17,6 @@ function createStreamGatewayServices({
     });
     const cameraInventoryService = cameraInventoryStack.cameraInventoryService;
     const streamRuntimeStack = createStreamRuntimeStack({
-        cameraFile,
         cameraInventoryService,
         runtimeFlags
     });

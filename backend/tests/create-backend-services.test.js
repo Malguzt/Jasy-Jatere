@@ -5,11 +5,11 @@ const { createBackendServices } = require('../src/app/create-backend-services');
 
 function makeRuntimeFlags(overrides = {}) {
     return {
-        streamGatewayApiUrl: '',
-        streamProxyModeEnabled: false,
-        streamProxyRequired: false,
-        streamRuntimeEnabled: true,
-        streamWebSocketGatewayEnabled: true,
+        streamGatewayApiUrl: 'http://stream-gateway:4100/api/internal/streams',
+        streamProxyModeEnabled: true,
+        streamProxyRequired: true,
+        streamRuntimeEnabled: false,
+        streamWebSocketGatewayEnabled: false,
         streamWebRtcEnabled: false,
         streamWebRtcRequireHttps: true,
         streamWebRtcSignalingUrl: '',
@@ -34,24 +34,23 @@ test('createBackendServices returns composed control-plane services', () => {
 
     assert.equal(typeof services, 'object');
     assert.equal(typeof services.cameraInventoryService?.listCameras, 'function');
-    assert.equal(typeof services.streamControlService?.getRuntimeSnapshot, 'function');
+    assert.equal(typeof services.streamControlProxyService?.getRuntimeSnapshot, 'function');
+    assert.equal(services.streamControlService, null);
+    assert.equal(services.streamSyncOrchestrator, null);
     assert.equal(typeof services.platformHealthService?.getReadinessSnapshot, 'function');
     assert.equal(typeof services.streamWebSocketGateway?.attach, 'function');
     assert.equal(typeof services.recordingRetentionJob?.runOnce, 'function');
 });
 
-test('createBackendServices skips local stream runtime stack when proxy runtime is active', () => {
+test('createBackendServices leaves stream services unavailable when gateway api url is missing', () => {
     const services = createBackendServices({
         runtimeFlags: makeRuntimeFlags({
-            streamProxyModeEnabled: true,
-            streamProxyRequired: true,
-            streamGatewayApiUrl: 'http://stream-gateway:4100/api/internal/streams',
-            streamRuntimeEnabled: false
+            streamGatewayApiUrl: ''
         })
     });
 
-    assert.equal(typeof services.streamControlProxyService?.getRuntimeSnapshot, 'function');
+    assert.equal(services.streamControlProxyService, null);
     assert.equal(services.streamControlService, null);
     assert.equal(services.streamSyncOrchestrator, null);
-    assert.equal(typeof services.streamWebSocketGateway?.attach, 'function');
+    assert.equal(services.streamWebSocketGateway, null);
 });

@@ -8,10 +8,17 @@ const { createHttpAppBase } = require('./create-http-app-base');
 function createBackendApp({
     runtimeFlags = resolveRuntimeFlags()
 } = {}) {
+    const effectiveRuntimeFlags = {
+        ...(runtimeFlags || {}),
+        streamProxyModeEnabled: true,
+        streamProxyRequired: true,
+        streamRuntimeEnabled: false,
+        streamWebSocketGatewayEnabled: false
+    };
     const app = createHttpAppBase();
 
     const services = createBackendServices({
-        runtimeFlags
+        runtimeFlags: effectiveRuntimeFlags
     });
     const platformRuntimeCoordinator = new PlatformRuntimeCoordinator({
         cameraEventMonitor: services.cameraEventMonitor,
@@ -19,12 +26,12 @@ function createBackendApp({
         streamSyncOrchestrator: services.streamSyncOrchestrator,
         streamWebSocketGateway: services.streamWebSocketGateway,
         recordingRetentionJob: services.recordingRetentionJob,
-        streamRuntimeEnabled: runtimeFlags.streamRuntimeEnabled,
+        streamRuntimeEnabled: effectiveRuntimeFlags.streamRuntimeEnabled,
         streamWebSocketGatewayEnabled:
-            runtimeFlags.streamWebSocketGatewayEnabled ||
+            effectiveRuntimeFlags.streamWebSocketGatewayEnabled ||
             (
-                runtimeFlags.streamProxyModeEnabled &&
-                !!String(runtimeFlags.streamGatewayApiUrl || '').trim()
+                effectiveRuntimeFlags.streamProxyModeEnabled &&
+                !!String(effectiveRuntimeFlags.streamGatewayApiUrl || '').trim()
             )
     });
 

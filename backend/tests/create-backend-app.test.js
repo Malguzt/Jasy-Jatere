@@ -127,13 +127,12 @@ test('createBackendApp exposes internal worker config and perception ingest APIs
 
         const capabilitiesRes = await fetch(`${baseUrl}/api/streams/capabilities`);
         const capabilitiesPayload = await capabilitiesRes.json();
-        assert.equal(capabilitiesRes.status, 200);
-        assert.equal(capabilitiesPayload.success, true);
-        assert.ok(capabilitiesPayload.capabilities);
+        assert.equal(capabilitiesRes.status, 500);
+        assert.equal(capabilitiesPayload.success, false);
 
         const streamSessionRes = await fetch(`${baseUrl}/api/streams/sessions/missing-camera`);
         const streamSessionPayload = await streamSessionRes.json();
-        assert.equal(streamSessionRes.status, 404);
+        assert.equal(streamSessionRes.status, 500);
         assert.equal(streamSessionPayload.success, false);
 
         const webrtcSessionRes = await fetch(`${baseUrl}/api/streams/webrtc/sessions`, {
@@ -160,7 +159,7 @@ test('createBackendApp exposes internal worker config and perception ingest APIs
             body: JSON.stringify({ cameraId: 'cam-1' })
         });
         const closePayload = await closeRes.json();
-        assert.equal(closeRes.status, 503);
+        assert.equal(closeRes.status, 500);
         assert.equal(closePayload.success, false);
 
         const liveRes = await fetch(`${baseUrl}/api/health/live`);
@@ -171,22 +170,19 @@ test('createBackendApp exposes internal worker config and perception ingest APIs
 
         const readyRes = await fetch(`${baseUrl}/api/health/ready`);
         const readyPayload = await readyRes.json();
-        assert.equal(readyRes.status, 200);
-        assert.equal(readyPayload.success, true);
-        assert.equal(readyPayload.readiness.ready, true);
+        assert.equal(readyRes.status, 503);
+        assert.equal(readyPayload.success, false);
+        assert.ok(Array.isArray(readyPayload.readiness?.failures));
+        assert.ok(readyPayload.readiness.failures.includes('streamGatewayProxy'));
 
         const livezRes = await fetch(`${baseUrl}/livez`);
         assert.equal(livezRes.status, 200);
 
         const readyzRes = await fetch(`${baseUrl}/readyz`);
-        assert.equal(readyzRes.status, 200);
+        assert.equal(readyzRes.status, 503);
 
         const metricsRes = await fetch(`${baseUrl}/metrics`);
-        const metricsText = await metricsRes.text();
-        assert.equal(metricsRes.status, 200);
-        assert.equal(String(metricsRes.headers.get('content-type') || '').includes('text/plain'), true);
-        assert.equal(metricsText.includes('ipcam_monitor_cameras_total'), true);
-        assert.equal(metricsText.includes('ipcam_stream_runtime_streams_total'), true);
+        assert.equal(metricsRes.status, 500);
     } finally {
         await new Promise((resolve) => server.close(resolve));
     }

@@ -87,7 +87,7 @@ test('resolveRuntimeFlags enables proxy mode by default when stream gateway api 
     assert.equal(flags.streamWebSocketGatewayEnabled, false);
 });
 
-test('resolveRuntimeFlags can disable proxy mode explicitly even when stream gateway api url is set', () => {
+test('resolveRuntimeFlags keeps proxy mode enabled even when env requests disable', () => {
     const flags = resolveRuntimeFlags({
         STREAM_GATEWAY_API_URL: 'http://stream-gateway:4100/api/internal/streams',
         STREAM_PROXY_MODE_ENABLED: '0',
@@ -96,20 +96,20 @@ test('resolveRuntimeFlags can disable proxy mode explicitly even when stream gat
         STREAM_WEBSOCKET_GATEWAY_ENABLED: '1'
     });
 
-    assert.equal(flags.streamProxyModeEnabled, false);
-    assert.equal(flags.streamProxyRequired, false);
-    assert.equal(flags.streamRuntimeEnabled, true);
-    assert.equal(flags.streamWebSocketGatewayEnabled, true);
+    assert.equal(flags.streamProxyModeEnabled, true);
+    assert.equal(flags.streamProxyRequired, true);
+    assert.equal(flags.streamRuntimeEnabled, false);
+    assert.equal(flags.streamWebSocketGatewayEnabled, false);
 });
 
-test('resolveRuntimeFlags keeps websocket gateway disabled by default when proxy mode is off', () => {
+test('resolveRuntimeFlags keeps websocket gateway disabled when gateway-only mode is enforced', () => {
     const flags = resolveRuntimeFlags({
         STREAM_GATEWAY_API_URL: '',
         STREAM_PROXY_MODE_ENABLED: '0',
         STREAM_PROXY_REQUIRED: '0'
     });
 
-    assert.equal(flags.streamProxyModeEnabled, false);
+    assert.equal(flags.streamProxyModeEnabled, true);
     assert.equal(flags.streamWebSocketGatewayEnabled, false);
 });
 

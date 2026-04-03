@@ -20,7 +20,6 @@ const { DetectorProxyService } = require('../domains/perception/detector-proxy-s
 const { MapsService } = require('../domains/maps/maps-service');
 const { createMetadataContext } = require('./create-metadata-context');
 const { createCameraInventoryStack } = require('./create-camera-inventory-stack');
-const { createStreamRuntimeStack } = require('./create-stream-runtime-stack');
 const mapsStorage = require('../../maps/storage');
 const mapsJobs = require('../../maps/job-queue');
 const mapsCorrections = require('../../maps/corrections');
@@ -30,6 +29,13 @@ function createBackendServices({
     runtimeFlags,
     metadataDriver
 }) {
+    const effectiveRuntimeFlags = {
+        ...(runtimeFlags || {}),
+        streamProxyModeEnabled: true,
+        streamProxyRequired: true,
+        streamRuntimeEnabled: false,
+        streamWebSocketGatewayEnabled: false
+    };
     const metadataContext = createMetadataContext({ metadataDriver });
     const driver = metadataContext.metadataDriver;
     const sqliteStore = metadataContext.sqliteStore;
@@ -48,7 +54,7 @@ function createBackendServices({
     const observationRepository = new ObservationEventRepository({
         driver,
         sqliteStore,
-        maxEntries: runtimeFlags.observationMaxEntries
+        maxEntries: effectiveRuntimeFlags.observationMaxEntries
     });
     const healthSnapshotRepository = new HealthSnapshotRepository({
         driver,
@@ -73,18 +79,10 @@ function createBackendServices({
         connectivityMonitor,
         healthSnapshotRepository
     });
-    const streamGatewayApiUrl = String(runtimeFlags.streamGatewayApiUrl || '').trim();
-    const streamProxyRuntimeActive =
-        runtimeFlags.streamProxyModeEnabled === true && streamGatewayApiUrl.length > 0;
-    const streamRuntimeStack = streamProxyRuntimeActive
-        ? null
-        : createStreamRuntimeStack({
-            cameraInventoryService,
-            runtimeFlags,
-            streamManagerInstance: streamManager
-        });
-    const streamSyncOrchestrator = streamRuntimeStack?.streamSyncOrchestrator || null;
-    const streamControlService = streamRuntimeStack?.streamControlService || null;
+    const streamGatewayApiUrl = String(effectiveRuntimeFlags.streamGatewayApiUrl || '').trim();
+    const streamProxyRuntimeActive = streamGatewayApiUrl.length > 0;
+    const streamSyncOrchestrator = null;
+    const streamControlService = null;
     const streamControlProxyService = streamGatewayApiUrl
         ? new StreamGatewayProxyService({
             gatewayApiBaseUrl: streamGatewayApiUrl
@@ -100,25 +98,25 @@ function createBackendServices({
         cameraInventoryService,
         streamSyncOrchestrator,
         streamControlProxyService,
-        runtimeFlags
+        runtimeFlags: effectiveRuntimeFlags
     });
     const recordingCatalogService = new RecordingCatalogService({
         repository: recordingCatalogRepository
     });
     const recordingRetentionJob = new RecordingRetentionJob({
         recordingCatalogService,
-        enabled: runtimeFlags.recordingRetentionEnabled,
-        intervalMs: runtimeFlags.recordingRetentionIntervalMs,
-        maxAgeDays: runtimeFlags.recordingRetentionMaxAgeDays,
-        maxEntries: runtimeFlags.recordingRetentionMaxEntries
+        enabled: effectiveRuntimeFlags.recordingRetentionEnabled,
+        intervalMs: effectiveRuntimeFlags.recordingRetentionIntervalMs,
+        maxAgeDays: effectiveRuntimeFlags.recordingRetentionMaxAgeDays,
+        maxEntries: effectiveRuntimeFlags.recordingRetentionMaxEntries
     });
     const platformHealthService = new PlatformHealthService({
         contractsService,
         monitoringService,
         streamControlService,
         streamControlProxyService,
-        streamProxyModeEnabled: runtimeFlags.streamProxyModeEnabled,
-        streamProxyRequired: runtimeFlags.streamProxyRequired,
+        streamProxyModeEnabled: effectiveRuntimeFlags.streamProxyModeEnabled,
+        streamProxyRequired: effectiveRuntimeFlags.streamProxyRequired,
         recordingRetentionJob
     });
     const perceptionIngestService = new PerceptionIngestService({
@@ -130,14 +128,14 @@ function createBackendServices({
             ? new StreamWebSocketProxyGateway({
                 gatewayApiBaseUrl: streamGatewayApiUrl
             })
-            : streamRuntimeStack?.streamWebSocketGateway || null;
+            : null;
     const mapsService = new MapsService({
         storage: mapsStorage,
         jobs: mapsJobs,
         corrections: mapsCorrections
     });
     const detectorProxyService = new DetectorProxyService({
-        detectorUrl: runtimeFlags.detectorUrl
+        detectorUrl: effectiveRuntimeFlags.detectorUrl
     });
 
     return {

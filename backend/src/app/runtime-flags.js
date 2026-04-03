@@ -31,8 +31,8 @@ function resolveRuntimeFlags(env = process.env) {
     const streamPublicBaseUrl = String(env.STREAM_PUBLIC_BASE_URL || '').trim();
     const streamWebRtcSignalingUrl = String(env.STREAM_WEBRTC_SIGNALING_URL || '').trim();
     const streamWebRtcIceServersJson = String(env.STREAM_WEBRTC_ICE_SERVERS_JSON || '').trim();
-    const streamProxyModeEnabled = parseBoolEnv(env.STREAM_PROXY_MODE_ENABLED, !!streamGatewayApiUrl);
-    const streamProxyRequired = parseBoolEnv(env.STREAM_PROXY_REQUIRED, streamProxyModeEnabled);
+    const streamProxyModeEnabled = true;
+    const streamProxyRequired = true;
 
     return {
         detectorUrl: detectorUrl || 'http://localhost:5000',
@@ -44,12 +44,8 @@ function resolveRuntimeFlags(env = process.env) {
         streamWebRtcSignalingTimeoutMs: parsePositiveIntEnv(env.STREAM_WEBRTC_SIGNALING_TIMEOUT_MS, 7000),
         streamProxyModeEnabled,
         streamProxyRequired,
-        streamRuntimeEnabled: streamProxyModeEnabled
-            ? false
-            : parseBoolEnv(env.STREAM_RUNTIME_ENABLED, true),
-        streamWebSocketGatewayEnabled: streamProxyModeEnabled
-            ? false
-            : parseBoolEnv(env.STREAM_WEBSOCKET_GATEWAY_ENABLED, false),
+        streamRuntimeEnabled: false,
+        streamWebSocketGatewayEnabled: false,
         streamWebRtcEnabled: parseBoolEnv(env.STREAM_WEBRTC_ENABLED, false),
         streamWebRtcRequireHttps: parseBoolEnv(env.STREAM_WEBRTC_REQUIRE_HTTPS, true),
         recordingRetentionEnabled: parseBoolEnv(env.RECORDING_RETENTION_ENABLED, false),

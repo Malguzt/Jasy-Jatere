@@ -21,140 +21,29 @@ async function startAppWithRouter(router) {
     };
 }
 
-test('streams router returns local runtime snapshot when proxy is not configured', async () => {
-    const router = createStreamsRouter({
-        streamControlService: {
-            getCapabilities: () => ({
-                defaultTransport: 'jsmpeg',
-                transports: { webrtc: { enabled: false }, jsmpeg: { enabled: true } }
-            }),
-            getSessionDescriptor: () => ({
-                cameraId: 'cam-1',
-                selectedTransport: 'jsmpeg',
-                transports: {
-                    jsmpeg: { enabled: true, path: '/stream/cam-1', url: null },
-                    webrtc: { enabled: false, reason: 'webrtc-disabled' }
-                }
-            }),
-            getRuntimeSnapshot: () => ({
-                summary: { streams: 1 },
-                streamStats: {},
-                syncRuntime: null,
-                lastManualSync: null
-            }),
-            createWebRtcSession: async () => ({
-                cameraId: 'cam-1',
-                answer: {
-                    type: 'answer',
-                    sdp: 'v=0\\n...'
-                }
-            }),
-            submitWebRtcCandidate: async () => ({
-                sessionId: 'sess-local',
-                accepted: true
-            }),
-            closeWebRtcSession: async () => ({
-                sessionId: 'sess-local',
-                closed: true
-            }),
-            triggerManualSync: async () => ({ result: { success: true } })
-        }
-    });
-
+test('streams router returns errors when no stream service is configured', async () => {
+    const router = createStreamsRouter({});
     const { server, baseUrl } = await startAppWithRouter(router);
     try {
         const capabilitiesRes = await fetch(`${baseUrl}/api/streams/capabilities`);
         const capabilitiesPayload = await capabilitiesRes.json();
-        assert.equal(capabilitiesRes.status, 200);
-        assert.equal(capabilitiesPayload.success, true);
-        assert.equal(capabilitiesPayload.capabilities.defaultTransport, 'jsmpeg');
+        assert.equal(capabilitiesRes.status, 500);
+        assert.equal(capabilitiesPayload.success, false);
 
         const sessionRes = await fetch(`${baseUrl}/api/streams/sessions/cam-1`);
         const sessionPayload = await sessionRes.json();
-        assert.equal(sessionRes.status, 200);
-        assert.equal(sessionPayload.success, true);
-        assert.equal(sessionPayload.session.cameraId, 'cam-1');
-        assert.equal(sessionPayload.session.selectedTransport, 'jsmpeg');
+        assert.equal(sessionRes.status, 500);
+        assert.equal(sessionPayload.success, false);
 
-        const webrtcRes = await fetch(`${baseUrl}/api/streams/webrtc/sessions`, {
-            method: 'POST',
-            headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({
-                cameraId: 'cam-1',
-                offerSdp: 'v=0\\n...'
-            })
-        });
-        const webrtcPayload = await webrtcRes.json();
-        assert.equal(webrtcRes.status, 200);
-        assert.equal(webrtcPayload.success, true);
-        assert.equal(webrtcPayload.session.cameraId, 'cam-1');
-
-        const invalidWebrtcRes = await fetch(`${baseUrl}/api/streams/webrtc/sessions`, {
-            method: 'POST',
-            headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({})
-        });
-        const invalidWebrtcPayload = await invalidWebrtcRes.json();
-        assert.equal(invalidWebrtcRes.status, 400);
-        assert.equal(invalidWebrtcPayload.success, false);
-        assert.equal(invalidWebrtcPayload.code, 'INVALID_REQUEST_BODY');
-
-        const candidateRes = await fetch(`${baseUrl}/api/streams/webrtc/sessions/sess-local/candidates`, {
-            method: 'POST',
-            headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({
-                cameraId: 'cam-1',
-                candidate: {
-                    candidate: 'candidate:1 1 UDP 2122252543 192.168.1.2 54400 typ host'
-                }
-            })
-        });
-        const candidatePayload = await candidateRes.json();
-        assert.equal(candidateRes.status, 200);
-        assert.equal(candidatePayload.success, true);
-        assert.equal(candidatePayload.result.sessionId, 'sess-local');
-
-        const invalidCandidateRes = await fetch(`${baseUrl}/api/streams/webrtc/sessions/sess-local/candidates`, {
-            method: 'POST',
-            headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({ cameraId: 'cam-1' })
-        });
-        const invalidCandidatePayload = await invalidCandidateRes.json();
-        assert.equal(invalidCandidateRes.status, 400);
-        assert.equal(invalidCandidatePayload.success, false);
-        assert.equal(invalidCandidatePayload.code, 'INVALID_REQUEST_BODY');
-
-        const closeRes = await fetch(`${baseUrl}/api/streams/webrtc/sessions/sess-local`, {
-            method: 'DELETE',
-            headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({ cameraId: 'cam-1' })
-        });
-        const closePayload = await closeRes.json();
-        assert.equal(closeRes.status, 200);
-        assert.equal(closePayload.success, true);
-        assert.equal(closePayload.result.closed, true);
-
-        const invalidCloseRes = await fetch(`${baseUrl}/api/streams/webrtc/sessions/sess-local`, {
-            method: 'DELETE',
-            headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({})
-        });
-        const invalidClosePayload = await invalidCloseRes.json();
-        assert.equal(invalidCloseRes.status, 400);
-        assert.equal(invalidClosePayload.success, false);
-        assert.equal(invalidClosePayload.code, 'INVALID_REQUEST_BODY');
-
-        const response = await fetch(`${baseUrl}/api/streams/runtime`);
-        const payload = await response.json();
-        assert.equal(response.status, 200);
-        assert.equal(payload.success, true);
-        assert.equal(payload.summary.streams, 1);
+        const runtimeRes = await fetch(`${baseUrl}/api/streams/runtime`);
+        const runtimePayload = await runtimeRes.json();
+        assert.equal(runtimeRes.status, 500);
+        assert.equal(runtimePayload.success, false);
 
         const metricsRes = await fetch(`${baseUrl}/api/streams/metrics`);
-        const metricsText = await metricsRes.text();
-        assert.equal(metricsRes.status, 200);
-        assert.equal(String(metricsRes.headers.get('content-type') || '').includes('text/plain'), true);
-        assert.equal(metricsText.includes('ipcam_stream_runtime_streams_total 1'), true);
+        const metricsPayload = await metricsRes.json();
+        assert.equal(metricsRes.status, 500);
+        assert.equal(metricsPayload.success, false);
     } finally {
         await new Promise((resolve) => server.close(resolve));
     }

@@ -72,13 +72,12 @@ If you want the shortest path through the redesign, use this order:
 - The C4 diagrams are embedded in Markdown with Mermaid.
 - Sequence diagrams remain as standalone PlantUML files, one per core process.
 - The migration plan is intentionally phased so the current system can evolve incrementally instead of being rewritten in one step.
-- Stream runtime can now be split via a dedicated gateway process and control-plane proxy wiring as an incremental extraction path.
-- Compose now defaults to backend stream proxy mode with `stream-gateway` enabled (`STREAM_GATEWAY_API_URL=http://stream-gateway:4100/api/internal/streams`, `STREAM_PROXY_MODE_ENABLED=1`, `STREAM_PROXY_REQUIRED=1`) so local backend stream runtime is disabled by default.
-- Outside proxy mode, backend local websocket stream runtime is also opt-in (`STREAM_WEBSOCKET_GATEWAY_ENABLED=0` by default) to keep control-plane deployments aligned with gateway-owned media runtime.
-- Stream proxy readiness can be enforced with `STREAM_PROXY_REQUIRED=1` (default when proxy mode is enabled) so backend readiness fails if the gateway upstream is unavailable.
+- Stream runtime ownership is now gateway-only for the control-plane backend; local backend stream runtime fallback paths are disabled in composition.
+- Compose defaults to backend gateway mode with `stream-gateway` enabled (`STREAM_GATEWAY_API_URL=http://stream-gateway:4100/api/internal/streams`), and control-plane readiness degrades when that upstream is missing/unavailable.
+- `STREAM_PROXY_MODE_ENABLED` and `STREAM_PROXY_REQUIRED` are now enforced as enabled in backend runtime flag resolution.
 - Stream session descriptors are now exposed via `GET /api/streams/sessions/:cameraId` so frontend tiles consume logical stream sessions instead of hardcoding transport URLs; optional `STREAM_PUBLIC_BASE_URL` can publish externally reachable WS endpoints in those descriptors.
 - In proxy mode, backend `/stream/:cameraId` websocket traffic is now relayed to the stream-gateway upstream, keeping legacy frontend websocket paths working while runtime ownership stays in the gateway.
-- In that mode, backend composition now skips local stream runtime stack instantiation and relies on stream-gateway APIs for stream runtime/control endpoints.
+- Backend composition always relies on stream-gateway APIs for stream runtime/control endpoints.
 - Internal worker stream snapshots (`GET /api/internal/config/streams`) now also attach runtime data from stream-gateway when local orchestrator/runtime is not present.
 - WebRTC offer/answer signaling is now exposed via `POST /api/streams/webrtc/sessions` (proxied to stream-gateway when proxy mode is enabled) and can be wired to an external signaling backend through `STREAM_WEBRTC_SIGNALING_URL`.
 - Trickle ICE candidate forwarding is exposed via `POST /api/streams/webrtc/sessions/:sessionId/candidates`; signaling retries, request timeout, and fallback ICE servers can be tuned with `STREAM_WEBRTC_SIGNALING_RETRIES`, `STREAM_WEBRTC_SIGNALING_TIMEOUT_MS`, and `STREAM_WEBRTC_ICE_SERVERS_JSON`.

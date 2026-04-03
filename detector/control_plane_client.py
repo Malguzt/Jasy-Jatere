@@ -9,7 +9,6 @@ class ControlPlaneClient:
         perception_observations_url,
         perception_recordings_url,
         use_perception_ingest=True,
-        use_recording_catalog=True,
         http_json_func=None,
         logger=print
     ):
@@ -17,7 +16,6 @@ class ControlPlaneClient:
         self.perception_observations_url = perception_observations_url
         self.perception_recordings_url = perception_recordings_url
         self.use_perception_ingest = use_perception_ingest is True
-        self.use_recording_catalog = use_recording_catalog is True
         self.http_json = http_json_func
         self.log = logger if callable(logger) else print
 
@@ -30,7 +28,7 @@ class ControlPlaneClient:
             self.log(f"[INGEST] observation publish failed: {error}")
 
     def publish_recording_catalog(self, metadata):
-        if not self.use_recording_catalog or not callable(self.http_json):
+        if not callable(self.http_json):
             return
         try:
             self.http_json("POST", self.perception_recordings_url, payload=metadata, timeout=2)
@@ -38,7 +36,7 @@ class ControlPlaneClient:
             self.log(f"[INGEST] recording metadata publish failed: {error}")
 
     def delete_recording_catalog_entry(self, filename, raise_on_error=False):
-        if not self.use_recording_catalog or not callable(self.http_json):
+        if not callable(self.http_json):
             return False
         if not filename:
             return False

@@ -111,7 +111,6 @@ USE_CONTROL_PLANE_RETENTION_CONFIG = parse_bool_env("USE_CONTROL_PLANE_RETENTION
 REQUIRE_CONTROL_PLANE_RETENTION_CONFIG = parse_bool_env("REQUIRE_CONTROL_PLANE_RETENTION_CONFIG", False)
 RETENTION_CONFIG_TTL_SEC = parse_positive_int_env("RETENTION_CONFIG_TTL_SEC", 60)
 USE_CONTROL_PLANE_PERCEPTION_INGEST = parse_bool_env("USE_CONTROL_PLANE_PERCEPTION_INGEST", True)
-USE_CONTROL_PLANE_RECORDING_CATALOG = parse_bool_env("USE_CONTROL_PLANE_RECORDING_CATALOG", True)
 
 # Classes of interest (COCO dataset IDs)
 PERSON_CLASSES = {0}  # person
@@ -663,7 +662,6 @@ def get_control_plane_client():
             perception_observations_url=CONTROL_PLANE_PERCEPTION_OBSERVATIONS_URL,
             perception_recordings_url=CONTROL_PLANE_PERCEPTION_RECORDINGS_URL,
             use_perception_ingest=USE_CONTROL_PLANE_PERCEPTION_INGEST,
-            use_recording_catalog=USE_CONTROL_PLANE_RECORDING_CATALOG,
             http_json_func=http_json,
             logger=print
         )

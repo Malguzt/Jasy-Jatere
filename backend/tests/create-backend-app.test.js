@@ -228,6 +228,17 @@ test('createBackendApp degrades readiness when stream proxy mode is required and
     const baseUrl = `http://127.0.0.1:${address.port}`;
 
     try {
+        const streamsCfg = await fetch(`${baseUrl}/api/internal/config/streams`);
+        const streamsPayload = await streamsCfg.json();
+        assert.equal(streamsCfg.status, 200);
+        assert.equal(streamsPayload.success, true);
+        assert.equal(streamsPayload.runtime, null);
+        const streamConfigShape = validateBySchemaId(
+            'jasy-jatere/internal-stream-config-snapshot',
+            streamsPayload
+        );
+        assert.equal(streamConfigShape.ok, true, streamConfigShape.errors?.join('; '));
+
         const runtimeRes = await fetch(`${baseUrl}/api/streams/runtime`);
         assert.equal(runtimeRes.status, 502);
 

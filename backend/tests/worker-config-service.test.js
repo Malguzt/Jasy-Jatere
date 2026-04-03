@@ -50,6 +50,23 @@ test('getStreamSnapshot resolves reconstructor pair for combined camera sources'
     assert.equal(snapshot.runtime.ok, true);
 });
 
+test('getStreamSnapshot keeps runtime as null when local stream orchestrator is not configured', () => {
+    const service = new WorkerConfigService({
+        cameraInventoryService: {
+            listCameras() {
+                return [{ id: 'cam-1', type: 'single', rtspUrl: 'rtsp://cam-1/main' }];
+            }
+        },
+        streamSyncOrchestrator: null,
+        now: () => 7777
+    });
+
+    const snapshot = service.getStreamSnapshot();
+    assert.equal(snapshot.snapshotAt, 7777);
+    assert.equal(snapshot.streamCount, 1);
+    assert.equal(snapshot.runtime, null);
+});
+
 test('getRetentionSnapshot returns control-plane and detector retention policies', () => {
     const service = new WorkerConfigService({
         runtimeFlags: {

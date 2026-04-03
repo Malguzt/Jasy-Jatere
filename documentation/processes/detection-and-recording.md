@@ -76,7 +76,7 @@ During migration, the perception and recording flow can be wired through these A
 - `GET /api/recordings`
 - `DELETE /api/recordings/:filename`
 
-Legacy detector-local recording endpoints may remain temporarily for compatibility, but frontend and map workflows should move to control-plane-owned catalog APIs. Detector `/recordings*` compatibility endpoints now delegate list/delete operations to control-plane catalog APIs by default.
+Legacy detector-local recording endpoints are now retired (`410 Gone`). Frontend and map workflows should use control-plane-owned catalog APIs (`/api/recordings*`).
 Detector-local catalog artifacts (`recordings-index.json` and `*.meta.json`) are retired from runtime ownership and should be treated as legacy compatibility outputs only during transitional migrations.
 
 Operationally, control-plane camera config can be enforced with `REQUIRE_CONTROL_PLANE_CAMERA_CONFIG=1` so detector workers do not fall back to shared `cameras.json` reads when control-plane snapshots are unavailable.

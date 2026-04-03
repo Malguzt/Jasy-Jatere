@@ -83,7 +83,7 @@ If you want the shortest path through the redesign, use this order:
 - Stream runtime Prometheus metrics are available via `GET /api/streams/metrics` (and `GET /api/internal/streams/metrics` in stream-gateway).
 - Global `GET /metrics` now includes both connectivity metrics and stream-runtime metrics in a single Prometheus payload.
 - Legacy detector recording aliases (`/api/detector/recordings*`) are retired (`410 Gone`); use `/api/recordings*` as canonical catalog APIs.
-- Detector compatibility `/recordings*` routes now delegate listing/deletion to control-plane `/api/recordings*`.
+- Detector legacy `/recordings*` routes are now retired (`410 Gone`); use control-plane `/api/recordings*`.
 - Detector local catalog artifacts (`recordings-index.json` and `*.meta.json`) are no longer used as runtime source-of-truth.
 - Backend and stream-gateway expose explicit readiness/liveness probes (`/readyz`, `/livez`) for operational checks.
 - Recording retention and cleanup are now modeled as control-plane runtime policy (`RECORDING_RETENTION_*`).
@@ -92,7 +92,7 @@ If you want the shortest path through the redesign, use this order:
 - Detector retention config strict mode is now default in compose (`REQUIRE_CONTROL_PLANE_RETENTION_CONFIG=1`), so retention snapshot unavailability is treated as a strict control-plane dependency (with explicit logging).
 - Detector camera/retention config source resolution is now centralized in `detector/config_provider.py`, separating control-plane snapshot reads and legacy file fallback policy from detection runtime loops.
 - Detector control-plane ingest/catalog HTTP interactions are now centralized in `detector/control_plane_client.py`, keeping publish/list/delete integration boundaries explicit.
-- Detector `/recordings` compatibility endpoints are now control-plane proxy only (no local catalog fallback path).
+- Detector `/recordings` compatibility endpoints are retired and return `410 Gone`.
 - Reconstructor camera-motion polling is now centralized in `reconstructor/motion_client.py`, with strict control-plane motion mode default-enabled (`REQUIRE_CONTROL_PLANE_MOTION_API=1` unless explicitly disabled).
 - Backend connectivity monitoring now prefers repository-backed camera inventory; direct `cameras.json` fallback is gated by `LEGACY_COMPAT_EXPORTS_ENABLED`.
 - Stream websocket gateways (backend and stream-gateway) now prefer repository-backed camera inventory; direct `cameras.json` fallback is gated by `LEGACY_COMPAT_EXPORTS_ENABLED`.

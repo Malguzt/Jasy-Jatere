@@ -680,10 +680,6 @@ def delete_recording_catalog_entry(filename):
     get_control_plane_client().delete_recording_catalog_entry(filename)
 
 
-def list_recordings_from_control_plane(query):
-    return get_control_plane_client().list_recordings(query)
-
-
 def get_camera_motion_trigger(cam_id):
     now = time.time()
     cached = motion_cache.get(cam_id)
@@ -1175,28 +1171,18 @@ def get_events():
 
 @app.route("/recordings/<filename>", methods=["DELETE"])
 def delete_recording(filename):
-    """Delete a recording through control-plane catalog ownership."""
-    if ".." in filename or filename.startswith("/"):
-        return jsonify({"success": False, "error": "Invalid filename"}), 400
-
-    try:
-        ok = get_control_plane_client().delete_recording_catalog_entry(filename, raise_on_error=True)
-        if not ok:
-            return jsonify({"success": False, "error": "Control-plane delete failed"}), 502
-        return jsonify({"success": True})
-    except Exception as e:
-        print(f"[INGEST] recording delete via control-plane failed: {e}")
-        return jsonify({"success": False, "error": "Control-plane delete unavailable"}), 502
+    return jsonify({
+        "success": False,
+        "error": "Deprecated endpoint. Use control-plane /api/recordings/:filename instead."
+    }), 410
 
 
 @app.route("/recordings")
 def list_recordings():
-    try:
-        recordings = list_recordings_from_control_plane(request.args or {})
-        return jsonify({"success": True, "recordings": recordings[:50]})
-    except Exception as e:
-        print(f"[INGEST] recordings list via control-plane failed: {e}")
-        return jsonify({"success": False, "error": "Control-plane recordings unavailable"}), 502
+    return jsonify({
+        "success": False,
+        "error": "Deprecated endpoint. Use control-plane /api/recordings instead."
+    }), 410
 
 
 # --- Main ---

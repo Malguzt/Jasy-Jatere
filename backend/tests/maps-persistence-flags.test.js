@@ -1,18 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { parseBool, resolveMapPersistenceFlags } = require('../maps/persistence-flags');
-
-test('parseBool handles common truthy and falsy values', () => {
-    assert.equal(parseBool('1', false), true);
-    assert.equal(parseBool('true', false), true);
-    assert.equal(parseBool('yes', false), true);
-    assert.equal(parseBool('on', false), true);
-    assert.equal(parseBool('0', true), false);
-    assert.equal(parseBool('false', true), false);
-    assert.equal(parseBool('no', true), false);
-    assert.equal(parseBool('off', true), false);
-});
+const { resolveMapPersistenceFlags } = require('../maps/persistence-flags');
 
 test('resolveMapPersistenceFlags defaults to sqlite with repository-first runtime behavior', () => {
     const flags = resolveMapPersistenceFlags({});

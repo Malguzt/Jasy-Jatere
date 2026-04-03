@@ -49,25 +49,3 @@ class ControlPlaneClient:
             if raise_on_error:
                 raise
             return False
-
-    def list_recordings(self, query):
-        if not callable(self.http_json):
-            raise ValueError("Control-plane http client is not configured")
-
-        params = {}
-        for key in ("q", "camera_id", "category", "object", "date_from", "date_to"):
-            value = query.get(key)
-            if value is None:
-                continue
-            text = str(value).strip()
-            if text:
-                params[key] = text
-
-        url = self.recordings_url
-        if params:
-            url = f"{url}?{urllib.parse.urlencode(params)}"
-
-        payload = self.http_json("GET", url, timeout=4)
-        if isinstance(payload, dict) and payload.get("success") and isinstance(payload.get("recordings"), list):
-            return payload.get("recordings", [])
-        raise ValueError("Invalid control-plane recordings payload")

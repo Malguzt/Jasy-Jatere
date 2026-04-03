@@ -68,23 +68,10 @@ class RecordingCatalogRepository {
         return sortByEventTimeDesc(legacy.map((entry) => normalizeEntry(entry)).filter(Boolean));
     }
 
-    ensureSqliteBootstrapped() {
-        if (!this.sqlite) return;
-        const current = this.sqlite.list();
-        if (current.length > 0) return;
-        const legacy = this.readJsonPrimaryOrLegacy();
-        legacy.forEach((entry) => {
-            this.sqlite.upsert(entry);
-        });
-    }
-
     list() {
         if (this.sqlite) {
-            this.ensureSqliteBootstrapped();
             const sqliteItems = this.sqlite.list();
-            if (sqliteItems.length > 0) {
-                return sortByEventTimeDesc(sqliteItems.map((entry) => normalizeEntry(entry)).filter(Boolean));
-            }
+            return sortByEventTimeDesc(sqliteItems.map((entry) => normalizeEntry(entry)).filter(Boolean));
         }
         return this.readJsonPrimaryOrLegacy();
     }

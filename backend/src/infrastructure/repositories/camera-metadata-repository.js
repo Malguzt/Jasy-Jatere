@@ -87,20 +87,9 @@ class CameraMetadataRepository {
         return this.toRuntimeCameraList(readJsonFile(this.legacyFile, []));
     }
 
-    ensureSqliteBootstrapped() {
-        if (!this.sqlite) return;
-        const current = this.sqlite.list();
-        if (current.length > 0) return;
-        const legacy = this.readJsonPrimaryOrLegacy();
-        if (legacy.length === 0) return;
-        this.sqlite.replace(this.toPersistedCameraList(legacy));
-    }
-
     list() {
         if (this.sqlite) {
-            this.ensureSqliteBootstrapped();
-            const sqliteItems = this.toRuntimeCameraList(this.sqlite.list());
-            if (sqliteItems.length > 0) return sqliteItems;
+            return this.toRuntimeCameraList(this.sqlite.list());
         }
         return this.readJsonPrimaryOrLegacy();
     }

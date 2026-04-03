@@ -3,7 +3,7 @@ const fs = require('fs');
 function loadCameraInventory({
     cameraInventoryService = null,
     legacyFilePath = '',
-    legacyFileFallbackEnabled = true,
+    legacyFileFallbackEnabled = false,
     fsModule = fs,
     logger = console,
     serviceErrorPrefix = '[CAM] failed to load cameras from inventory service:',
@@ -36,7 +36,7 @@ function loadCameraById({
     cameraId,
     cameraInventoryService = null,
     legacyFilePath = '',
-    legacyFileFallbackEnabled = true,
+    legacyFileFallbackEnabled = false,
     fsModule = fs,
     logger = console,
     serviceErrorPrefix = '[CAM] failed to load camera from inventory service:',

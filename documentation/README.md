@@ -74,6 +74,7 @@ If you want the shortest path through the redesign, use this order:
 - The migration plan is intentionally phased so the current system can evolve incrementally instead of being rewritten in one step.
 - Stream runtime can now be split via a dedicated gateway process and control-plane proxy wiring as an incremental extraction path.
 - Compose now defaults to backend stream proxy mode with `stream-gateway` enabled (`STREAM_GATEWAY_API_URL=http://stream-gateway:4100/api/internal/streams`, `STREAM_PROXY_MODE_ENABLED=1`, `STREAM_PROXY_REQUIRED=1`) so local backend stream runtime is disabled by default.
+- Outside proxy mode, backend local websocket stream runtime is also opt-in (`STREAM_WEBSOCKET_GATEWAY_ENABLED=0` by default) to keep control-plane deployments aligned with gateway-owned media runtime.
 - Stream proxy readiness can be enforced with `STREAM_PROXY_REQUIRED=1` (default when proxy mode is enabled) so backend readiness fails if the gateway upstream is unavailable.
 - Stream session descriptors are now exposed via `GET /api/streams/sessions/:cameraId` so frontend tiles consume logical stream sessions instead of hardcoding transport URLs; optional `STREAM_PUBLIC_BASE_URL` can publish externally reachable WS endpoints in those descriptors.
 - In proxy mode, backend `/stream/:cameraId` websocket traffic is now relayed to the stream-gateway upstream, keeping legacy frontend websocket paths working while runtime ownership stays in the gateway.
@@ -100,8 +101,10 @@ If you want the shortest path through the redesign, use this order:
 - Stream-sync orchestration now resolves cameras from repository-backed inventory only (no direct file fallback path).
 - ONVIF discovery now resolves known scan prefixes from repository-backed inventory only (no legacy file prefix fallback in runtime discovery paths).
 - Camera inventory fallback logic is now centralized in a shared loader (`backend/src/domains/cameras/camera-inventory-loader.js`) and should only be used by explicit migration/bootstrap tooling.
+- That loader now defaults to repository-only behavior; legacy file fallback must be explicitly enabled by the caller during migration/bootstrap flows.
 - Camera inventory ID resolution (`findCamera`/`listCameras`) is also centralized in that shared loader and reused by stream websocket gateways.
 - SQLite-backed repositories now treat legacy JSON as compatibility export targets only; implicit runtime legacy-read fallback is retired (migration/import paths remain explicit).
+- Camera inventory and recording catalog repositories now also avoid implicit SQLite bootstrap-from-JSON on read paths; runtime state must come from repository writes or explicit import/bootstrap tooling.
 - Legacy map/correction JSON compatibility I/O is now centralized through a shared adapter (`backend/maps/legacy-json-adapter.js`) consumed by both `backend/maps/storage.js` and `backend/maps/corrections.js`.
 - Map persistence runtime flag resolution is now centralized in `backend/maps/persistence-flags.js` to keep storage/corrections behavior aligned.
 - Map/corrections legacy bootstrap now runs only through explicit migration bootstrap entrypoints (`bootstrapFromLegacy`) and is no longer auto-enabled in runtime read paths.

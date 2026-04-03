@@ -47,7 +47,7 @@ function resolveRuntimeFlags(env = process.env) {
             : parseBoolEnv(env.STREAM_RUNTIME_ENABLED, true),
         streamWebSocketGatewayEnabled: streamProxyModeEnabled
             ? false
-            : parseBoolEnv(env.STREAM_WEBSOCKET_GATEWAY_ENABLED, true),
+            : parseBoolEnv(env.STREAM_WEBSOCKET_GATEWAY_ENABLED, false),
         streamWebRtcEnabled: parseBoolEnv(env.STREAM_WEBRTC_ENABLED, false),
         streamWebRtcRequireHttps: parseBoolEnv(env.STREAM_WEBRTC_REQUIRE_HTTPS, true),
         recordingRetentionEnabled: parseBoolEnv(env.RECORDING_RETENTION_ENABLED, false),

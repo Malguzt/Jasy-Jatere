@@ -93,6 +93,17 @@ test('resolveRuntimeFlags can disable proxy mode explicitly even when stream gat
     assert.equal(flags.streamWebSocketGatewayEnabled, true);
 });
 
+test('resolveRuntimeFlags keeps websocket gateway disabled by default when proxy mode is off', () => {
+    const flags = resolveRuntimeFlags({
+        STREAM_GATEWAY_API_URL: '',
+        STREAM_PROXY_MODE_ENABLED: '0',
+        STREAM_PROXY_REQUIRED: '0'
+    });
+
+    assert.equal(flags.streamProxyModeEnabled, false);
+    assert.equal(flags.streamWebSocketGatewayEnabled, false);
+});
+
 test('parsePositiveIntEnv and parseOptionalPositiveIntEnv normalize retention settings', () => {
     assert.equal(parsePositiveIntEnv('60000', 1), 60000);
     assert.equal(parsePositiveIntEnv('0', 42), 42);

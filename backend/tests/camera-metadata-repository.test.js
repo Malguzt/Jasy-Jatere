@@ -108,3 +108,24 @@ test('CameraMetadataRepository can disable all JSON compatibility writes in sqli
     assert.equal(fs.existsSync(primary), false);
     assert.equal(fs.existsSync(legacy), false);
 });
+
+test('CameraMetadataRepository does not bootstrap from JSON files in sqlite mode', () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cam-repo-sqlite-no-bootstrap-'));
+    const primary = path.join(tmpDir, 'metadata', 'cameras.json');
+    const legacy = path.join(tmpDir, 'cameras.json');
+    fs.mkdirSync(path.dirname(primary), { recursive: true });
+    fs.writeFileSync(primary, JSON.stringify([{ id: 'cam-primary-only', name: 'Primary Only' }], null, 2));
+    fs.writeFileSync(legacy, JSON.stringify([{ id: 'cam-legacy-only', name: 'Legacy Only' }], null, 2));
+
+    const repository = new CameraMetadataRepository({
+        primaryFile: primary,
+        legacyFile: legacy,
+        driver: 'sqlite',
+        dualWritePrimary: false,
+        dualWriteLegacy: false
+    });
+
+    assert.deepEqual(repository.list(), []);
+    assert.equal(repository.findById('cam-primary-only'), null);
+    assert.equal(repository.findById('cam-legacy-only'), null);
+});

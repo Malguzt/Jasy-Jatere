@@ -37,16 +37,20 @@ class ControlPlaneClient:
         except Exception as error:
             self.log(f"[INGEST] recording metadata publish failed: {error}")
 
-    def delete_recording_catalog_entry(self, filename):
+    def delete_recording_catalog_entry(self, filename, raise_on_error=False):
         if not self.use_recording_catalog or not callable(self.http_json):
-            return
+            return False
         if not filename:
-            return
+            return False
         try:
             safe = urllib.parse.quote(str(filename), safe="")
             self.http_json("DELETE", f"{self.recordings_url}/{safe}", timeout=2)
+            return True
         except Exception as error:
             self.log(f"[INGEST] recording metadata delete failed: {error}")
+            if raise_on_error:
+                raise
+            return False
 
     def list_recordings(self, query):
         if not callable(self.http_json):

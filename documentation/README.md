@@ -84,11 +84,12 @@ If you want the shortest path through the redesign, use this order:
 - Global `GET /metrics` now includes both connectivity metrics and stream-runtime metrics in a single Prometheus payload.
 - Legacy detector recording aliases (`/api/detector/recordings*`) are retired (`410 Gone`); use `/api/recordings*` as canonical catalog APIs.
 - Detector compatibility `/recordings*` routes now delegate listing/deletion to control-plane `/api/recordings*` when `USE_CONTROL_PLANE_RECORDING_CATALOG=1`.
-- Strict detector catalog ownership can be enforced with `REQUIRE_CONTROL_PLANE_RECORDING_CATALOG=1` (enabled in compose defaults).
+- Strict detector catalog ownership is now the default (`REQUIRE_CONTROL_PLANE_RECORDING_CATALOG=1` unless explicitly disabled).
 - In strict mode, detector local recording metadata sidecars/indexes are treated as compatibility artifacts and are not the default catalog path.
 - Backend and stream-gateway expose explicit readiness/liveness probes (`/readyz`, `/livez`) for operational checks.
 - Recording retention and cleanup are now modeled as control-plane runtime policy (`RECORDING_RETENTION_*`).
 - Detector recycle policy can be synchronized from `GET /api/internal/config/retention` (`USE_CONTROL_PLANE_RETENTION_CONFIG`) to avoid drift with control-plane retention settings.
+- Detector camera config strict mode is now default (`REQUIRE_CONTROL_PLANE_CAMERA_CONFIG=1` unless explicitly disabled), so shared-file fallback requires explicit opt-out.
 - Detector camera/retention config source resolution is now centralized in `detector/config_provider.py`, separating control-plane snapshot reads and legacy file fallback policy from detection runtime loops.
 - Detector control-plane ingest/catalog HTTP interactions are now centralized in `detector/control_plane_client.py`, keeping publish/list/delete integration boundaries explicit.
 - Backend connectivity monitoring now prefers repository-backed camera inventory; direct `cameras.json` fallback is gated by `LEGACY_COMPAT_EXPORTS_ENABLED`.

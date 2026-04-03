@@ -107,13 +107,13 @@ CONTROL_PLANE_RECORDINGS_URL = f"{CONTROL_PLANE_URL}/api/recordings"
 CONTROL_PLANE_PERCEPTION_OBSERVATIONS_URL = f"{CONTROL_PLANE_URL}/api/perception/observations"
 CONTROL_PLANE_PERCEPTION_RECORDINGS_URL = f"{CONTROL_PLANE_URL}/api/perception/recordings"
 USE_CONTROL_PLANE_CAMERA_CONFIG = parse_bool_env("USE_CONTROL_PLANE_CAMERA_CONFIG", True)
-REQUIRE_CONTROL_PLANE_CAMERA_CONFIG = parse_bool_env("REQUIRE_CONTROL_PLANE_CAMERA_CONFIG", False)
+REQUIRE_CONTROL_PLANE_CAMERA_CONFIG = parse_bool_env("REQUIRE_CONTROL_PLANE_CAMERA_CONFIG", True)
 USE_CONTROL_PLANE_RETENTION_CONFIG = parse_bool_env("USE_CONTROL_PLANE_RETENTION_CONFIG", True)
 REQUIRE_CONTROL_PLANE_RETENTION_CONFIG = parse_bool_env("REQUIRE_CONTROL_PLANE_RETENTION_CONFIG", False)
 RETENTION_CONFIG_TTL_SEC = parse_positive_int_env("RETENTION_CONFIG_TTL_SEC", 60)
 USE_CONTROL_PLANE_PERCEPTION_INGEST = parse_bool_env("USE_CONTROL_PLANE_PERCEPTION_INGEST", True)
 USE_CONTROL_PLANE_RECORDING_CATALOG = parse_bool_env("USE_CONTROL_PLANE_RECORDING_CATALOG", True)
-REQUIRE_CONTROL_PLANE_RECORDING_CATALOG = parse_bool_env("REQUIRE_CONTROL_PLANE_RECORDING_CATALOG", False)
+REQUIRE_CONTROL_PLANE_RECORDING_CATALOG = parse_bool_env("REQUIRE_CONTROL_PLANE_RECORDING_CATALOG", True)
 
 # Classes of interest (COCO dataset IDs)
 PERSON_CLASSES = {0}  # person
@@ -1291,8 +1291,10 @@ def delete_recording(filename):
 
     if USE_CONTROL_PLANE_RECORDING_CATALOG:
         try:
-            safe = urllib.parse.quote(str(filename), safe="")
-            payload = http_json("DELETE", f"{CONTROL_PLANE_RECORDINGS_URL}/{safe}", timeout=4)
+            ok = get_control_plane_client().delete_recording_catalog_entry(filename, raise_on_error=True)
+            payload = {"success": True}
+            if not ok:
+                payload = {"success": False, "error": "Control-plane delete failed"}
             if isinstance(payload, dict):
                 return jsonify(payload)
             return jsonify({"success": False, "error": "Invalid control-plane response"}), 502

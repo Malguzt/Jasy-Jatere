@@ -12,7 +12,7 @@ class DetectorConfigProvider:
         control_plane_camera_config_url,
         control_plane_retention_config_url,
         use_control_plane_camera_config=True,
-        require_control_plane_camera_config=False,
+        require_control_plane_camera_config=True,
         use_control_plane_retention_config=True,
         require_control_plane_retention_config=False,
         retention_config_ttl_sec=60,

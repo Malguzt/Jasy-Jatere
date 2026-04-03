@@ -39,6 +39,7 @@ function resolveRuntimeFlags(env = process.env) {
         streamWebRtcSignalingUrl,
         streamWebRtcIceServersJson,
         streamWebRtcSignalingRetries: parsePositiveIntEnv(env.STREAM_WEBRTC_SIGNALING_RETRIES, 1),
+        streamWebRtcSignalingTimeoutMs: parsePositiveIntEnv(env.STREAM_WEBRTC_SIGNALING_TIMEOUT_MS, 7000),
         streamProxyModeEnabled,
         streamProxyRequired,
         streamRuntimeEnabled: streamProxyModeEnabled

@@ -33,6 +33,7 @@ test('buildStreamControlRuntimeOptions maps stream runtime flags transparently',
         streamWebRtcSignalingUrl: 'http://signal',
         streamWebRtcIceServersJson: '[]',
         streamWebRtcSignalingRetries: 3,
+        streamWebRtcSignalingTimeoutMs: 9000,
         streamPublicBaseUrl: 'https://public.example'
     });
 
@@ -42,5 +43,6 @@ test('buildStreamControlRuntimeOptions maps stream runtime flags transparently',
     assert.equal(options.streamWebRtcSignalingUrl, 'http://signal');
     assert.equal(options.streamWebRtcIceServersJson, '[]');
     assert.equal(options.streamWebRtcSignalingRetries, 3);
+    assert.equal(options.webrtcSignalingTimeoutMs, 9000);
     assert.equal(options.streamPublicBaseUrl, 'https://public.example');
 });

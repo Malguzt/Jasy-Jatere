@@ -21,6 +21,7 @@ function buildStreamControlRuntimeOptions(runtimeFlags = {}) {
         streamWebRtcSignalingUrl: runtimeFlags.streamWebRtcSignalingUrl,
         streamWebRtcIceServersJson: runtimeFlags.streamWebRtcIceServersJson,
         streamWebRtcSignalingRetries: runtimeFlags.streamWebRtcSignalingRetries,
+        webrtcSignalingTimeoutMs: runtimeFlags.streamWebRtcSignalingTimeoutMs,
         streamPublicBaseUrl: runtimeFlags.streamPublicBaseUrl
     };
 }

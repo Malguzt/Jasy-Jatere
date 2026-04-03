@@ -78,7 +78,7 @@ If you want the shortest path through the redesign, use this order:
 - Stream session descriptors are now exposed via `GET /api/streams/sessions/:cameraId` so frontend tiles consume logical stream sessions instead of hardcoding transport URLs; optional `STREAM_PUBLIC_BASE_URL` can publish externally reachable WS endpoints in those descriptors.
 - In proxy mode, backend `/stream/:cameraId` websocket traffic is now relayed to the stream-gateway upstream, keeping legacy frontend websocket paths working while runtime ownership stays in the gateway.
 - WebRTC offer/answer signaling is now exposed via `POST /api/streams/webrtc/sessions` (proxied to stream-gateway when proxy mode is enabled) and can be wired to an external signaling backend through `STREAM_WEBRTC_SIGNALING_URL`.
-- Trickle ICE candidate forwarding is exposed via `POST /api/streams/webrtc/sessions/:sessionId/candidates`; signaling retries and fallback ICE servers can be tuned with `STREAM_WEBRTC_SIGNALING_RETRIES` and `STREAM_WEBRTC_ICE_SERVERS_JSON`.
+- Trickle ICE candidate forwarding is exposed via `POST /api/streams/webrtc/sessions/:sessionId/candidates`; signaling retries, request timeout, and fallback ICE servers can be tuned with `STREAM_WEBRTC_SIGNALING_RETRIES`, `STREAM_WEBRTC_SIGNALING_TIMEOUT_MS`, and `STREAM_WEBRTC_ICE_SERVERS_JSON`.
 - Explicit WebRTC session teardown is exposed via `DELETE /api/streams/webrtc/sessions/:sessionId` and is invoked by frontend cleanup to avoid lingering signaling sessions.
 - Stream runtime Prometheus metrics are available via `GET /api/streams/metrics` (and `GET /api/internal/streams/metrics` in stream-gateway).
 - Global `GET /metrics` now includes both connectivity metrics and stream-runtime metrics in a single Prometheus payload.

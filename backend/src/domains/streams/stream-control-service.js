@@ -44,7 +44,7 @@ class StreamControlService {
         streamWebRtcIceServersJson = process.env.STREAM_WEBRTC_ICE_SERVERS_JSON || '',
         streamWebRtcSignalingRetries = Number(process.env.STREAM_WEBRTC_SIGNALING_RETRIES || 1),
         fetchImpl = fetch,
-        webrtcSignalingTimeoutMs = Number(process.env.STREAM_WEBRTC_SIGNALING_TIMEOUT_MS || 7000),
+        webrtcSignalingTimeoutMs = 7000,
         streamPublicBaseUrl = process.env.STREAM_PUBLIC_BASE_URL || '',
         now = () => Date.now()
     } = {}) {

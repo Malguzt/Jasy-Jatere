@@ -65,7 +65,6 @@ def parse_positive_float_env(name, default):
 # --- Configuration ---
 DATA_FILE = "/app/data/cameras.json"
 RECORDINGS_DIR = "/app/recordings"
-RECORDINGS_INDEX_FILE = os.path.join(RECORDINGS_DIR, "recordings-index.json")
 DEFAULT_RECORDINGS_MAX_SIZE_GB = parse_positive_float_env("RECORDINGS_MAX_SIZE_GB", 50)
 DEFAULT_DELETE_OLDEST_BATCH = parse_positive_int_env("RECORDINGS_DELETE_OLDEST_BATCH", 100)
 FRAME_INTERVAL = 0.5          # Capture 1 frame every 500ms (2 FPS)
@@ -113,7 +112,6 @@ REQUIRE_CONTROL_PLANE_RETENTION_CONFIG = parse_bool_env("REQUIRE_CONTROL_PLANE_R
 RETENTION_CONFIG_TTL_SEC = parse_positive_int_env("RETENTION_CONFIG_TTL_SEC", 60)
 USE_CONTROL_PLANE_PERCEPTION_INGEST = parse_bool_env("USE_CONTROL_PLANE_PERCEPTION_INGEST", True)
 USE_CONTROL_PLANE_RECORDING_CATALOG = parse_bool_env("USE_CONTROL_PLANE_RECORDING_CATALOG", True)
-REQUIRE_CONTROL_PLANE_RECORDING_CATALOG = parse_bool_env("REQUIRE_CONTROL_PLANE_RECORDING_CATALOG", True)
 
 # Classes of interest (COCO dataset IDs)
 PERSON_CLASSES = {0}  # person
@@ -134,19 +132,10 @@ models = {}         # device_id -> YOLO model
 device_round_robin = 0
 device_lock = threading.Lock()
 motion_cache = {}   # cam_id -> {"ts": epoch, "motion": bool, "healthy": bool}
-recordings_index_lock = threading.Lock()
 config_provider = None
 control_plane_client = None
 
 os.makedirs(RECORDINGS_DIR, exist_ok=True)
-
-
-def use_local_recordings_index():
-    return False
-
-
-def use_local_recording_sidecars():
-    return False
 
 
 class PersistentFFmpegReader:
@@ -258,109 +247,16 @@ def get_recordings_dir_size_bytes():
     return total
 
 
-def get_metadata_path_from_filename(filename):
-    if filename.endswith(".mp4"):
-        return os.path.join(RECORDINGS_DIR, filename[:-4] + ".meta.json")
-    return os.path.join(RECORDINGS_DIR, filename + ".meta.json")
-
-
-def get_metadata_path_from_mp4(mp4_path):
-    if mp4_path.endswith(".mp4"):
-        return mp4_path[:-4] + ".meta.json"
-    return mp4_path + ".meta.json"
-
-
-def load_recordings_index():
-    if not use_local_recordings_index():
-        return []
-    if not os.path.exists(RECORDINGS_INDEX_FILE):
-        return []
-    try:
-        with open(RECORDINGS_INDEX_FILE, "r") as f:
-            data = json.load(f)
-        if isinstance(data, list):
-            return data
-    except Exception as e:
-        print(f"[META] Error loading index: {e}")
-    return []
-
-
-def save_recordings_index(entries):
-    if not use_local_recordings_index():
-        return
-    tmp_file = RECORDINGS_INDEX_FILE + ".tmp"
-    try:
-        with open(tmp_file, "w") as f:
-            json.dump(entries, f, ensure_ascii=False, indent=2)
-        os.replace(tmp_file, RECORDINGS_INDEX_FILE)
-    except Exception as e:
-        print(f"[META] Error saving index: {e}")
-        try:
-            if os.path.exists(tmp_file):
-                os.remove(tmp_file)
-        except Exception:
-            pass
-
-
-def load_sidecar_metadata(filename):
-    if not use_local_recording_sidecars():
-        return None
-    meta_path = get_metadata_path_from_filename(filename)
-    if not os.path.exists(meta_path):
-        return None
-    try:
-        with open(meta_path, "r") as f:
-            data = json.load(f)
-        if isinstance(data, dict):
-            return data
-    except Exception as e:
-        print(f"[META] Error loading sidecar {meta_path}: {e}")
-    return None
-
-
 def upsert_recording_metadata(metadata):
     filename = metadata.get("filename")
     if not filename:
         return
-
-    if use_local_recording_sidecars():
-        meta_path = get_metadata_path_from_filename(filename)
-        try:
-            with open(meta_path, "w") as f:
-                json.dump(metadata, f, ensure_ascii=False, indent=2)
-        except Exception as e:
-            print(f"[META] Error writing sidecar {meta_path}: {e}")
-
-    if use_local_recordings_index():
-        with recordings_index_lock:
-            index = load_recordings_index()
-            index = [m for m in index if m.get("filename") != filename]
-            index.append(metadata)
-            index.sort(key=lambda m: m.get("event_time") or m.get("created_at") or "", reverse=True)
-            save_recordings_index(index)
-
     publish_recording_catalog(metadata)
 
 
 def remove_recording_metadata(filename):
     if not filename:
         return
-
-    if use_local_recording_sidecars():
-        meta_path = get_metadata_path_from_filename(filename)
-        try:
-            if os.path.exists(meta_path):
-                os.remove(meta_path)
-        except Exception as e:
-            print(f"[META] Error removing sidecar {meta_path}: {e}")
-
-    if use_local_recordings_index():
-        with recordings_index_lock:
-            index = load_recordings_index()
-            filtered = [m for m in index if m.get("filename") != filename]
-            if len(filtered) != len(index):
-                save_recordings_index(filtered)
-
     delete_recording_catalog_entry(filename)
 
 
@@ -373,8 +269,6 @@ def delete_recording_family(mp4_path):
         f"{base}.jpg",
         f"{mp4_path}.log"
     ]
-    if use_local_recording_sidecars():
-        related_paths.append(get_metadata_path_from_mp4(mp4_path))
     for p in related_paths:
         try:
             if os.path.exists(p):

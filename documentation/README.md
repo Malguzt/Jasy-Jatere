@@ -83,9 +83,8 @@ If you want the shortest path through the redesign, use this order:
 - Stream runtime Prometheus metrics are available via `GET /api/streams/metrics` (and `GET /api/internal/streams/metrics` in stream-gateway).
 - Global `GET /metrics` now includes both connectivity metrics and stream-runtime metrics in a single Prometheus payload.
 - Legacy detector recording aliases (`/api/detector/recordings*`) are retired (`410 Gone`); use `/api/recordings*` as canonical catalog APIs.
-- Detector compatibility `/recordings*` routes now delegate listing/deletion to control-plane `/api/recordings*` when `USE_CONTROL_PLANE_RECORDING_CATALOG=1`.
-- Strict detector catalog ownership is now the default (`REQUIRE_CONTROL_PLANE_RECORDING_CATALOG=1` unless explicitly disabled).
-- In strict mode, detector local recording metadata sidecars/indexes are treated as compatibility artifacts and are not the default catalog path.
+- Detector compatibility `/recordings*` routes now delegate listing/deletion to control-plane `/api/recordings*`.
+- Detector local catalog artifacts (`recordings-index.json` and `*.meta.json`) are no longer used as runtime source-of-truth.
 - Backend and stream-gateway expose explicit readiness/liveness probes (`/readyz`, `/livez`) for operational checks.
 - Recording retention and cleanup are now modeled as control-plane runtime policy (`RECORDING_RETENTION_*`).
 - Detector recycle policy can be synchronized from `GET /api/internal/config/retention` (`USE_CONTROL_PLANE_RETENTION_CONFIG`) to avoid drift with control-plane retention settings.

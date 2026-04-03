@@ -1,22 +1,16 @@
 const express = require('express');
-const cors = require('cors');
 const path = require('path');
 const { PlatformRuntimeCoordinator } = require('./platform-runtime-coordinator');
 const { createBackendServices } = require('./create-backend-services');
 const { registerBackendRoutes } = require('./create-backend-routes');
 const { resolveRuntimeFlags } = require('./runtime-flags');
-const { attachCorrelationId, injectCorrelationIdIntoJson } = require('../http/correlation-id-middleware');
+const { createHttpAppBase } = require('./create-http-app-base');
 
 function createBackendApp({
     cameraFile = path.join(__dirname, '..', '..', 'data', 'cameras.json'),
     runtimeFlags = resolveRuntimeFlags()
 } = {}) {
-    const app = express();
-
-    app.use(cors());
-    app.use(express.json());
-    app.use(attachCorrelationId());
-    app.use(injectCorrelationIdIntoJson());
+    const app = createHttpAppBase();
 
     const services = createBackendServices({
         cameraFile,

@@ -6,13 +6,25 @@ function registerStreamGatewayRoutes({
     services,
     runtimeFlags
 }) {
-    app.use('/api/internal/streams', createInternalStreamsGatewayRouter({
-        streamControlService: services.streamControlService,
-        runtimeFlags
-    }));
-    app.use('/', createStreamGatewayProbesRouter({
-        streamControlService: services.streamControlService
-    }));
+    const routeRegistrations = [
+        {
+            path: '/api/internal/streams',
+            router: createInternalStreamsGatewayRouter({
+                streamControlService: services.streamControlService,
+                runtimeFlags
+            })
+        },
+        {
+            path: '/',
+            router: createStreamGatewayProbesRouter({
+                streamControlService: services.streamControlService
+            })
+        }
+    ];
+
+    routeRegistrations.forEach(({ path, router }) => {
+        app.use(path, router);
+    });
 }
 
 module.exports = {

@@ -4,6 +4,7 @@ function loadCameraInventory({
     cameraInventoryService = null,
     legacyFilePath = '',
     legacyFileFallbackEnabled = true,
+    fsModule = fs,
     logger = console,
     serviceErrorPrefix = '[CAM] failed to load cameras from inventory service:',
     fileErrorPrefix = '[CAM] failed to load cameras file:'
@@ -22,8 +23,8 @@ function loadCameraInventory({
     if (!legacyFileFallbackEnabled) return [];
 
     try {
-        if (!legacyFilePath || !fs.existsSync(legacyFilePath)) return [];
-        const payload = JSON.parse(fs.readFileSync(legacyFilePath, 'utf8'));
+        if (!legacyFilePath || !fsModule.existsSync(legacyFilePath)) return [];
+        const payload = JSON.parse(fsModule.readFileSync(legacyFilePath, 'utf8'));
         return Array.isArray(payload) ? payload : [];
     } catch (error) {
         logger.error(fileErrorPrefix, error?.message || error);

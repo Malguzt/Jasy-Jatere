@@ -1,5 +1,6 @@
 const fs = require('fs');
 const WebSocket = require('ws');
+const { loadCameraInventory } = require('../cameras/camera-inventory-loader');
 
 class StreamWebSocketGateway {
     constructor({
@@ -45,20 +46,20 @@ class StreamWebSocketGateway {
             return { camera: null, reason: 'inventory-unavailable' };
         }
 
-        if (!this.fs.existsSync(this.cameraFile)) {
+        const cameras = loadCameraInventory({
+            cameraInventoryService: null,
+            legacyFilePath: this.cameraFile,
+            legacyFileFallbackEnabled: this.legacyFileFallbackEnabled,
+            fsModule: this.fs,
+            logger: this.logger,
+            fileErrorPrefix: '[WS] Error cargando cámaras:'
+        });
+        if (cameras.length === 0 && !this.fs.existsSync(this.cameraFile)) {
             this.logger.error('[WS] cameras.json no existe');
             return { camera: null, reason: 'missing-camera-file' };
         }
-
-        try {
-            const cameras = JSON.parse(this.fs.readFileSync(this.cameraFile, 'utf8'));
-            if (!Array.isArray(cameras)) return { camera: null, reason: 'invalid-camera-file' };
-            const camera = cameras.find((item) => item.id === cameraId) || null;
-            return { camera, reason: camera ? null : 'camera-not-found' };
-        } catch (error) {
-            this.logger.error('[WS] Error cargando cámaras:', error?.message || error);
-            return { camera: null, reason: 'camera-file-read-error' };
-        }
+        const camera = cameras.find((item) => item.id === cameraId) || null;
+        return { camera, reason: camera ? null : 'camera-not-found' };
     }
 
     handleConnection(ws, req) {

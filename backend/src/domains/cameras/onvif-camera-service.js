@@ -6,6 +6,7 @@ const path = require('path');
 const os = require('os');
 const net = require('net');
 const { resolveUserPass } = require('../../../camera-credentials');
+const { loadCameraInventory } = require('./camera-inventory-loader');
 
 const DEFAULT_CAMERA_DATA_FILE = path.join(__dirname, '../../../data/cameras.json');
 
@@ -151,29 +152,16 @@ class OnvifCameraService {
 
     loadKnownIpPrefixes() {
         const out = new Set();
-        if (this.cameraInventoryService && typeof this.cameraInventoryService.listCameras === 'function') {
-            try {
-                const cameras = this.cameraInventoryService.listCameras();
-                if (Array.isArray(cameras) && cameras.length > 0) {
-                    this.collectKnownPrefixesFromCameras(cameras, out);
-                    return out;
-                }
-                if (!this.legacyFileFallbackEnabled) return out;
-            } catch (error) {
-                console.warn('[DISCOVER] No se pudieron leer prefijos de inventario:', error.message || error);
-                if (!this.legacyFileFallbackEnabled) return out;
-            }
-        }
-
-        if (!this.legacyFileFallbackEnabled) return out;
-
-        try {
-            if (!this.fs.existsSync(this.cameraDataFile)) return out;
-            const cameras = JSON.parse(this.fs.readFileSync(this.cameraDataFile, 'utf8'));
-            this.collectKnownPrefixesFromCameras(cameras || [], out);
-        } catch (error) {
-            console.warn('[DISCOVER] No se pudieron leer prefijos conocidos:', error.message || error);
-        }
+        const cameras = loadCameraInventory({
+            cameraInventoryService: this.cameraInventoryService,
+            legacyFilePath: this.cameraDataFile,
+            legacyFileFallbackEnabled: this.legacyFileFallbackEnabled,
+            fsModule: this.fs,
+            logger: console,
+            serviceErrorPrefix: '[DISCOVER] No se pudieron leer prefijos de inventario:',
+            fileErrorPrefix: '[DISCOVER] No se pudieron leer prefijos conocidos:'
+        });
+        this.collectKnownPrefixesFromCameras(cameras || [], out);
         return out;
     }
 

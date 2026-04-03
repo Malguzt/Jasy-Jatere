@@ -106,4 +106,5 @@ If you want the shortest path through the redesign, use this order:
 - Control-plane and stream-gateway liveness/readiness probes are now mounted through dedicated router modules (`backend/routes/control-plane-probes.js`, `backend/routes/stream-gateway-probes.js`) to keep app bootstrap focused on composition.
 - Shared server lifecycle wiring (listen/start/shutdown signal handling) is now centralized in `backend/src/app/http-runtime-bootstrap.js`, reused by both `server.js` and `stream-gateway-server.js`.
 - Backend and stream-gateway app factories now delegate HTTP route wiring to dedicated modules (`backend/src/app/create-backend-routes.js`, `backend/src/app/create-stream-gateway-routes.js`), reducing bootstrapping file coupling.
+- Backend and stream-gateway composition now share common runtime option mappers (`backend/src/app/composition-options.js`) for repository compatibility, legacy fallback wiring, and stream-control runtime flags.
 - Frontend polling-heavy data hooks now reuse a shared polling helper (`frontend/src/api/polling.js`) to keep query cadence and cancellation behavior consistent across domains.

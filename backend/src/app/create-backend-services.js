@@ -25,6 +25,11 @@ const { RecordingRetentionJob } = require('../domains/recordings/recording-reten
 const { PerceptionIngestService } = require('../domains/perception/perception-ingest-service');
 const { DetectorProxyService } = require('../domains/perception/detector-proxy-service');
 const { MapsService } = require('../domains/maps/maps-service');
+const {
+    buildRepositoryCompatOptions,
+    buildLegacyFileFallbackOptions,
+    buildStreamControlRuntimeOptions
+} = require('./composition-options');
 
 function createBackendServices({
     cameraFile,
@@ -35,21 +40,20 @@ function createBackendServices({
     if (metadataDriver === 'sqlite') {
         sqliteStore.migrate();
     }
+    const repositoryCompatOptions = buildRepositoryCompatOptions(runtimeFlags);
+    const legacyFileFallbackOptions = buildLegacyFileFallbackOptions(runtimeFlags);
+    const streamControlRuntimeOptions = buildStreamControlRuntimeOptions(runtimeFlags);
 
     const cameraRepository = new CameraMetadataRepository({
         legacyFile: cameraFile,
         driver: metadataDriver,
         sqliteStore,
-        dualWritePrimary: runtimeFlags.legacyCompatExportsEnabled,
-        dualWriteLegacy: runtimeFlags.legacyCompatExportsEnabled,
-        legacyReadFallback: runtimeFlags.legacyCompatExportsEnabled
+        ...repositoryCompatOptions
     });
     const recordingCatalogRepository = new RecordingCatalogRepository({
         driver: metadataDriver,
         sqliteStore,
-        dualWritePrimary: runtimeFlags.legacyCompatExportsEnabled,
-        dualWriteLegacy: runtimeFlags.legacyCompatExportsEnabled,
-        legacyReadFallback: runtimeFlags.legacyCompatExportsEnabled
+        ...repositoryCompatOptions
     });
     const observationRepository = new ObservationEventRepository({
         driver: metadataDriver,
@@ -72,12 +76,12 @@ function createBackendServices({
     const onvifCameraService = new OnvifCameraService({
         cameraDataFile: cameraFile,
         cameraInventoryService,
-        legacyFileFallbackEnabled: runtimeFlags.legacyCompatExportsEnabled
+        ...legacyFileFallbackOptions
     });
     const cameraEventMonitor = new CameraEventMonitor({
         cameraFile,
         cameraInventoryService,
-        legacyFileFallbackEnabled: runtimeFlags.legacyCompatExportsEnabled
+        ...legacyFileFallbackOptions
     });
 
     const connectivityMonitor = new CameraConnectivityMonitor({
@@ -85,7 +89,7 @@ function createBackendServices({
         streamManager,
         cameraEventMonitor,
         cameraInventoryService,
-        legacyFileFallbackEnabled: runtimeFlags.legacyCompatExportsEnabled
+        ...legacyFileFallbackOptions
     });
     const monitoringService = new ConnectivityMonitoringService({
         connectivityMonitor,
@@ -98,19 +102,13 @@ function createBackendServices({
         resolveCameraStreamUrls,
         deriveCompanionRtsp,
         parseResolutionHint,
-        legacyFileFallbackEnabled: runtimeFlags.legacyCompatExportsEnabled
+        ...legacyFileFallbackOptions
     });
     const streamControlService = new StreamControlService({
         streamManager,
         cameraInventoryService,
         streamSyncOrchestrator,
-        streamWebSocketGatewayEnabled: runtimeFlags.streamWebSocketGatewayEnabled,
-        streamWebRtcEnabled: runtimeFlags.streamWebRtcEnabled,
-        streamWebRtcRequireHttps: runtimeFlags.streamWebRtcRequireHttps,
-        streamWebRtcSignalingUrl: runtimeFlags.streamWebRtcSignalingUrl,
-        streamWebRtcIceServersJson: runtimeFlags.streamWebRtcIceServersJson,
-        streamWebRtcSignalingRetries: runtimeFlags.streamWebRtcSignalingRetries,
-        streamPublicBaseUrl: runtimeFlags.streamPublicBaseUrl
+        ...streamControlRuntimeOptions
     });
     const streamGatewayApiUrl = String(runtimeFlags.streamGatewayApiUrl || '').trim();
     const streamControlProxyService = streamGatewayApiUrl
@@ -160,7 +158,7 @@ function createBackendServices({
                 cameraInventoryService,
                 streamManager,
                 resolveCameraStreamUrls,
-                legacyFileFallbackEnabled: runtimeFlags.legacyCompatExportsEnabled
+                ...legacyFileFallbackOptions
             });
     const mapsService = new MapsService();
     const detectorProxyService = new DetectorProxyService();

@@ -6,6 +6,11 @@ const { CameraInventoryService } = require('../domains/cameras/camera-inventory-
 const { StreamSyncOrchestrator } = require('../domains/streams/stream-sync-orchestrator');
 const { StreamWebSocketGateway } = require('../domains/streams/stream-websocket-gateway');
 const { StreamControlService } = require('../domains/streams/stream-control-service');
+const {
+    buildRepositoryCompatOptions,
+    buildLegacyFileFallbackOptions,
+    buildStreamControlRuntimeOptions
+} = require('./composition-options');
 
 function createStreamGatewayServices({
     cameraFile,
@@ -16,14 +21,15 @@ function createStreamGatewayServices({
     if (metadataDriver === 'sqlite') {
         sqliteStore.migrate();
     }
+    const repositoryCompatOptions = buildRepositoryCompatOptions(runtimeFlags);
+    const legacyFileFallbackOptions = buildLegacyFileFallbackOptions(runtimeFlags);
+    const streamControlRuntimeOptions = buildStreamControlRuntimeOptions(runtimeFlags);
 
     const cameraRepository = new CameraMetadataRepository({
         legacyFile: cameraFile,
         driver: metadataDriver,
         sqliteStore,
-        dualWritePrimary: runtimeFlags.legacyCompatExportsEnabled,
-        dualWriteLegacy: runtimeFlags.legacyCompatExportsEnabled,
-        legacyReadFallback: runtimeFlags.legacyCompatExportsEnabled
+        ...repositoryCompatOptions
     });
     const cameraInventoryService = new CameraInventoryService({
         repository: cameraRepository
@@ -36,20 +42,14 @@ function createStreamGatewayServices({
         resolveCameraStreamUrls,
         deriveCompanionRtsp,
         parseResolutionHint,
-        legacyFileFallbackEnabled: runtimeFlags.legacyCompatExportsEnabled
+        ...legacyFileFallbackOptions
     });
 
     const streamControlService = new StreamControlService({
         streamManager,
         cameraInventoryService,
         streamSyncOrchestrator,
-        streamWebSocketGatewayEnabled: runtimeFlags.streamWebSocketGatewayEnabled,
-        streamWebRtcEnabled: runtimeFlags.streamWebRtcEnabled,
-        streamWebRtcRequireHttps: runtimeFlags.streamWebRtcRequireHttps,
-        streamWebRtcSignalingUrl: runtimeFlags.streamWebRtcSignalingUrl,
-        streamWebRtcIceServersJson: runtimeFlags.streamWebRtcIceServersJson,
-        streamWebRtcSignalingRetries: runtimeFlags.streamWebRtcSignalingRetries,
-        streamPublicBaseUrl: runtimeFlags.streamPublicBaseUrl
+        ...streamControlRuntimeOptions
     });
 
     const streamWebSocketGateway = new StreamWebSocketGateway({
@@ -57,7 +57,7 @@ function createStreamGatewayServices({
         cameraInventoryService,
         streamManager,
         resolveCameraStreamUrls,
-        legacyFileFallbackEnabled: runtimeFlags.legacyCompatExportsEnabled
+        ...legacyFileFallbackOptions
     });
 
     return {

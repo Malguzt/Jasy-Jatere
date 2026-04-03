@@ -106,6 +106,8 @@ If you want the shortest path through the redesign, use this order:
 - Camera inventory ID resolution (`findCamera`/`listCameras`) is also centralized in that shared loader and reused by stream websocket gateways.
 - SQLite-backed repositories now treat legacy JSON as compatibility export targets only; implicit runtime legacy-read fallback is retired (migration/import paths remain explicit).
 - Camera inventory and recording catalog repositories now also avoid implicit SQLite bootstrap-from-JSON on read paths; runtime state must come from repository writes or explicit import/bootstrap tooling.
+- Camera inventory and recording catalog repositories now disable legacy JSON dual-write by default in JSON driver mode; compatibility export writes require explicit opt-in.
+- Camera inventory and recording catalog repositories no longer fall back to legacy compatibility files when their primary metadata files are missing.
 - Legacy map/correction JSON compatibility I/O is now centralized through a shared adapter (`backend/maps/legacy-json-adapter.js`) consumed by both `backend/maps/storage.js` and `backend/maps/corrections.js`.
 - Map persistence runtime flag resolution is now centralized in `backend/maps/persistence-flags.js` to keep storage/corrections behavior aligned.
 - Map/corrections legacy bootstrap now runs only through explicit migration bootstrap entrypoints (`bootstrapFromLegacy`) and is no longer auto-enabled in runtime read paths.

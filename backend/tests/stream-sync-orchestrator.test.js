@@ -18,12 +18,7 @@ function makeOrchestrator(overrides = {}) {
             if (!match) return null;
             return { pixels: Number(match[1]) * Number(match[2]) };
         }),
-        legacyFileFallbackEnabled: overrides.legacyFileFallbackEnabled,
         fetchImpl: overrides.fetchImpl || (async () => ({ ok: true })),
-        fsModule: overrides.fsModule || {
-            existsSync: () => true,
-            readFileSync: () => '[]'
-        },
         logger: overrides.logger || { error: () => {} },
         reconstructorUrl: overrides.reconstructorUrl || 'http://localhost:5001',
         syncIntervalMs: overrides.syncIntervalMs || 10000,
@@ -57,12 +52,8 @@ test('syncNow updates keepalive configs and posts reconstructor stream payload',
     const fetchCalls = [];
 
     const orchestrator = makeOrchestrator({
-        streamManager: {
-            syncKeepaliveConfigs: (configs) => syncedConfigs.push(configs)
-        },
-        fsModule: {
-            existsSync: () => true,
-            readFileSync: () => JSON.stringify([
+        cameraInventoryService: {
+            listCameras: () => ([
                 {
                     id: 'cam-1',
                     type: 'combined',
@@ -71,6 +62,9 @@ test('syncNow updates keepalive configs and posts reconstructor stream payload',
                     sourceLabels: ['640x360', '1920x1080']
                 }
             ])
+        },
+        streamManager: {
+            syncKeepaliveConfigs: (configs) => syncedConfigs.push(configs)
         },
         fetchImpl: async (url, options) => {
             fetchCalls.push({ url, options });
@@ -96,16 +90,17 @@ test('syncNow updates keepalive configs and posts reconstructor stream payload',
     });
 });
 
-test('syncNow tolerates invalid camera file and still syncs empty config', async () => {
+test('syncNow tolerates inventory errors and still syncs empty config', async () => {
     const syncedConfigs = [];
     let loggerCalls = 0;
     const orchestrator = makeOrchestrator({
+        cameraInventoryService: {
+            listCameras: () => {
+                throw new Error('inventory unavailable');
+            }
+        },
         streamManager: {
             syncKeepaliveConfigs: (configs) => syncedConfigs.push(configs)
-        },
-        fsModule: {
-            existsSync: () => true,
-            readFileSync: () => '{not-json'
         },
         logger: {
             error: () => {
@@ -122,19 +117,14 @@ test('syncNow tolerates invalid camera file and still syncs empty config', async
     assert.ok(loggerCalls >= 1);
 });
 
-test('syncNow avoids camera file fallback when legacy fallback is disabled', async () => {
+test('syncNow keeps empty configs when inventory is unavailable', async () => {
     const syncedConfigs = [];
     let loggerCalls = 0;
     const orchestrator = makeOrchestrator({
-        legacyFileFallbackEnabled: false,
         cameraInventoryService: {
             listCameras: () => {
                 throw new Error('inventory unavailable');
             }
-        },
-        fsModule: {
-            existsSync: () => true,
-            readFileSync: () => JSON.stringify([{ id: 'cam-1', rtspUrl: 'rtsp://cam-1' }])
         },
         streamManager: {
             syncKeepaliveConfigs: (configs) => syncedConfigs.push(configs)

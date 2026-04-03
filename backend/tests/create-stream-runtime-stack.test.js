@@ -48,7 +48,6 @@ test('createStreamRuntimeStack returns composed stream runtime services', () => 
     assert.equal(stack.streamSyncOrchestrator.streamManager, streamManagerInstance);
     assert.equal(stack.streamControlService.streamManager, streamManagerInstance);
     assert.equal(stack.streamWebSocketGateway.streamManager, streamManagerInstance);
-    assert.equal(stack.legacyFileFallbackOptions.legacyFileFallbackEnabled, false);
     assert.equal(stack.streamControlRuntimeOptions.streamWebSocketGatewayEnabled, true);
     assert.equal(stack.streamControlRuntimeOptions.streamWebRtcEnabled, false);
 });

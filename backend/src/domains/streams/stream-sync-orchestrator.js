@@ -1,4 +1,3 @@
-const fs = require('fs');
 const { loadCameraInventory } = require('../cameras/camera-inventory-loader');
 
 function toPositiveInt(value, fallback) {
@@ -15,9 +14,7 @@ class StreamSyncOrchestrator {
         resolveCameraStreamUrls,
         deriveCompanionRtsp,
         parseResolutionHint,
-        legacyFileFallbackEnabled = true,
         fetchImpl = fetch,
-        fsModule = fs,
         logger = console,
         reconstructorUrl = process.env.RECONSTRUCTOR_URL || 'http://localhost:5001',
         syncIntervalMs = toPositiveInt(process.env.CAMERA_KEEPALIVE_SYNC_MS, 10000),
@@ -33,9 +30,7 @@ class StreamSyncOrchestrator {
         this.resolveCameraStreamUrls = resolveCameraStreamUrls;
         this.deriveCompanionRtsp = deriveCompanionRtsp;
         this.parseResolutionHint = parseResolutionHint;
-        this.legacyFileFallbackEnabled = legacyFileFallbackEnabled === true;
         this.fetch = fetchImpl;
-        this.fs = fsModule;
         this.logger = logger;
         this.reconstructorUrl = String(reconstructorUrl || 'http://localhost:5001').replace(/\/$/, '');
         this.syncIntervalMs = toPositiveInt(syncIntervalMs, 10000);
@@ -99,12 +94,8 @@ class StreamSyncOrchestrator {
     loadSavedCamerasSafe() {
         return loadCameraInventory({
             cameraInventoryService: this.cameraInventoryService,
-            legacyFilePath: this.cameraFile,
-            legacyFileFallbackEnabled: this.legacyFileFallbackEnabled,
-            fsModule: this.fs,
             logger: this.logger,
-            serviceErrorPrefix: '[KEEPALIVE] Error leyendo inventory service:',
-            fileErrorPrefix: '[KEEPALIVE] Error leyendo cameras.json:'
+            serviceErrorPrefix: '[KEEPALIVE] Error leyendo inventory service:'
         });
     }
 

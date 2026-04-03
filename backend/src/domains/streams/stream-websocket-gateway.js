@@ -1,4 +1,3 @@
-const fs = require('fs');
 const WebSocket = require('ws');
 const { loadCameraById } = require('../cameras/camera-inventory-loader');
 
@@ -8,8 +7,6 @@ class StreamWebSocketGateway {
         cameraInventoryService,
         streamManager,
         resolveCameraStreamUrls,
-        legacyFileFallbackEnabled = true,
-        fsModule = fs,
         webSocketLib = WebSocket,
         logger = console
     } = {}) {
@@ -17,8 +14,6 @@ class StreamWebSocketGateway {
         this.cameraInventoryService = cameraInventoryService;
         this.streamManager = streamManager;
         this.resolveCameraStreamUrls = resolveCameraStreamUrls;
-        this.legacyFileFallbackEnabled = legacyFileFallbackEnabled === true;
-        this.fs = fsModule;
         this.webSocketLib = webSocketLib;
         this.logger = logger;
         this.wss = null;
@@ -33,16 +28,9 @@ class StreamWebSocketGateway {
         const loaded = loadCameraById({
             cameraId,
             cameraInventoryService: this.cameraInventoryService,
-            legacyFilePath: this.cameraFile,
-            legacyFileFallbackEnabled: this.legacyFileFallbackEnabled,
-            fsModule: this.fs,
             logger: this.logger,
-            serviceErrorPrefix: '[WS] Error cargando inventario de cámaras:',
-            fileErrorPrefix: '[WS] Error cargando cámaras:'
+            serviceErrorPrefix: '[WS] Error cargando inventario de cámaras:'
         });
-        if (loaded.reason === 'missing-camera-file') {
-            this.logger.error('[WS] cameras.json no existe');
-        }
         return loaded;
     }
 

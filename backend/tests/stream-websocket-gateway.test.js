@@ -12,11 +12,6 @@ function makeGateway(overrides = {}) {
             rtspUrl: camera.rtspUrl,
             allRtspUrls: camera.allRtspUrls || []
         })),
-        legacyFileFallbackEnabled: overrides.legacyFileFallbackEnabled,
-        fsModule: overrides.fsModule || {
-            existsSync: () => true,
-            readFileSync: () => '[]'
-        },
         webSocketLib: overrides.webSocketLib,
         logger: overrides.logger || { error: () => {} }
     });
@@ -36,13 +31,14 @@ test('handleConnection closes websocket when URL does not match stream pattern',
     assert.equal(closed, 1);
 });
 
-test('handleConnection closes websocket when camera file is missing', () => {
+test('handleConnection closes websocket when inventory is unavailable', () => {
     let closed = 0;
     let errors = 0;
     const gateway = makeGateway({
-        fsModule: {
-            existsSync: () => false,
-            readFileSync: () => '[]'
+        cameraInventoryService: {
+            findCamera: () => {
+                throw new Error('inventory unavailable');
+            }
         },
         logger: {
             error: () => {
@@ -56,19 +52,14 @@ test('handleConnection closes websocket when camera file is missing', () => {
     assert.equal(errors, 1);
 });
 
-test('handleConnection avoids camera file fallback when legacy fallback is disabled', () => {
+test('handleConnection closes websocket when inventory is unavailable from list path', () => {
     let closed = 0;
     let errors = 0;
     const gateway = makeGateway({
-        legacyFileFallbackEnabled: false,
         cameraInventoryService: {
-            findCamera: () => {
+            listCameras: () => {
                 throw new Error('inventory unavailable');
             }
-        },
-        fsModule: {
-            existsSync: () => false,
-            readFileSync: () => '[]'
         },
         logger: {
             error: () => {
@@ -86,9 +77,8 @@ test('handleConnection closes websocket when camera does not exist', () => {
     let closed = 0;
     let errors = 0;
     const gateway = makeGateway({
-        fsModule: {
-            existsSync: () => true,
-            readFileSync: () => JSON.stringify([{ id: 'cam-2', rtspUrl: 'rtsp://cam-2' }])
+        cameraInventoryService: {
+            listCameras: () => ([{ id: 'cam-2', rtspUrl: 'rtsp://cam-2' }])
         },
         logger: {
             error: () => {
@@ -105,9 +95,8 @@ test('handleConnection closes websocket when camera does not exist', () => {
 test('handleConnection delegates to streamManager for valid camera', () => {
     const calls = [];
     const gateway = makeGateway({
-        fsModule: {
-            existsSync: () => true,
-            readFileSync: () => JSON.stringify([
+        cameraInventoryService: {
+            listCameras: () => ([
                 {
                     id: 'cam-1',
                     type: 'combined',

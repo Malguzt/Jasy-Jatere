@@ -4,7 +4,6 @@ const { StreamSyncOrchestrator } = require('../domains/streams/stream-sync-orche
 const { StreamControlService } = require('../domains/streams/stream-control-service');
 const { StreamWebSocketGateway } = require('../domains/streams/stream-websocket-gateway');
 const {
-    buildLegacyFileFallbackOptions,
     buildStreamControlRuntimeOptions
 } = require('./composition-options');
 
@@ -14,7 +13,6 @@ function createStreamRuntimeStack({
     runtimeFlags,
     streamManagerInstance = streamManager
 }) {
-    const legacyFileFallbackOptions = buildLegacyFileFallbackOptions(runtimeFlags);
     const streamControlRuntimeOptions = buildStreamControlRuntimeOptions(runtimeFlags);
 
     const streamSyncOrchestrator = new StreamSyncOrchestrator({
@@ -23,8 +21,7 @@ function createStreamRuntimeStack({
         streamManager: streamManagerInstance,
         resolveCameraStreamUrls,
         deriveCompanionRtsp,
-        parseResolutionHint,
-        ...legacyFileFallbackOptions
+        parseResolutionHint
     });
 
     const streamControlService = new StreamControlService({
@@ -38,15 +35,13 @@ function createStreamRuntimeStack({
         cameraFile,
         cameraInventoryService,
         streamManager: streamManagerInstance,
-        resolveCameraStreamUrls,
-        ...legacyFileFallbackOptions
+        resolveCameraStreamUrls
     });
 
     return {
         streamSyncOrchestrator,
         streamControlService,
         streamWebSocketGateway,
-        legacyFileFallbackOptions,
         streamControlRuntimeOptions
     };
 }

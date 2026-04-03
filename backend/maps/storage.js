@@ -14,8 +14,6 @@ const legacyAdapter = createLegacyJsonAdapter({
     defaultIndex: DEFAULT_INDEX,
     defaultCorrections: {}
 });
-const INDEX_FILE = legacyAdapter.indexFile;
-const JOBS_FILE = legacyAdapter.jobsFile;
 
 const mapPersistenceFlags = resolveMapPersistenceFlags();
 const METADATA_DRIVER = mapPersistenceFlags.metadataDriver;
@@ -38,10 +36,6 @@ function ensureSqliteRepositories() {
     sqliteStore.migrate();
     sqliteMaps = sqliteMaps || new SqliteMapVersionRepository({ store: sqliteStore });
     sqliteJobs = sqliteJobs || new SqliteMapJobRepository({ store: sqliteStore });
-}
-
-function ensureStorage() {
-    legacyAdapter.ensureStorageFiles();
 }
 
 function toSummary(mapDoc) {
@@ -264,9 +258,6 @@ function saveJobs(jobs) {
 
 module.exports = {
     MAPS_DIR,
-    INDEX_FILE,
-    JOBS_FILE,
-    ensureStorage,
     getIndex,
     saveIndex,
     saveMap,

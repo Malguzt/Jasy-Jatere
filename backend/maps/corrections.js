@@ -17,7 +17,6 @@ const legacyAdapter = createLegacyJsonAdapter({
     defaultIndex: DEFAULT_INDEX,
     defaultCorrections: DEFAULT_CORRECTIONS
 });
-const CORRECTIONS_FILE = legacyAdapter.correctionsFile;
 
 let sqliteStore = null;
 let sqliteCorrections = null;
@@ -191,7 +190,6 @@ function getHintsForGeneration() {
 }
 
 module.exports = {
-    CORRECTIONS_FILE,
     readCorrections,
     writeCorrections,
     upsertFromManualMap,

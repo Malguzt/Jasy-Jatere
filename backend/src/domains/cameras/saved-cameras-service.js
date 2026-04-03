@@ -1,10 +1,5 @@
-const path = require('path');
 const { validateCameraRtspPayload } = require('../../../rtsp-validator');
 const { resolveCameraCredentials } = require('../../../camera-credentials');
-const { CameraMetadataRepository } = require('../../infrastructure/repositories/camera-metadata-repository');
-
-const DEFAULT_DATA_FILE = path.join(__dirname, '../../../data/cameras.json');
-const DEFAULT_METADATA_FILE = path.join(__dirname, '../../../data/metadata/cameras.json');
 
 function savedCamerasError(status, message, code = null, details = null) {
     const error = new Error(message || 'Saved cameras error');
@@ -16,17 +11,19 @@ function savedCamerasError(status, message, code = null, details = null) {
 
 class SavedCamerasService {
     constructor({
-        dataFile = DEFAULT_DATA_FILE,
-        metadataFile = DEFAULT_METADATA_FILE,
-        repository = null,
+        repository,
         validateRtsp = validateCameraRtspPayload,
         resolveCredentials = resolveCameraCredentials,
         now = () => Date.now()
     } = {}) {
-        this.repository = repository || new CameraMetadataRepository({
-            primaryFile: dataFile === DEFAULT_DATA_FILE ? metadataFile : dataFile,
-            legacyFile: dataFile
-        });
+        if (!repository) {
+            throw savedCamerasError(
+                500,
+                'Saved cameras repository is required',
+                'SAVED_CAMERAS_REPOSITORY_REQUIRED'
+            );
+        }
+        this.repository = repository;
         this.validateRtsp = validateRtsp;
         this.resolveCredentials = resolveCredentials;
         this.now = now;

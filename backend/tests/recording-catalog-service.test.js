@@ -22,6 +22,16 @@ function makeFixture() {
     return { tmpDir, recordingsDir, service };
 }
 
+test('constructor requires repository injection', () => {
+    assert.throws(
+        () => new RecordingCatalogService(),
+        (error) =>
+            Number(error?.status) === 500 &&
+            error?.code === 'RECORDING_CATALOG_REPOSITORY_REQUIRED' &&
+            error?.message === 'Recording catalog repository is required'
+    );
+});
+
 test('RecordingCatalogService upserts and filters recording metadata', () => {
     const { service } = makeFixture();
     service.upsertRecording({

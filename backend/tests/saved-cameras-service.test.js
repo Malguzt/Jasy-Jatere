@@ -20,13 +20,22 @@ function makeService({ validator, now } = {}) {
         driver: 'json'
     });
     const service = new SavedCamerasService({
-        dataFile,
         repository,
         validateRtsp: validator || (async () => ({ ok: true, errors: [], checks: [], warnings: [] })),
         now: now || (() => 1700000000000)
     });
     return { service, dataFile };
 }
+
+test('constructor requires repository injection', () => {
+    assert.throws(
+        () => new SavedCamerasService(),
+        (error) =>
+            Number(error?.status) === 500 &&
+            error?.code === 'SAVED_CAMERAS_REPOSITORY_REQUIRED' &&
+            error?.message === 'Saved cameras repository is required'
+    );
+});
 
 test('listCameras returns empty list when file does not exist', () => {
     const { service } = makeService();

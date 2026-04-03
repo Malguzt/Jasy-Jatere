@@ -3,6 +3,16 @@ const assert = require('node:assert/strict');
 
 const { PerceptionIngestService } = require('../src/domains/perception/perception-ingest-service');
 
+test('constructor requires observation repository injection', () => {
+    assert.throws(
+        () => new PerceptionIngestService(),
+        (error) =>
+            Number(error?.status) === 500 &&
+            error?.code === 'OBSERVATION_REPOSITORY_REQUIRED' &&
+            error?.message === 'Observation repository is required'
+    );
+});
+
 test('ingestObservation appends normalized event', () => {
     const observed = [];
     const service = new PerceptionIngestService({

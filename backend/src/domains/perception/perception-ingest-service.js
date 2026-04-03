@@ -1,5 +1,3 @@
-const { ObservationEventRepository } = require('../../infrastructure/repositories/observation-event-repository');
-
 function perceptionIngestError(status, message, code = null, details = null) {
     const error = new Error(message || 'Perception ingest error');
     error.status = status;
@@ -10,9 +8,16 @@ function perceptionIngestError(status, message, code = null, details = null) {
 
 class PerceptionIngestService {
     constructor({
-        observationRepository = new ObservationEventRepository(),
+        observationRepository,
         recordingCatalogService
     } = {}) {
+        if (!observationRepository) {
+            throw perceptionIngestError(
+                500,
+                'Observation repository is required',
+                'OBSERVATION_REPOSITORY_REQUIRED'
+            );
+        }
         this.observationRepository = observationRepository;
         this.recordingCatalogService = recordingCatalogService;
     }

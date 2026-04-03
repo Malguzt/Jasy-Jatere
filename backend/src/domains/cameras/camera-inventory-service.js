@@ -1,5 +1,3 @@
-const { CameraMetadataRepository } = require('../../infrastructure/repositories/camera-metadata-repository');
-
 function cameraInventoryError(status, message, code = null, details = null) {
     const error = new Error(message || 'Camera inventory error');
     error.status = status;
@@ -9,7 +7,14 @@ function cameraInventoryError(status, message, code = null, details = null) {
 }
 
 class CameraInventoryService {
-    constructor({ repository = new CameraMetadataRepository() } = {}) {
+    constructor({ repository } = {}) {
+        if (!repository) {
+            throw cameraInventoryError(
+                500,
+                'Camera inventory repository is required',
+                'CAMERA_INVENTORY_REPOSITORY_REQUIRED'
+            );
+        }
         this.repository = repository;
     }
 

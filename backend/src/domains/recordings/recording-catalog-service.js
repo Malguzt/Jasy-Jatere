@@ -1,6 +1,5 @@
 const fs = require('fs');
 const path = require('path');
-const { RecordingCatalogRepository } = require('../../infrastructure/repositories/recording-catalog-repository');
 
 const RECORDINGS_DIR = '/app/recordings';
 
@@ -21,10 +20,17 @@ function parseIso(value) {
 
 class RecordingCatalogService {
     constructor({
-        repository = new RecordingCatalogRepository(),
+        repository,
         recordingsDir = RECORDINGS_DIR,
         fsModule = fs
     } = {}) {
+        if (!repository) {
+            throw recordingCatalogError(
+                500,
+                'Recording catalog repository is required',
+                'RECORDING_CATALOG_REPOSITORY_REQUIRED'
+            );
+        }
         this.repository = repository;
         this.recordingsDir = recordingsDir;
         this.fs = fsModule;

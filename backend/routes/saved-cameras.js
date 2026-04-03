@@ -1,7 +1,6 @@
 const express = require('express');
 const { validateBody } = require('../src/contracts/validator');
 const { badRequest, notFound, internalError } = require('../src/http/respond');
-const { SavedCamerasService } = require('../src/domains/cameras/saved-cameras-service');
 
 function sendSavedCameraError(res, error, fallbackMessage) {
     const message = error?.message || fallbackMessage || 'Unexpected saved-cameras error';
@@ -15,7 +14,7 @@ function sendSavedCameraError(res, error, fallbackMessage) {
     return internalError(res, { error: message, details });
 }
 
-function createSavedCamerasRouter({ savedCamerasService = new SavedCamerasService() } = {}) {
+function createSavedCamerasRouter({ savedCamerasService }) {
     const router = express.Router();
 
     router.get('/', (req, res) => {
@@ -56,7 +55,6 @@ function createSavedCamerasRouter({ savedCamerasService = new SavedCamerasServic
     return router;
 }
 
-const defaultRouter = createSavedCamerasRouter();
-
-module.exports = defaultRouter;
-module.exports.createSavedCamerasRouter = createSavedCamerasRouter;
+module.exports = {
+    createSavedCamerasRouter
+};

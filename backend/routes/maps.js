@@ -1,6 +1,5 @@
 const express = require('express');
 const { validateBody } = require('../src/contracts/validator');
-const { MapsService } = require('../src/domains/maps/maps-service');
 
 function sendMapsError(res, error) {
     const status = Number(error?.status) || 500;
@@ -13,7 +12,7 @@ function sendMapsError(res, error) {
     return res.status(status).json(payload);
 }
 
-function createMapsRouter({ mapsService = new MapsService() } = {}) {
+function createMapsRouter({ mapsService }) {
     const router = express.Router();
 
     router.get('/health', (req, res) => {
@@ -133,7 +132,6 @@ function createMapsRouter({ mapsService = new MapsService() } = {}) {
     return router;
 }
 
-const defaultRouter = createMapsRouter();
-
-module.exports = defaultRouter;
-module.exports.createMapsRouter = createMapsRouter;
+module.exports = {
+    createMapsRouter
+};

@@ -1,7 +1,6 @@
 const express = require('express');
-const { DetectorProxyService } = require('../src/domains/perception/detector-proxy-service');
 
-function createDetectorRouter({ detectorProxyService = new DetectorProxyService() } = {}) {
+function createDetectorRouter({ detectorProxyService }) {
     const router = express.Router();
 
     router.get('/status', async (req, res) => {
@@ -37,7 +36,6 @@ function createDetectorRouter({ detectorProxyService = new DetectorProxyService(
     return router;
 }
 
-const defaultRouter = createDetectorRouter();
-
-module.exports = defaultRouter;
-module.exports.createDetectorRouter = createDetectorRouter;
+module.exports = {
+    createDetectorRouter
+};

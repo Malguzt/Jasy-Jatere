@@ -1,7 +1,6 @@
 const express = require('express');
 const { validateBody } = require('../src/contracts/validator');
 const { badRequest, internalError } = require('../src/http/respond');
-const { OnvifCameraService } = require('../src/domains/cameras/onvif-camera-service');
 
 function sendCameraError(res, error, fallbackMessage) {
     const message = error?.message || fallbackMessage || 'Unexpected camera error';
@@ -12,7 +11,7 @@ function sendCameraError(res, error, fallbackMessage) {
     return internalError(res, { error: message, details });
 }
 
-function createCameraRouter({ cameraService = new OnvifCameraService() } = {}) {
+function createCameraRouter({ cameraService }) {
     const router = express.Router();
 
     router.get('/discover', async (req, res) => {
@@ -79,7 +78,6 @@ function createCameraRouter({ cameraService = new OnvifCameraService() } = {}) {
     return router;
 }
 
-const defaultRouter = createCameraRouter();
-
-module.exports = defaultRouter;
-module.exports.createCameraRouter = createCameraRouter;
+module.exports = {
+    createCameraRouter
+};

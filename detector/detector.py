@@ -142,13 +142,11 @@ os.makedirs(RECORDINGS_DIR, exist_ok=True)
 
 
 def use_local_recordings_index():
-    return not USE_CONTROL_PLANE_RECORDING_CATALOG
+    return False
 
 
 def use_local_recording_sidecars():
-    if use_local_recordings_index():
-        return True
-    return not REQUIRE_CONTROL_PLANE_RECORDING_CATALOG
+    return False
 
 
 class PersistentFFmpegReader:
@@ -1285,140 +1283,28 @@ def get_events():
 
 @app.route("/recordings/<filename>", methods=["DELETE"])
 def delete_recording(filename):
-    """Delete a recording and its associated files."""
+    """Delete a recording through control-plane catalog ownership."""
     if ".." in filename or filename.startswith("/"):
         return jsonify({"success": False, "error": "Invalid filename"}), 400
 
-    if USE_CONTROL_PLANE_RECORDING_CATALOG:
-        try:
-            ok = get_control_plane_client().delete_recording_catalog_entry(filename, raise_on_error=True)
-            payload = {"success": True}
-            if not ok:
-                payload = {"success": False, "error": "Control-plane delete failed"}
-            if isinstance(payload, dict):
-                return jsonify(payload)
-            return jsonify({"success": False, "error": "Invalid control-plane response"}), 502
-        except Exception as e:
-            print(f"[INGEST] recording delete via control-plane failed: {e}")
-            return jsonify({"success": False, "error": "Control-plane delete unavailable"}), 502
-
-    filepath = os.path.join(RECORDINGS_DIR, filename)
-    thumb_path = filepath.replace(".mp4", ".jpg")
-    log_path = filepath + ".log"
-
-    deleted = []
     try:
-        # Delete video
-        if os.path.exists(filepath):
-            os.remove(filepath)
-            deleted.append("video")
-        
-        # Delete thumbnail
-        if os.path.exists(thumb_path):
-            os.remove(thumb_path)
-            deleted.append("thumbnail")
-        
-        # Delete log
-        if os.path.exists(log_path):
-            os.remove(log_path)
-            deleted.append("log")
-
-        # Delete metadata sidecar + index entry
-        remove_recording_metadata(filename)
-        if use_local_recording_sidecars() or use_local_recordings_index():
-            deleted.append("metadata")
-            
-        print(f"[API] Deleted recording: {filename} ({', '.join(deleted)})")
-        return jsonify({"success": True, "deleted": deleted})
+        ok = get_control_plane_client().delete_recording_catalog_entry(filename, raise_on_error=True)
+        if not ok:
+            return jsonify({"success": False, "error": "Control-plane delete failed"}), 502
+        return jsonify({"success": True})
     except Exception as e:
-        print(f"[ERR] Error deleting recording {filename}: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+        print(f"[INGEST] recording delete via control-plane failed: {e}")
+        return jsonify({"success": False, "error": "Control-plane delete unavailable"}), 502
 
 
 @app.route("/recordings")
 def list_recordings():
-    if USE_CONTROL_PLANE_RECORDING_CATALOG:
-        try:
-            recordings = list_recordings_from_control_plane(request.args or {})
-            return jsonify({"success": True, "recordings": recordings[:50]})
-        except Exception as e:
-            print(f"[INGEST] recordings list via control-plane failed: {e}")
-            return jsonify({"success": False, "error": "Control-plane recordings unavailable"}), 502
-
-    files = []
-    q = (request.args.get("q") or "").strip().lower()
-    camera_id_filter = (request.args.get("camera_id") or "").strip()
-    category_filter = (request.args.get("category") or "").strip().lower()
-    object_filter = (request.args.get("object") or "").strip().lower()
-    date_from = (request.args.get("date_from") or "").strip()
-    date_to = (request.args.get("date_to") or "").strip()
-
-    index_map = {}
-    if use_local_recordings_index():
-        with recordings_index_lock:
-            index = load_recordings_index()
-        index_map = {m.get("filename"): m for m in index if isinstance(m, dict) and m.get("filename")}
-
-    def parse_iso(value):
-        if not value:
-            return None
-        try:
-            return datetime.fromisoformat(value.replace("Z", "+00:00"))
-        except Exception:
-            return None
-
-    from_dt = parse_iso(date_from)
-    to_dt = parse_iso(date_to)
-
-    if os.path.isdir(RECORDINGS_DIR):
-        for f in sorted(os.listdir(RECORDINGS_DIR), reverse=True):
-            if f.endswith(".mp4"):
-                path = os.path.join(RECORDINGS_DIR, f)
-                thumb = f.replace(".mp4", ".jpg")
-                metadata = load_sidecar_metadata(f) or index_map.get(f) or {}
-                event_time = metadata.get("event_time")
-                event_dt = parse_iso(event_time) if event_time else None
-                categories = [str(c).lower() for c in metadata.get("categories", [])]
-                objects = [str(o).lower() for o in metadata.get("objects", [])]
-
-                if camera_id_filter and metadata.get("camera_id") != camera_id_filter:
-                    continue
-                if category_filter and category_filter not in categories:
-                    continue
-                if object_filter and object_filter not in objects:
-                    continue
-                if from_dt and (not event_dt or event_dt < from_dt):
-                    continue
-                if to_dt and (not event_dt or event_dt > to_dt):
-                    continue
-
-                search_haystack = " ".join([
-                    f.lower(),
-                    str(metadata.get("camera_name", "")).lower(),
-                    str(metadata.get("camera_id", "")).lower(),
-                    " ".join(str(t).lower() for t in metadata.get("tags", [])),
-                    " ".join(categories),
-                    " ".join(objects),
-                    str(metadata.get("event_type", "")).lower()
-                ])
-                if q and q not in search_haystack:
-                    continue
-
-                files.append({
-                    "filename": f,
-                    "thumbnail": thumb if os.path.exists(os.path.join(RECORDINGS_DIR, thumb)) else None,
-                    "size_mb": round(os.path.getsize(path) / 1024 / 1024, 1),
-                    "created": datetime.fromtimestamp(os.path.getctime(path)).isoformat(),
-                    "camera_id": metadata.get("camera_id"),
-                    "camera_name": metadata.get("camera_name"),
-                    "event_type": metadata.get("event_type"),
-                    "event_time": metadata.get("event_time"),
-                    "categories": metadata.get("categories", []),
-                    "objects": metadata.get("objects", []),
-                    "tags": metadata.get("tags", []),
-                    "metadata": metadata
-                })
-    return jsonify({"success": True, "recordings": files[:50]})
+    try:
+        recordings = list_recordings_from_control_plane(request.args or {})
+        return jsonify({"success": True, "recordings": recordings[:50]})
+    except Exception as e:
+        print(f"[INGEST] recordings list via control-plane failed: {e}")
+        return jsonify({"success": False, "error": "Control-plane recordings unavailable"}), 502
 
 
 # --- Main ---

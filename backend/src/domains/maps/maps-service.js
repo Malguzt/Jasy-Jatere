@@ -1,6 +1,3 @@
-const defaultStorage = require('../../../maps/storage');
-const defaultJobs = require('../../../maps/job-queue');
-const defaultCorrections = require('../../../maps/corrections');
 const { validateMapDocument } = require('../../../maps/validate-map');
 const { makeMapId, resolveCategory, normalizeManualLayout } = require('./manual-map-utils');
 
@@ -14,10 +11,19 @@ function mapServiceError(status, message, code = null, details = null) {
 
 class MapsService {
     constructor({
-        storage = defaultStorage,
-        jobs = defaultJobs,
-        corrections = defaultCorrections
+        storage,
+        jobs,
+        corrections
     } = {}) {
+        if (!storage) {
+            throw mapServiceError(500, 'Maps storage is required', 'MAPS_STORAGE_REQUIRED');
+        }
+        if (!jobs) {
+            throw mapServiceError(500, 'Maps jobs module is required', 'MAPS_JOBS_REQUIRED');
+        }
+        if (!corrections) {
+            throw mapServiceError(500, 'Maps corrections module is required', 'MAPS_CORRECTIONS_REQUIRED');
+        }
         this.storage = storage;
         this.jobs = jobs;
         this.corrections = corrections;

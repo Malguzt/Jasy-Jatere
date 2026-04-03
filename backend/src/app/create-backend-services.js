@@ -21,6 +21,9 @@ const { MapsService } = require('../domains/maps/maps-service');
 const { createMetadataContext } = require('./create-metadata-context');
 const { createCameraInventoryStack } = require('./create-camera-inventory-stack');
 const { createStreamRuntimeStack } = require('./create-stream-runtime-stack');
+const mapsStorage = require('../../maps/storage');
+const mapsJobs = require('../../maps/job-queue');
+const mapsCorrections = require('../../maps/corrections');
 
 function createBackendServices({
     runtimeFlags,
@@ -125,7 +128,11 @@ function createBackendServices({
                 gatewayApiBaseUrl: streamGatewayApiUrl
             })
             : streamRuntimeStack?.streamWebSocketGateway || null;
-    const mapsService = new MapsService();
+    const mapsService = new MapsService({
+        storage: mapsStorage,
+        jobs: mapsJobs,
+        corrections: mapsCorrections
+    });
     const detectorProxyService = new DetectorProxyService({
         detectorUrl: runtimeFlags.detectorUrl
     });

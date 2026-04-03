@@ -44,7 +44,6 @@ services:
       - MAP_PLAN_C_ENABLED=1
       - MAP_PLAN_D_ENABLED=1
       - MAP_APPLY_MANUAL_CORRECTIONS=1
-      - MAP_USE_DETECTOR_EVENTS_FALLBACK=0
       - MAP_MAPPER_TIMEOUT_MS=90000
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4000/readyz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]

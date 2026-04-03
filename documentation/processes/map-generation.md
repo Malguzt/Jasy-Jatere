@@ -50,7 +50,7 @@ The mapper owns Plans A, B, and C.
 The control plane owns Plan D persistence and job lifecycle.
 
 Current runtime guidance is mapper-first fallback execution only; if mapper plans fail, the job fails instead of running duplicate backend fallback logic.
-Map jobs should prefer observation repository inputs and keep detector event fallback disabled by default (`MAP_USE_DETECTOR_EVENTS_FALLBACK=0`).
+Map jobs now read observation inputs from repository-backed metadata only; detector `/events` fallback is retired from the runtime path.
 
 This removes duplicate spatial logic from the backend and keeps:
 

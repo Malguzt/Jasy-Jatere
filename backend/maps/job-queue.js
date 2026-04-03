@@ -6,14 +6,12 @@ const { ObservationEventRepository } = require('../src/infrastructure/repositori
 
 const MAPPER_URL = (process.env.MAPPER_URL || 'http://localhost:5002').replace(/\/$/, '');
 const MAPPER_TIMEOUT_MS = Number(process.env.MAP_MAPPER_TIMEOUT_MS || 90000);
-const DETECTOR_URL = (process.env.DETECTOR_URL || 'http://localhost:5000').replace(/\/$/, '');
 const MAX_JOBS = Number(process.env.MAP_MAX_JOBS_HISTORY || 250);
 const PLAN_A_ENABLED = parseBool(process.env.MAP_PLAN_A_ENABLED, true);
 const PLAN_B_ENABLED = parseBool(process.env.MAP_PLAN_B_ENABLED, true);
 const PLAN_C_ENABLED = parseBool(process.env.MAP_PLAN_C_ENABLED, true);
 const PLAN_D_ENABLED = parseBool(process.env.MAP_PLAN_D_ENABLED, true);
 const APPLY_MANUAL_CORRECTIONS = parseBool(process.env.MAP_APPLY_MANUAL_CORRECTIONS, true);
-const USE_DETECTOR_EVENTS_FALLBACK = parseBool(process.env.MAP_USE_DETECTOR_EVENTS_FALLBACK, false);
 const cameraRepository = new CameraMetadataRepository();
 const observationRepository = new ObservationEventRepository();
 
@@ -360,7 +358,7 @@ class MapJobQueue {
 
             this.setProgress(job, 'events', 28, 'Buscando eventos recientes');
             const eventsStart = Date.now();
-            const recentEvents = await this.fetchRecentEvents(controller.signal);
+            const recentEvents = await this.fetchRecentEvents();
             timing.eventsMs = toDurationMs(eventsStart);
 
             this.setProgress(job, 'mapping', 45, 'Intentando generacion principal (Plan A)');
@@ -561,20 +559,8 @@ class MapJobQueue {
         }
     }
 
-    async fetchRecentEvents(signal) {
-        const localObservations = loadObservationEventsSafe(60);
-        if (localObservations.length > 0) return localObservations;
-        if (!USE_DETECTOR_EVENTS_FALLBACK) return [];
-
-        try {
-            const response = await fetch(`${DETECTOR_URL}/events`, { signal });
-            if (!response.ok) return [];
-            const payload = await response.json();
-            if (!payload?.success || !Array.isArray(payload?.events)) return [];
-            return payload.events.slice(-60);
-        } catch (error) {
-            return [];
-        }
+    async fetchRecentEvents() {
+        return loadObservationEventsSafe(60);
     }
 
     async generateWithMapper(payload, signal) {

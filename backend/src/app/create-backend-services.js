@@ -18,9 +18,6 @@ const { RecordingRetentionJob } = require('../domains/recordings/recording-reten
 const { PerceptionIngestService } = require('../domains/perception/perception-ingest-service');
 const { DetectorProxyService } = require('../domains/perception/detector-proxy-service');
 const { MapsService } = require('../domains/maps/maps-service');
-const {
-    buildLegacyFileFallbackOptions
-} = require('./composition-options');
 const { createMetadataContext } = require('./create-metadata-context');
 const { createCameraInventoryStack } = require('./create-camera-inventory-stack');
 const { createStreamRuntimeStack } = require('./create-stream-runtime-stack');
@@ -33,7 +30,6 @@ function createBackendServices({
     const metadataContext = createMetadataContext({ metadataDriver });
     const driver = metadataContext.metadataDriver;
     const sqliteStore = metadataContext.sqliteStore;
-    const legacyFileFallbackOptions = buildLegacyFileFallbackOptions(runtimeFlags);
 
     const cameraInventoryStack = createCameraInventoryStack({
         cameraFile,
@@ -65,9 +61,7 @@ function createBackendServices({
         repository: cameraRepository
     });
     const onvifCameraService = new OnvifCameraService({
-        cameraDataFile: cameraFile,
-        cameraInventoryService,
-        ...legacyFileFallbackOptions
+        cameraInventoryService
     });
     const cameraEventMonitor = new CameraEventMonitor({
         cameraFile,

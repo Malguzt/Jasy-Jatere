@@ -36,18 +36,8 @@ class HealthSnapshotRepository {
         return snapshot && typeof snapshot === 'object' ? snapshot : null;
     }
 
-    ensureSqliteBootstrapped() {
-        if (!this.sqlite) return;
-        const current = this.sqlite.getLatest();
-        if (current) return;
-        const legacy = this.readJsonSnapshot();
-        if (!legacy) return;
-        this.sqlite.save(legacy);
-    }
-
     getLatest() {
         if (this.sqlite) {
-            this.ensureSqliteBootstrapped();
             const snapshot = this.sqlite.getLatest();
             if (snapshot) return snapshot;
         }

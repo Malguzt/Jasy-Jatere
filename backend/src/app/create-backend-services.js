@@ -15,7 +15,6 @@ const { CameraMetadataRepository } = require('../infrastructure/repositories/cam
 const { RecordingCatalogRepository } = require('../infrastructure/repositories/recording-catalog-repository');
 const { ObservationEventRepository } = require('../infrastructure/repositories/observation-event-repository');
 const { HealthSnapshotRepository } = require('../infrastructure/repositories/health-snapshot-repository');
-const { MetadataSqliteStore } = require('../infrastructure/sqlite/metadata-sqlite-store');
 const { CameraInventoryService } = require('../domains/cameras/camera-inventory-service');
 const { SavedCamerasService } = require('../domains/cameras/saved-cameras-service');
 const { OnvifCameraService } = require('../domains/cameras/onvif-camera-service');
@@ -30,39 +29,39 @@ const {
     buildLegacyFileFallbackOptions,
     buildStreamControlRuntimeOptions
 } = require('./composition-options');
+const { createMetadataContext } = require('./create-metadata-context');
 
 function createBackendServices({
     cameraFile,
     runtimeFlags,
     metadataDriver = String(process.env.METADATA_STORE_DRIVER || 'sqlite').toLowerCase()
 }) {
-    const sqliteStore = metadataDriver === 'sqlite' ? new MetadataSqliteStore() : null;
-    if (metadataDriver === 'sqlite') {
-        sqliteStore.migrate();
-    }
+    const metadataContext = createMetadataContext({ metadataDriver });
+    const driver = metadataContext.metadataDriver;
+    const sqliteStore = metadataContext.sqliteStore;
     const repositoryCompatOptions = buildRepositoryCompatOptions(runtimeFlags);
     const legacyFileFallbackOptions = buildLegacyFileFallbackOptions(runtimeFlags);
     const streamControlRuntimeOptions = buildStreamControlRuntimeOptions(runtimeFlags);
 
     const cameraRepository = new CameraMetadataRepository({
         legacyFile: cameraFile,
-        driver: metadataDriver,
+        driver,
         sqliteStore,
         ...repositoryCompatOptions
     });
     const recordingCatalogRepository = new RecordingCatalogRepository({
-        driver: metadataDriver,
+        driver,
         sqliteStore,
         ...repositoryCompatOptions
     });
     const observationRepository = new ObservationEventRepository({
-        driver: metadataDriver,
+        driver,
         sqliteStore,
         maxEntries: runtimeFlags.observationMaxEntries,
         dualWriteLegacy: runtimeFlags.legacyCompatExportsEnabled
     });
     const healthSnapshotRepository = new HealthSnapshotRepository({
-        driver: metadataDriver,
+        driver,
         sqliteStore,
         dualWriteFile: runtimeFlags.legacyCompatExportsEnabled,
         legacyReadFallback: runtimeFlags.legacyCompatExportsEnabled
@@ -164,7 +163,7 @@ function createBackendServices({
     const detectorProxyService = new DetectorProxyService();
 
     return {
-        metadataDriver,
+        metadataDriver: driver,
         sqliteStore,
         cameraInventoryService,
         savedCamerasService,

@@ -1,7 +1,6 @@
 const streamManager = require('../../stream-manager');
 const { resolveCameraStreamUrls, deriveCompanionRtsp, parseResolutionHint } = require('../../rtsp-utils');
 const { CameraMetadataRepository } = require('../infrastructure/repositories/camera-metadata-repository');
-const { MetadataSqliteStore } = require('../infrastructure/sqlite/metadata-sqlite-store');
 const { CameraInventoryService } = require('../domains/cameras/camera-inventory-service');
 const { StreamSyncOrchestrator } = require('../domains/streams/stream-sync-orchestrator');
 const { StreamWebSocketGateway } = require('../domains/streams/stream-websocket-gateway');
@@ -11,23 +10,23 @@ const {
     buildLegacyFileFallbackOptions,
     buildStreamControlRuntimeOptions
 } = require('./composition-options');
+const { createMetadataContext } = require('./create-metadata-context');
 
 function createStreamGatewayServices({
     cameraFile,
     runtimeFlags,
     metadataDriver = String(process.env.METADATA_STORE_DRIVER || 'sqlite').toLowerCase()
 }) {
-    const sqliteStore = metadataDriver === 'sqlite' ? new MetadataSqliteStore() : null;
-    if (metadataDriver === 'sqlite') {
-        sqliteStore.migrate();
-    }
+    const metadataContext = createMetadataContext({ metadataDriver });
+    const driver = metadataContext.metadataDriver;
+    const sqliteStore = metadataContext.sqliteStore;
     const repositoryCompatOptions = buildRepositoryCompatOptions(runtimeFlags);
     const legacyFileFallbackOptions = buildLegacyFileFallbackOptions(runtimeFlags);
     const streamControlRuntimeOptions = buildStreamControlRuntimeOptions(runtimeFlags);
 
     const cameraRepository = new CameraMetadataRepository({
         legacyFile: cameraFile,
-        driver: metadataDriver,
+        driver,
         sqliteStore,
         ...repositoryCompatOptions
     });
@@ -61,7 +60,7 @@ function createStreamGatewayServices({
     });
 
     return {
-        metadataDriver,
+        metadataDriver: driver,
         sqliteStore,
         cameraInventoryService,
         streamSyncOrchestrator,

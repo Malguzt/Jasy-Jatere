@@ -23,8 +23,8 @@ function resolveGatewayWsBaseUrl({
 
 class StreamWebSocketProxyGateway {
     constructor({
-        gatewayApiBaseUrl = process.env.STREAM_GATEWAY_API_URL || '',
-        gatewayWsBaseUrl = process.env.STREAM_GATEWAY_WS_BASE_URL || '',
+        gatewayApiBaseUrl = '',
+        gatewayWsBaseUrl = '',
         webSocketLib = WebSocket,
         logger = console
     } = {}) {

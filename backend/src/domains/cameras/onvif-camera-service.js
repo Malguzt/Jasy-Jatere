@@ -12,29 +12,22 @@ function toPositiveInt(value, fallback) {
     return Math.floor(num);
 }
 
-function buildConfig(config = {}, env = process.env) {
-    const discoverCommonSubnetsRaw = config.discoverCommonSubnetsRaw || env.CAMERA_DISCOVER_COMMON_SUBNETS || '192.168.1,192.168.0';
-    const discoverPortsRaw = config.discoverPortsRaw || env.CAMERA_DISCOVER_PORTS || '5000,80,8080,8899';
-    const discoverIpRange = String(config.discoverIpRange || env.CAMERA_DISCOVER_IP_RANGE || '2-254').trim();
+function buildConfig(config = {}) {
+    const discoverSubnetsRaw = String(config.discoverSubnetsRaw || '').trim();
+    const discoverCommonSubnetsRaw = config.discoverCommonSubnetsRaw || '192.168.1,192.168.0';
+    const discoverPortsRaw = config.discoverPortsRaw || '5000,80,8080,8899';
+    const discoverIpRange = String(config.discoverIpRange || '2-254').trim();
 
     return {
-        discoverProbeTimeoutMs: toPositiveInt(
-            config.discoverProbeTimeoutMs || env.CAMERA_DISCOVER_PROBE_TIMEOUT_MS,
-            6000
-        ),
-        discoverConnectTimeoutMs: toPositiveInt(
-            config.discoverConnectTimeoutMs || env.CAMERA_DISCOVER_CONNECT_TIMEOUT_MS,
-            400
-        ),
-        discoverHttpTimeoutMs: toPositiveInt(
-            config.discoverHttpTimeoutMs || env.CAMERA_DISCOVER_HTTP_TIMEOUT_MS,
-            900
-        ),
-        discoverConcurrency: toPositiveInt(
-            config.discoverConcurrency || env.CAMERA_DISCOVER_CONCURRENCY,
-            80
-        ),
+        discoverProbeTimeoutMs: toPositiveInt(config.discoverProbeTimeoutMs, 6000),
+        discoverConnectTimeoutMs: toPositiveInt(config.discoverConnectTimeoutMs, 400),
+        discoverHttpTimeoutMs: toPositiveInt(config.discoverHttpTimeoutMs, 900),
+        discoverConcurrency: toPositiveInt(config.discoverConcurrency, 80),
         discoverIpRange,
+        discoverSubnets: discoverSubnetsRaw
+            .split(',')
+            .map((value) => value.trim())
+            .filter(Boolean),
         discoverCommonSubnets: String(discoverCommonSubnetsRaw)
             .split(',')
             .map((value) => value.trim())
@@ -181,10 +174,9 @@ class OnvifCameraService {
 
     resolveScanPrefixes() {
         const prefixes = new Set();
-        const envPrefixes = String(process.env.CAMERA_DISCOVER_SUBNETS || '')
-            .split(',')
-            .map((value) => value.trim())
-            .filter(Boolean);
+        const envPrefixes = Array.isArray(this.config.discoverSubnets)
+            ? this.config.discoverSubnets
+            : [];
 
         envPrefixes.forEach((value) => {
             const clean = value.replace(/\/\d+$/, '');

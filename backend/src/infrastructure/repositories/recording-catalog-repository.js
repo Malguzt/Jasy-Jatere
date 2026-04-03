@@ -6,7 +6,7 @@ const { MetadataSqliteStore } = require('../sqlite/metadata-sqlite-store');
 
 const DEFAULT_PRIMARY_FILE = path.join(__dirname, '..', '..', '..', 'data', 'metadata', 'recordings-catalog.json');
 const DEFAULT_LEGACY_FILE = path.join('/app', 'recordings', 'recordings-index.json');
-const DEFAULT_DRIVER = process.env.METADATA_STORE_DRIVER || 'sqlite';
+const DEFAULT_DRIVER = 'sqlite';
 
 function sqlitePathForPrimary(primaryFile) {
     if (!primaryFile || primaryFile === DEFAULT_PRIMARY_FILE) return undefined;

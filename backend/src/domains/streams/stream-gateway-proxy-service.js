@@ -16,9 +16,9 @@ function pickHeaderValue(headers, key) {
 
 class StreamGatewayProxyService {
     constructor({
-        gatewayApiBaseUrl = process.env.STREAM_GATEWAY_API_URL || null,
+        gatewayApiBaseUrl = null,
         fetchImpl = fetch,
-        requestTimeoutMs = Number(process.env.STREAM_GATEWAY_API_TIMEOUT_MS || 5000)
+        requestTimeoutMs = 5000
     } = {}) {
         this.gatewayApiBaseUrl = gatewayApiBaseUrl ? stripTrailingSlash(gatewayApiBaseUrl) : null;
         this.fetchImpl = fetchImpl;

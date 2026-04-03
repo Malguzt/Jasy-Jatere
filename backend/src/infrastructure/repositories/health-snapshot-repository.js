@@ -4,7 +4,7 @@ const { MetadataSqliteStore } = require('../sqlite/metadata-sqlite-store');
 const { SqliteHealthSnapshotRepository } = require('../sqlite/sqlite-health-snapshot-repository');
 
 const DEFAULT_FILE = path.join(__dirname, '..', '..', '..', 'data', 'metadata', 'health-snapshot.json');
-const DEFAULT_DRIVER = process.env.METADATA_STORE_DRIVER || 'sqlite';
+const DEFAULT_DRIVER = 'sqlite';
 
 function sqlitePathForFile(filePath) {
     if (!filePath || filePath === DEFAULT_FILE) return undefined;

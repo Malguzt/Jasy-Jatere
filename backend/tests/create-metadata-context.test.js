@@ -13,7 +13,11 @@ test('createMetadataContext builds sqlite store and runs migrate when driver is 
 
     const context = createMetadataContext({
         metadataDriver: 'sqlite',
-        sqliteStoreFactory: () => store
+        metadataSqlitePath: '/tmp/test-metadata.db',
+        sqliteStoreFactory: ({ metadataSqlitePath }) => {
+            assert.equal(metadataSqlitePath, '/tmp/test-metadata.db');
+            return store;
+        }
     });
 
     assert.equal(context.metadataDriver, 'sqlite');

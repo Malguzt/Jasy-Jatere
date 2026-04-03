@@ -19,7 +19,7 @@ function parseToken(token) {
 }
 
 function createCameraCredentialCipher({
-    masterKey = process.env.CAMERA_CREDENTIALS_MASTER_KEY || ''
+    masterKey = ''
 } = {}) {
     const normalizedMasterKey = String(masterKey || '').trim();
     const enabled = normalizedMasterKey.length > 0;

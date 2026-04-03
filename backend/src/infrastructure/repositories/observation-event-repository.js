@@ -4,7 +4,7 @@ const { SqliteObservationEventRepository } = require('../sqlite/sqlite-observati
 const { MetadataSqliteStore } = require('../sqlite/metadata-sqlite-store');
 
 const DEFAULT_FILE = path.join(__dirname, '..', '..', '..', 'data', 'metadata', 'observations.json');
-const DEFAULT_DRIVER = process.env.METADATA_STORE_DRIVER || 'sqlite';
+const DEFAULT_DRIVER = 'sqlite';
 
 function sqlitePathForFile(filePath) {
     if (!filePath || filePath === DEFAULT_FILE) return undefined;
@@ -14,7 +14,7 @@ function sqlitePathForFile(filePath) {
 class ObservationEventRepository {
     constructor({
         filePath = DEFAULT_FILE,
-        maxEntries = Number(process.env.OBSERVATION_MAX_ENTRIES || 2500),
+        maxEntries = 2500,
         driver = DEFAULT_DRIVER,
         sqliteStore = null
     } = {}) {

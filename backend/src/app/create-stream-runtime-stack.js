@@ -19,7 +19,9 @@ function createStreamRuntimeStack({
         streamManager: streamManagerInstance,
         resolveCameraStreamUrls,
         deriveCompanionRtsp,
-        parseResolutionHint
+        parseResolutionHint,
+        reconstructorUrl: runtimeFlags?.reconstructorUrl,
+        syncIntervalMs: runtimeFlags?.cameraKeepaliveSyncMs
     });
 
     const streamControlService = new StreamControlService({

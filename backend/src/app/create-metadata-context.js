@@ -1,11 +1,16 @@
 const { MetadataSqliteStore } = require('../infrastructure/sqlite/metadata-sqlite-store');
 
 function createMetadataContext({
-    metadataDriver = String(process.env.METADATA_STORE_DRIVER || 'sqlite').toLowerCase(),
-    sqliteStoreFactory = () => new MetadataSqliteStore()
+    metadataDriver = 'sqlite',
+    metadataSqlitePath = '',
+    sqliteStoreFactory = ({ metadataSqlitePath: sqlitePath = '' } = {}) => new MetadataSqliteStore({
+        dbPath: sqlitePath || undefined
+    })
 } = {}) {
     const driver = String(metadataDriver || 'sqlite').toLowerCase();
-    const sqliteStore = driver === 'sqlite' ? sqliteStoreFactory() : null;
+    const sqliteStore = driver === 'sqlite'
+        ? sqliteStoreFactory({ metadataSqlitePath: metadataSqlitePath || '' })
+        : null;
     if (driver === 'sqlite' && sqliteStore && typeof sqliteStore.migrate === 'function') {
         sqliteStore.migrate();
     }

@@ -74,7 +74,7 @@ If you want the shortest path through the redesign, use this order:
 - The migration plan is intentionally phased so the current system can evolve incrementally instead of being rewritten in one step.
 - Stream runtime ownership is now gateway-only for the control-plane backend; local backend stream runtime fallback paths are disabled in composition.
 - Compose defaults to backend gateway mode with `stream-gateway` enabled (`STREAM_GATEWAY_API_URL=http://stream-gateway:4100/api/internal/streams`), and control-plane readiness degrades when that upstream is missing/unavailable.
-- `STREAM_PROXY_MODE_ENABLED` and `STREAM_PROXY_REQUIRED` are now enforced as enabled in backend runtime flag resolution.
+- `STREAM_PROXY_MODE_ENABLED` and `STREAM_PROXY_REQUIRED` remain available as runtime flags, but backend composition enforces gateway-only stream ownership regardless of local stream-runtime toggles.
 - Stream session descriptors are now exposed via `GET /api/streams/sessions/:cameraId` so frontend tiles consume logical stream sessions instead of hardcoding transport URLs; optional `STREAM_PUBLIC_BASE_URL` can publish externally reachable WS endpoints in those descriptors.
 - In proxy mode, backend `/stream/:cameraId` websocket traffic is now relayed to the stream-gateway upstream, keeping legacy frontend websocket paths working while runtime ownership stays in the gateway.
 - Backend composition always relies on stream-gateway APIs for stream runtime/control endpoints.
@@ -123,6 +123,7 @@ If you want the shortest path through the redesign, use this order:
 - Backend and stream-gateway app factories now delegate HTTP route wiring to dedicated modules (`backend/src/app/create-backend-routes.js`, `backend/src/app/create-stream-gateway-routes.js`), reducing bootstrapping file coupling.
 - Backend and stream-gateway composition now share common runtime option mappers (`backend/src/app/composition-options.js`) for stream-control runtime flags.
 - Backend detector proxy configuration is now resolved through centralized runtime flags (`backend/src/app/runtime-flags.js`) instead of domain-level `process.env` reads.
+- Backend domain/repository modules now avoid direct `process.env` reads; environment values are resolved in composition (`runtime-flags`) and injected into services/repositories explicitly.
 - Backend and stream-gateway composition now also share metadata bootstrap wiring through `backend/src/app/create-metadata-context.js` (driver normalization + SQLite migrate/bootstrap).
 - Camera inventory composition wiring (repository + inventory service) is now shared through `backend/src/app/create-camera-inventory-stack.js`.
 - Backend and stream-gateway app/service composition no longer accepts a `cameraFile` override in runtime bootstrap; camera inventory compatibility exports stay repository-owned and migration-only.

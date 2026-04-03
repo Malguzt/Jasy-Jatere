@@ -36,13 +36,17 @@ function createBackendServices({
         streamRuntimeEnabled: false,
         streamWebSocketGatewayEnabled: false
     };
-    const metadataContext = createMetadataContext({ metadataDriver });
+    const metadataContext = createMetadataContext({
+        metadataDriver: metadataDriver || effectiveRuntimeFlags.metadataStoreDriver,
+        metadataSqlitePath: effectiveRuntimeFlags.metadataSqlitePath
+    });
     const driver = metadataContext.metadataDriver;
     const sqliteStore = metadataContext.sqliteStore;
 
     const cameraInventoryStack = createCameraInventoryStack({
         metadataDriver: driver,
-        sqliteStore
+        sqliteStore,
+        cameraCredentialsMasterKey: effectiveRuntimeFlags.cameraCredentialsMasterKey
     });
     const cameraRepository = cameraInventoryStack.cameraRepository;
     const cameraInventoryService = cameraInventoryStack.cameraInventoryService;
@@ -64,7 +68,17 @@ function createBackendServices({
         repository: cameraRepository
     });
     const onvifCameraService = new OnvifCameraService({
-        cameraInventoryService
+        cameraInventoryService,
+        config: {
+            discoverProbeTimeoutMs: effectiveRuntimeFlags.cameraDiscoverProbeTimeoutMs,
+            discoverConnectTimeoutMs: effectiveRuntimeFlags.cameraDiscoverConnectTimeoutMs,
+            discoverHttpTimeoutMs: effectiveRuntimeFlags.cameraDiscoverHttpTimeoutMs,
+            discoverConcurrency: effectiveRuntimeFlags.cameraDiscoverConcurrency,
+            discoverSubnetsRaw: effectiveRuntimeFlags.cameraDiscoverSubnets,
+            discoverCommonSubnetsRaw: effectiveRuntimeFlags.cameraDiscoverCommonSubnets,
+            discoverPortsRaw: effectiveRuntimeFlags.cameraDiscoverPorts,
+            discoverIpRange: effectiveRuntimeFlags.cameraDiscoverIpRange
+        }
     });
     const cameraEventMonitor = new CameraEventMonitor({
         cameraInventoryService
@@ -85,7 +99,8 @@ function createBackendServices({
     const streamControlService = null;
     const streamControlProxyService = streamGatewayApiUrl
         ? new StreamGatewayProxyService({
-            gatewayApiBaseUrl: streamGatewayApiUrl
+            gatewayApiBaseUrl: streamGatewayApiUrl,
+            requestTimeoutMs: effectiveRuntimeFlags.streamGatewayApiTimeoutMs
         })
         : null;
     const cameraMotionService = new CameraMotionService({
@@ -126,7 +141,8 @@ function createBackendServices({
     const streamWebSocketGateway =
         streamProxyRuntimeActive
             ? new StreamWebSocketProxyGateway({
-                gatewayApiBaseUrl: streamGatewayApiUrl
+                gatewayApiBaseUrl: streamGatewayApiUrl,
+                gatewayWsBaseUrl: effectiveRuntimeFlags.streamGatewayWsBaseUrl
             })
             : null;
     const mapsService = new MapsService({

@@ -7,7 +7,7 @@ const { createCameraCredentialCipher } = require('../../security/camera-credenti
 
 const DEFAULT_PRIMARY_FILE = path.join(__dirname, '..', '..', '..', 'data', 'metadata', 'cameras.json');
 const DEFAULT_LEGACY_FILE = path.join(__dirname, '..', '..', '..', 'data', 'cameras.json');
-const DEFAULT_DRIVER = process.env.METADATA_STORE_DRIVER || 'sqlite';
+const DEFAULT_DRIVER = 'sqlite';
 
 function normalizeCameraList(value) {
     if (!Array.isArray(value)) return [];

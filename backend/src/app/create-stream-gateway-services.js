@@ -6,12 +6,16 @@ function createStreamGatewayServices({
     runtimeFlags,
     metadataDriver
 }) {
-    const metadataContext = createMetadataContext({ metadataDriver });
+    const metadataContext = createMetadataContext({
+        metadataDriver: metadataDriver || runtimeFlags?.metadataStoreDriver,
+        metadataSqlitePath: runtimeFlags?.metadataSqlitePath
+    });
     const driver = metadataContext.metadataDriver;
     const sqliteStore = metadataContext.sqliteStore;
     const cameraInventoryStack = createCameraInventoryStack({
         metadataDriver: driver,
-        sqliteStore
+        sqliteStore,
+        cameraCredentialsMasterKey: runtimeFlags?.cameraCredentialsMasterKey
     });
     const cameraInventoryService = cameraInventoryStack.cameraInventoryService;
     const streamRuntimeStack = createStreamRuntimeStack({

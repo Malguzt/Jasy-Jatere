@@ -46,7 +46,10 @@ test('resolveRuntimeFlags returns stream-related runtime toggles', () => {
 
     assert.deepEqual(flags, {
         detectorUrl: 'http://localhost:5000',
+        reconstructorUrl: 'http://localhost:5001',
         streamGatewayApiUrl: 'http://stream-gateway:4100/api/internal/streams',
+        streamGatewayWsBaseUrl: '',
+        streamGatewayApiTimeoutMs: 5000,
         streamPublicBaseUrl: 'https://streams.example.com',
         streamWebRtcSignalingUrl: 'http://stream-gateway:4100/webrtc/sessions',
         streamWebRtcIceServersJson: '[{"urls":"stun:stun.example.com:3478"}]',
@@ -58,6 +61,18 @@ test('resolveRuntimeFlags returns stream-related runtime toggles', () => {
         streamWebSocketGatewayEnabled: false,
         streamWebRtcEnabled: true,
         streamWebRtcRequireHttps: false,
+        cameraKeepaliveSyncMs: 10000,
+        cameraDiscoverProbeTimeoutMs: 6000,
+        cameraDiscoverConnectTimeoutMs: 400,
+        cameraDiscoverHttpTimeoutMs: 900,
+        cameraDiscoverConcurrency: 80,
+        cameraDiscoverSubnets: '',
+        cameraDiscoverCommonSubnets: '',
+        cameraDiscoverPorts: '',
+        cameraDiscoverIpRange: '',
+        metadataStoreDriver: 'sqlite',
+        metadataSqlitePath: '',
+        cameraCredentialsMasterKey: '',
         recordingRetentionEnabled: true,
         recordingRetentionIntervalMs: 120000,
         recordingRetentionMaxAgeDays: 14,
@@ -70,10 +85,12 @@ test('resolveRuntimeFlags returns stream-related runtime toggles', () => {
 
 test('resolveRuntimeFlags normalizes detector url from env', () => {
     const flags = resolveRuntimeFlags({
-        DETECTOR_URL: 'http://detector:5000/'
+        DETECTOR_URL: 'http://detector:5000/',
+        RECONSTRUCTOR_URL: 'http://reconstructor:5001/'
     });
 
     assert.equal(flags.detectorUrl, 'http://detector:5000/');
+    assert.equal(flags.reconstructorUrl, 'http://reconstructor:5001/');
 });
 
 test('resolveRuntimeFlags enables proxy mode by default when stream gateway api url is set', () => {
@@ -87,7 +104,7 @@ test('resolveRuntimeFlags enables proxy mode by default when stream gateway api 
     assert.equal(flags.streamWebSocketGatewayEnabled, false);
 });
 
-test('resolveRuntimeFlags keeps proxy mode enabled even when env requests disable', () => {
+test('resolveRuntimeFlags can disable proxy mode explicitly even when stream gateway api url is set', () => {
     const flags = resolveRuntimeFlags({
         STREAM_GATEWAY_API_URL: 'http://stream-gateway:4100/api/internal/streams',
         STREAM_PROXY_MODE_ENABLED: '0',
@@ -96,20 +113,20 @@ test('resolveRuntimeFlags keeps proxy mode enabled even when env requests disabl
         STREAM_WEBSOCKET_GATEWAY_ENABLED: '1'
     });
 
-    assert.equal(flags.streamProxyModeEnabled, true);
-    assert.equal(flags.streamProxyRequired, true);
-    assert.equal(flags.streamRuntimeEnabled, false);
-    assert.equal(flags.streamWebSocketGatewayEnabled, false);
+    assert.equal(flags.streamProxyModeEnabled, false);
+    assert.equal(flags.streamProxyRequired, false);
+    assert.equal(flags.streamRuntimeEnabled, true);
+    assert.equal(flags.streamWebSocketGatewayEnabled, true);
 });
 
-test('resolveRuntimeFlags keeps websocket gateway disabled when gateway-only mode is enforced', () => {
+test('resolveRuntimeFlags keeps websocket gateway disabled by default when proxy mode is off', () => {
     const flags = resolveRuntimeFlags({
         STREAM_GATEWAY_API_URL: '',
         STREAM_PROXY_MODE_ENABLED: '0',
         STREAM_PROXY_REQUIRED: '0'
     });
 
-    assert.equal(flags.streamProxyModeEnabled, true);
+    assert.equal(flags.streamProxyModeEnabled, false);
     assert.equal(flags.streamWebSocketGatewayEnabled, false);
 });
 

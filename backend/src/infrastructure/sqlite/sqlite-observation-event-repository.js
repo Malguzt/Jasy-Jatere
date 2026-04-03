@@ -17,7 +17,7 @@ function eventTimestamp(event = {}) {
 class SqliteObservationEventRepository {
     constructor({
         store = new MetadataSqliteStore(),
-        maxEntries = Number(process.env.OBSERVATION_MAX_ENTRIES || 2500)
+        maxEntries = 2500
     } = {}) {
         this.store = store;
         this.maxEntries = Number.isFinite(Number(maxEntries)) ? Math.max(100, Number(maxEntries)) : 2500;

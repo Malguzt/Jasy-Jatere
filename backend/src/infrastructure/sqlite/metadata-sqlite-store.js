@@ -2,8 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const Database = require('better-sqlite3');
 
-const DEFAULT_DB_PATH = process.env.METADATA_SQLITE_PATH
-    || path.join(__dirname, '..', '..', '..', 'data', 'metadata', 'metadata.db');
+const DEFAULT_DB_PATH = path.join(__dirname, '..', '..', '..', 'data', 'metadata', 'metadata.db');
 
 class MetadataSqliteStore {
     constructor({ dbPath = DEFAULT_DB_PATH } = {}) {

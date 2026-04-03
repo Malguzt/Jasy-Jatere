@@ -40,12 +40,12 @@ class StreamControlService {
         streamWebSocketGatewayEnabled = true,
         streamWebRtcEnabled = false,
         streamWebRtcRequireHttps = true,
-        streamWebRtcSignalingUrl = process.env.STREAM_WEBRTC_SIGNALING_URL || '',
-        streamWebRtcIceServersJson = process.env.STREAM_WEBRTC_ICE_SERVERS_JSON || '',
-        streamWebRtcSignalingRetries = Number(process.env.STREAM_WEBRTC_SIGNALING_RETRIES || 1),
+        streamWebRtcSignalingUrl = '',
+        streamWebRtcIceServersJson = '',
+        streamWebRtcSignalingRetries = 1,
         fetchImpl = fetch,
         webrtcSignalingTimeoutMs = 7000,
-        streamPublicBaseUrl = process.env.STREAM_PUBLIC_BASE_URL || '',
+        streamPublicBaseUrl = '',
         now = () => Date.now()
     } = {}) {
         this.streamManager = streamManager;

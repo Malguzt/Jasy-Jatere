@@ -88,7 +88,8 @@ const MapView = () => {
         retryMapGeneration,
         cancelMapGeneration,
         promoteMapVersion,
-        saveManualMapVersion
+        saveManualMapVersion,
+        saveMapCorrections
     } = useMapData({ pollMs: 1800 });
 
     const [manualMode, setManualMode] = useState(false);
@@ -225,6 +226,16 @@ const MapView = () => {
         }
     };
 
+    const saveCorrections = async () => {
+        setError('');
+        const assistedPayload = getAssistedPayload();
+        const saved = await saveMapCorrections({
+            cameras: assistedPayload.manualCameraLayout,
+            objects: assistedPayload.objectHints
+        });
+        if (!saved) return;
+    };
+
     const resetManualLayout = () => {
         const defaults = buildDefaultManualLayout(savedCameras);
         setManualCameras(defaults);
@@ -343,6 +354,9 @@ const MapView = () => {
                         <div style={{ display: 'flex', gap: '0.45rem', flexWrap: 'wrap' }}>
                             <button className="btn" onClick={() => startGenerate(true)} disabled={busy || isGenerating}>
                                 <Play size={14} /> Generar Asistido (Plan C)
+                            </button>
+                            <button className="btn" onClick={saveCorrections} disabled={busy || isGenerating}>
+                                <Save size={14} /> Guardar Correcciones
                             </button>
                             <button className="btn" onClick={saveManualMap} disabled={busy || isGenerating}>
                                 <Save size={14} /> Guardar Mapa Manual (Plan D)

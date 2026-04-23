@@ -1,19 +1,5 @@
 const storage = require('./storage');
-const corrections = require('./corrections');
 const { validateMapDocument } = require('./validate-map');
-const { CameraMetadataRepository } = require('../src/infrastructure/repositories/camera-metadata-repository');
-const { ObservationEventRepository } = require('../src/infrastructure/repositories/observation-event-repository');
-
-const MAPPER_URL = (process.env.MAPPER_URL || 'http://localhost:5002').replace(/\/$/, '');
-const MAPPER_TIMEOUT_MS = Number(process.env.MAP_MAPPER_TIMEOUT_MS || 90000);
-const MAX_JOBS = Number(process.env.MAP_MAX_JOBS_HISTORY || 250);
-const PLAN_A_ENABLED = parseBool(process.env.MAP_PLAN_A_ENABLED, true);
-const PLAN_B_ENABLED = parseBool(process.env.MAP_PLAN_B_ENABLED, true);
-const PLAN_C_ENABLED = parseBool(process.env.MAP_PLAN_C_ENABLED, true);
-const PLAN_D_ENABLED = parseBool(process.env.MAP_PLAN_D_ENABLED, true);
-const APPLY_MANUAL_CORRECTIONS = parseBool(process.env.MAP_APPLY_MANUAL_CORRECTIONS, true);
-const cameraRepository = new CameraMetadataRepository();
-const observationRepository = new ObservationEventRepository();
 
 function parseBool(value, fallback = true) {
     if (value === undefined || value === null || value === '') return fallback;
@@ -23,30 +9,16 @@ function parseBool(value, fallback = true) {
     return fallback;
 }
 
+function toPositiveInt(value, fallback) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed) && parsed > 0) return Math.floor(parsed);
+    return fallback;
+}
+
 function makeJobId() {
     const stamp = Date.now().toString(36);
     const suffix = Math.random().toString(36).slice(2, 7);
     return `job_${stamp}_${suffix}`;
-}
-
-function loadSavedCamerasSafe() {
-    try {
-        const data = cameraRepository.list();
-        return Array.isArray(data) ? data : [];
-    } catch (error) {
-        return [];
-    }
-}
-
-function loadObservationEventsSafe(limit = 60) {
-    try {
-        const safeLimit = Math.max(1, Number(limit) || 60);
-        const data = observationRepository.list(safeLimit);
-        if (!Array.isArray(data)) return [];
-        return data.slice(-safeLimit);
-    } catch (error) {
-        return [];
-    }
 }
 
 function normalizeObjectHint(hint) {
@@ -86,7 +58,33 @@ function toDurationMs(startMs) {
 }
 
 class MapJobQueue {
-    constructor() {
+    constructor({
+        cameraInventoryService = null,
+        observationRepository = null,
+        correctionsService = null,
+        fetchImpl = fetch,
+        mapperUrl = 'http://localhost:5002',
+        mapperTimeoutMs = 90000,
+        maxJobs = 250,
+        planAEnabled = true,
+        planBEnabled = true,
+        planCEnabled = true,
+        planDEnabled = true,
+        applyManualCorrections = true
+    } = {}) {
+        this.cameraInventoryService = cameraInventoryService;
+        this.observationRepository = observationRepository;
+        this.correctionsService = correctionsService;
+        this.fetchImpl = fetchImpl;
+        this.mapperUrl = String(mapperUrl || 'http://localhost:5002').replace(/\/$/, '');
+        this.mapperTimeoutMs = toPositiveInt(mapperTimeoutMs, 90000);
+        this.maxJobs = toPositiveInt(maxJobs, 250);
+        this.planAEnabled = parseBool(planAEnabled, true);
+        this.planBEnabled = parseBool(planBEnabled, true);
+        this.planCEnabled = parseBool(planCEnabled, true);
+        this.planDEnabled = parseBool(planDEnabled, true);
+        this.applyManualCorrections = parseBool(applyManualCorrections, true);
+
         this.jobs = new Map();
         this.queue = [];
         this.running = false;
@@ -96,17 +94,16 @@ class MapJobQueue {
 
     getRuntimeConfig() {
         return {
-            mapperUrl: MAPPER_URL,
-            mapperTimeoutMs: MAPPER_TIMEOUT_MS,
-            maxJobs: MAX_JOBS,
+            mapperUrl: this.mapperUrl,
+            mapperTimeoutMs: this.mapperTimeoutMs,
+            maxJobs: this.maxJobs,
             plans: {
-                A: PLAN_A_ENABLED,
-                B: PLAN_B_ENABLED,
-                C: PLAN_C_ENABLED,
-                D: PLAN_D_ENABLED
+                A: this.planAEnabled,
+                B: this.planBEnabled,
+                C: this.planCEnabled,
+                D: this.planDEnabled
             },
-            applyManualCorrections: APPLY_MANUAL_CORRECTIONS,
-            useDetectorEventsFallback: USE_DETECTOR_EVENTS_FALLBACK
+            applyManualCorrections: this.applyManualCorrections
         };
     }
 
@@ -134,7 +131,7 @@ class MapJobQueue {
     persist() {
         const ordered = [...this.jobs.values()]
             .sort((a, b) => Number(b.requestedAt || 0) - Number(a.requestedAt || 0))
-            .slice(0, Math.max(50, MAX_JOBS));
+            .slice(0, Math.max(50, this.maxJobs));
         this.jobs = new Map(ordered.map((job) => [job.id, job]));
         storage.saveJobs(ordered);
     }
@@ -175,9 +172,7 @@ class MapJobQueue {
                 percent: 0,
                 message: 'En cola'
             },
-            logs: [
-                { ts: now, level: 'info', message: 'Trabajo creado y encolado' }
-            ]
+            logs: [{ ts: now, level: 'info', message: 'Trabajo creado y encolado' }]
         };
 
         this.jobs.set(id, job);
@@ -243,9 +238,7 @@ class MapJobQueue {
 
         job.cancelRequested = true;
         const controller = this.controllers.get(job.id);
-        if (controller) {
-            controller.abort();
-        }
+        if (controller) controller.abort();
         this.log(job, 'warn', 'Se solicito cancelacion en ejecucion');
         this.persist();
         return job;
@@ -279,9 +272,7 @@ class MapJobQueue {
         const entry = { ts: Date.now(), level, message: String(message) };
         if (!Array.isArray(job.logs)) job.logs = [];
         job.logs.push(entry);
-        if (job.logs.length > 120) {
-            job.logs = job.logs.slice(-120);
-        }
+        if (job.logs.length > 120) job.logs = job.logs.slice(-120);
     }
 
     setProgress(job, stage, percent, message) {
@@ -290,6 +281,32 @@ class MapJobQueue {
             percent: Number.isFinite(Number(percent)) ? Math.max(0, Math.min(100, Number(percent))) : 0,
             message: message || stage
         };
+    }
+
+    loadSavedCamerasSafe() {
+        if (!this.cameraInventoryService || typeof this.cameraInventoryService.listCameras !== 'function') {
+            return [];
+        }
+        try {
+            const data = this.cameraInventoryService.listCameras();
+            return Array.isArray(data) ? data : [];
+        } catch (error) {
+            return [];
+        }
+    }
+
+    loadObservationEventsSafe(limit = 60) {
+        if (!this.observationRepository || typeof this.observationRepository.list !== 'function') {
+            return [];
+        }
+        try {
+            const safeLimit = Math.max(1, Number(limit) || 60);
+            const data = this.observationRepository.list(safeLimit);
+            if (!Array.isArray(data)) return [];
+            return data.slice(-safeLimit);
+        } catch (error) {
+            return [];
+        }
     }
 
     async runJob(job) {
@@ -319,9 +336,15 @@ class MapJobQueue {
         try {
             this.setProgress(job, 'capture', 15, 'Cargando camaras');
             const captureStart = Date.now();
-            let cameras = loadSavedCamerasSafe();
+            let cameras = this.loadSavedCamerasSafe();
             const manualLayoutInput = Array.isArray(job.options.manualCameraLayout) ? job.options.manualCameraLayout : [];
-            const correctionHints = APPLY_MANUAL_CORRECTIONS ? corrections.getHintsForGeneration() : {
+            const correctionHints = (
+                this.applyManualCorrections &&
+                this.correctionsService &&
+                typeof this.correctionsService.getHintsForGeneration === 'function'
+            )
+                ? this.correctionsService.getHintsForGeneration()
+                : {
                 manualCameraLayout: [],
                 objectHints: [],
                 lastManualMapId: null
@@ -368,19 +391,19 @@ class MapJobQueue {
             const pickEnabledFallbackPlan = (preferred = null) => {
                 const desired = preferred ? String(preferred).toUpperCase() : null;
                 const isEnabled = (plan) => {
-                    if (plan === 'B') return PLAN_B_ENABLED;
-                    if (plan === 'C') return PLAN_C_ENABLED;
-                    if (plan === 'D') return PLAN_D_ENABLED;
+                    if (plan === 'B') return this.planBEnabled;
+                    if (plan === 'C') return this.planCEnabled;
+                    if (plan === 'D') return this.planDEnabled;
                     return false;
                 };
                 if (desired && isEnabled(desired)) return desired;
-                if (PLAN_B_ENABLED) return 'B';
-                if (PLAN_C_ENABLED) return 'C';
-                if (PLAN_D_ENABLED) return 'D';
+                if (this.planBEnabled) return 'B';
+                if (this.planCEnabled) return 'C';
+                if (this.planDEnabled) return 'D';
                 return null;
             };
 
-            const planAAllowed = PLAN_A_ENABLED && !job.options.forceFallback;
+            const planAAllowed = this.planAEnabled && !job.options.forceFallback;
             if (planAAllowed) {
                 const planAStart = Date.now();
                 try {
@@ -404,7 +427,7 @@ class MapJobQueue {
                 }
             } else {
                 planUsed = pickEnabledFallbackPlan(job.options.planHint || 'B') || 'B';
-                const reason = !PLAN_A_ENABLED ? 'MAP_PLAN_A_ENABLED=0' : 'forceFallback=true';
+                const reason = !this.planAEnabled ? 'MAP_PLAN_A_ENABLED=0' : 'forceFallback=true';
                 this.log(job, 'info', `Plan A omitido (${reason}). Continuando con fallback ${planUsed}`);
             }
 
@@ -438,9 +461,7 @@ class MapJobQueue {
                 timing.fallbackMs = toDurationMs(fallbackStart);
             }
 
-            if (job.cancelRequested) {
-                throw new Error('cancelled-by-user');
-            }
+            if (job.cancelRequested) throw new Error('cancelled-by-user');
 
             const validateStart = Date.now();
             mapDoc = {
@@ -460,7 +481,7 @@ class MapJobQueue {
                     generatedAt: Date.now(),
                     generatedByJobId: job.id,
                     appliedCorrections: {
-                        enabled: APPLY_MANUAL_CORRECTIONS,
+                        enabled: this.applyManualCorrections,
                         usedLayoutFromCorrections: manualLayoutInput.length === 0 && correctionLayout.length > 0,
                         usedObjectHintsFromCorrections: inputHints.length === 0 && correctionObjectHints.length > 0,
                         lastManualMapId: correctionHints.lastManualMapId || null
@@ -502,9 +523,7 @@ class MapJobQueue {
             timing.totalRunMs = toDurationMs(runStartMs);
             mapDoc.metadata = {
                 ...(mapDoc.metadata || {}),
-                timing: {
-                    ...timing
-                }
+                timing: { ...timing }
             };
             const summary = storage.saveMap(mapDoc);
             timing.publishMs = toDurationMs(publishStart);
@@ -560,11 +579,11 @@ class MapJobQueue {
     }
 
     async fetchRecentEvents() {
-        return loadObservationEventsSafe(60);
+        return this.loadObservationEventsSafe(60);
     }
 
     async generateWithMapper(payload, signal) {
-        const timeoutMs = Number.isFinite(MAPPER_TIMEOUT_MS) ? Math.max(10000, MAPPER_TIMEOUT_MS) : 90000;
+        const timeoutMs = toPositiveInt(this.mapperTimeoutMs, 90000);
         const timeoutController = new AbortController();
         const timeout = setTimeout(() => timeoutController.abort(), timeoutMs);
         const bridgeController = new AbortController();
@@ -576,7 +595,7 @@ class MapJobQueue {
         timeoutController.signal.addEventListener('abort', abortFromTimeout, { once: true });
 
         try {
-            const response = await fetch(`${MAPPER_URL}/generate`, {
+            const response = await this.fetchImpl(`${this.mapperUrl}/generate`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload),
@@ -598,4 +617,28 @@ class MapJobQueue {
     }
 }
 
-module.exports = new MapJobQueue();
+function createMapJobQueueFromRuntimeFlags({
+    runtimeFlags = {},
+    cameraInventoryService = null,
+    observationRepository = null,
+    correctionsService = null
+} = {}) {
+    return new MapJobQueue({
+        cameraInventoryService,
+        observationRepository,
+        correctionsService,
+        mapperUrl: runtimeFlags.mapperUrl || 'http://localhost:5002',
+        mapperTimeoutMs: runtimeFlags.mapMapperTimeoutMs,
+        maxJobs: runtimeFlags.mapMaxJobsHistory,
+        planAEnabled: runtimeFlags.mapPlanAEnabled,
+        planBEnabled: runtimeFlags.mapPlanBEnabled,
+        planCEnabled: runtimeFlags.mapPlanCEnabled,
+        planDEnabled: runtimeFlags.mapPlanDEnabled,
+        applyManualCorrections: runtimeFlags.mapApplyManualCorrections
+    });
+}
+
+module.exports = {
+    MapJobQueue,
+    createMapJobQueueFromRuntimeFlags
+};

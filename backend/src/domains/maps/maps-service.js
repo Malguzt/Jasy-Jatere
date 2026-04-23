@@ -9,6 +9,31 @@ function mapServiceError(status, message, code = null, details = null) {
     return error;
 }
 
+function normalizeReusableObjectHints(objects = []) {
+    if (!Array.isArray(objects)) return [];
+    return objects
+        .map((object) => {
+            if (!object || typeof object !== 'object') return null;
+            const label = String(object.label || '').trim();
+            if (!label) return null;
+            const x = Number(object.x);
+            const y = Number(object.y);
+            if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+            const confidence = Number(object.confidence);
+            return {
+                label,
+                category: String(object.category || resolveCategory(label)).trim() || 'estructura',
+                x: Number(x.toFixed(2)),
+                y: Number(y.toFixed(2)),
+                confidence: Number.isFinite(confidence)
+                    ? Number(Math.max(0.05, Math.min(0.99, confidence)).toFixed(2))
+                    : 0.8,
+                cameraId: object.cameraId ? String(object.cameraId) : null
+            };
+        })
+        .filter(Boolean);
+}
+
 class MapsService {
     constructor({
         storage,
@@ -132,6 +157,32 @@ class MapsService {
         return { map: mapDoc, summary };
     }
 
+    saveCorrections(body = {}) {
+        const current = this.corrections.readCorrections ? this.corrections.readCorrections() : {};
+        const hasCameras = Object.prototype.hasOwnProperty.call(body, 'cameras');
+        const hasObjects = Object.prototype.hasOwnProperty.call(body, 'objects');
+
+        if (!hasCameras && !hasObjects) {
+            throw mapServiceError(400, 'Debe incluir cameras y/o objects para guardar correcciones');
+        }
+
+        const manualCameraLayout = hasCameras
+            ? normalizeManualLayout(Array.isArray(body.cameras) ? body.cameras : [])
+            : (Array.isArray(current?.manualCameraLayout) ? current.manualCameraLayout : []);
+        const objectHints = hasObjects
+            ? normalizeReusableObjectHints(Array.isArray(body.objects) ? body.objects : [])
+            : (Array.isArray(current?.objectHints) ? current.objectHints : []);
+
+        if (manualCameraLayout.length === 0 && objectHints.length === 0) {
+            throw mapServiceError(400, 'Debe incluir al menos una correccion reutilizable valida');
+        }
+
+        return this.corrections.saveReusableCorrections({
+            manualCameraLayout,
+            objectHints
+        });
+    }
+
     getCorrections() {
         return this.corrections.readCorrections();
     }
@@ -244,5 +295,6 @@ class MapsService {
 
 module.exports = {
     MapsService,
-    mapServiceError
+    mapServiceError,
+    normalizeReusableObjectHints
 };

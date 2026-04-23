@@ -51,6 +51,8 @@ The control plane owns Plan D persistence and job lifecycle.
 
 Current runtime guidance is mapper-first fallback execution only; if mapper plans fail, the job fails instead of running duplicate backend fallback logic.
 Map jobs now read observation inputs from repository-backed metadata only; detector `/events` fallback is retired from the runtime path.
+Map job runtime configuration is resolved through the central control-plane runtime flags module and injected into queue composition, instead of reading environment values inside map queue modules.
+Map persistence and manual-corrections state are also composed through explicit runtime factories (storage + corrections), so map process modules can be instantiated per app composition without hidden singleton state.
 
 This removes duplicate spatial logic from the backend and keeps:
 

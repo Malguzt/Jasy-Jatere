@@ -30,6 +30,21 @@ test('map manual request schema requires cameras array', () => {
     assert.equal(good.ok, true);
 });
 
+test('map corrections request schema requires cameras or objects payload', () => {
+    const missing = validateBySchemaId('jasy-jatere/contracts/map-corrections-request/v1', {});
+    assert.equal(missing.ok, false);
+
+    const camerasOnly = validateBySchemaId('jasy-jatere/contracts/map-corrections-request/v1', {
+        cameras: [{ id: 'cam1', label: 'Cam 1', x: 0, y: 0 }]
+    });
+    assert.equal(camerasOnly.ok, true);
+
+    const objectsOnly = validateBySchemaId('jasy-jatere/contracts/map-corrections-request/v1', {
+        objects: [{ label: 'tree', x: 1, y: 2 }]
+    });
+    assert.equal(objectsOnly.ok, true);
+});
+
 test('saved camera create schema blocks unknown properties', () => {
     const invalid = validateBySchemaId('jasy-jatere/contracts/saved-camera-create-request/v1', {
         rtspUrl: 'rtsp://example.local/stream',

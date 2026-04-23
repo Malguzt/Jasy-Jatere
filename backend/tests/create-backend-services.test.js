@@ -23,6 +23,16 @@ function makeRuntimeFlags(overrides = {}) {
         recordingsMaxSizeGb: 50,
         recordingsDeleteOldestBatch: 100,
         observationMaxEntries: 2500,
+        mapsDataDir: '',
+        mapperUrl: 'http://mapper:5002',
+        mapMapperTimeoutMs: 45000,
+        mapMaxJobsHistory: 120,
+        mapPlanAEnabled: true,
+        mapPlanBEnabled: true,
+        mapPlanCEnabled: true,
+        mapPlanDEnabled: true,
+        mapApplyManualCorrections: true,
+        mapCorrectionHistoryLimit: 20,
         ...overrides
     };
 }
@@ -40,6 +50,12 @@ test('createBackendServices returns composed control-plane services', () => {
     assert.equal(typeof services.platformHealthService?.getReadinessSnapshot, 'function');
     assert.equal(typeof services.streamWebSocketGateway?.attach, 'function');
     assert.equal(typeof services.recordingRetentionJob?.runOnce, 'function');
+    assert.equal(typeof services.mapsService?.getHealth, 'function');
+    const mapsHealth = services.mapsService.getHealth();
+    assert.equal(mapsHealth.runtime.mapperUrl, 'http://mapper:5002');
+    assert.equal(mapsHealth.runtime.mapperTimeoutMs, 45000);
+    assert.equal(mapsHealth.runtime.maxJobs, 120);
+    assert.equal(mapsHealth.runtime.plans.A, true);
 });
 
 test('createBackendServices leaves stream services unavailable when gateway api url is missing', () => {

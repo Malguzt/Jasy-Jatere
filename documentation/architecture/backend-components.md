@@ -220,6 +220,10 @@ It submits work to the mapper domain and owns:
 - correction history,
 - lifecycle policy.
 
+In the current target composition, map-job runtime state is created per backend composition (no import-time singleton queue).
+Map runtime knobs are resolved centrally in `runtime-flags` (`MAPPER_URL`, `MAP_MAPPER_TIMEOUT_MS`, `MAP_MAX_JOBS_HISTORY`, `MAP_PLAN_*`, `MAP_APPLY_MANUAL_CORRECTIONS`) and injected into the queue factory together with repository-backed camera and observation services.
+Map storage and manual-corrections modules follow the same pattern: control-plane composition builds storage/corrections adapters from runtime flags and injects them into map services, instead of relying on module-level runtime state.
+
 ## Recommended Code Shape
 
 The target code shape inside the current backend repository should be domain-oriented, for example:

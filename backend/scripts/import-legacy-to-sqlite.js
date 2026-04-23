@@ -4,8 +4,9 @@ const { CameraMetadataRepository } = require('../src/infrastructure/repositories
 const { RecordingCatalogRepository } = require('../src/infrastructure/repositories/recording-catalog-repository');
 const { ObservationEventRepository } = require('../src/infrastructure/repositories/observation-event-repository');
 const { HealthSnapshotRepository } = require('../src/infrastructure/repositories/health-snapshot-repository');
-const mapStorage = require('../maps/storage');
-const mapCorrections = require('../maps/corrections');
+const { resolveRuntimeFlags } = require('../src/app/runtime-flags');
+const { createMapStorageFromRuntimeFlags } = require('../maps/storage');
+const { createMapCorrectionsFromRuntimeFlags } = require('../maps/corrections');
 
 const DEFAULT_PATHS = {
     camerasPath: path.join(__dirname, '..', 'data', 'cameras.json'),
@@ -38,6 +39,7 @@ function run({
     paths = {},
     repositories = {},
     mapAdapters = {},
+    runtimeFlags = null,
     fsModule = fs,
     logger = console
 } = {}) {
@@ -50,8 +52,14 @@ function run({
     const recordingRepo = injectedRepositories.recordingRepo || new RecordingCatalogRepository({ driver: 'sqlite' });
     const observationRepo = injectedRepositories.observationRepo || new ObservationEventRepository({ driver: 'sqlite' });
     const healthRepo = injectedRepositories.healthRepo || new HealthSnapshotRepository({ driver: 'sqlite' });
-    const resolvedMapStorage = mapAdapters.mapStorage || mapStorage;
-    const resolvedMapCorrections = mapAdapters.mapCorrections || mapCorrections;
+    const resolvedRuntimeFlags = runtimeFlags || resolveRuntimeFlags();
+    const resolvedMapStorage = mapAdapters.mapStorage || createMapStorageFromRuntimeFlags({
+        runtimeFlags: resolvedRuntimeFlags
+    });
+    const resolvedMapCorrections = mapAdapters.mapCorrections || createMapCorrectionsFromRuntimeFlags({
+        runtimeFlags: resolvedRuntimeFlags,
+        mapsStorage: resolvedMapStorage
+    });
 
     const cameras = readArraySafe(resolvedPaths.camerasPath, fsModule);
     const recordings = readArraySafe(resolvedPaths.recordingsPath, fsModule);

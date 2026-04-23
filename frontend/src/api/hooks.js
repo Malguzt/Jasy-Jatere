@@ -311,6 +311,23 @@ export function useMapData({ pollMs = 1800 } = {}) {
         }
     };
 
+    const saveMapCorrections = async (body = {}) => {
+        setBusy(true);
+        setError('');
+        try {
+            const payload = await apiClient.saveMapCorrections(body);
+            if (!payload?.success) {
+                throw new Error(payload?.error || 'No se pudieron guardar correcciones');
+            }
+            return payload.corrections || null;
+        } catch (correctionsError) {
+            setError(correctionsError?.message || 'No se pudieron guardar correcciones');
+            return null;
+        } finally {
+            setBusy(false);
+        }
+    };
+
     useEffect(() => {
         refreshMapData(false).catch(() => {});
     }, []);
@@ -355,7 +372,8 @@ export function useMapData({ pollMs = 1800 } = {}) {
         retryMapGeneration,
         cancelMapGeneration,
         promoteMapVersion,
-        saveManualMapVersion
+        saveManualMapVersion,
+        saveMapCorrections
     };
 }
 

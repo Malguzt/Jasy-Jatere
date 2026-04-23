@@ -34,6 +34,16 @@ function makeDeps() {
                 };
             },
             upsertFromManualMap() {},
+            saveReusableCorrections(payload = {}) {
+                return {
+                    schemaVersion: '1.0',
+                    updatedAt: Date.now(),
+                    lastManualMapId: null,
+                    manualCameraLayout: Array.isArray(payload.manualCameraLayout) ? payload.manualCameraLayout : [],
+                    objectHints: Array.isArray(payload.objectHints) ? payload.objectHints : [],
+                    history: []
+                };
+            },
             readCorrections() { return {}; }
         }
     };
@@ -66,4 +76,40 @@ test('getHealth returns normalized map runtime snapshot', () => {
     assert.equal(snapshot.runtime?.plans?.D, true);
     assert.equal(snapshot.corrections.manualCameraLayout, 0);
     assert.equal(snapshot.corrections.objectHints, 0);
+});
+
+test('saveCorrections persists reusable hints without creating a map', () => {
+    const deps = makeDeps();
+    const service = new MapsService(deps);
+
+    const saved = service.saveCorrections({
+        cameras: [{ id: 'cam-1', label: 'Cam 1', x: 2, y: 3, yawDeg: 90 }],
+        objects: [{ label: 'arbol', x: 4, y: 5, cameraId: 'cam-1' }]
+    });
+
+    assert.equal(saved.manualCameraLayout.length, 1);
+    assert.equal(saved.manualCameraLayout[0].id, 'cam-1');
+    assert.equal(saved.objectHints.length, 1);
+    assert.equal(saved.objectHints[0].label, 'arbol');
+});
+
+test('saveCorrections rejects empty reusable corrections payloads after normalization', () => {
+    const deps = makeDeps();
+    deps.corrections.readCorrections = () => ({
+        schemaVersion: '1.0',
+        updatedAt: null,
+        lastManualMapId: null,
+        manualCameraLayout: [],
+        objectHints: [],
+        history: []
+    });
+    const service = new MapsService(deps);
+
+    assert.throws(
+        () => service.saveCorrections({
+            cameras: [{ id: 'cam-1', label: 'Cam 1' }],
+            objects: [{ label: 'obj-invalido' }]
+        }),
+        /al menos una correccion reutilizable valida/
+    );
 });

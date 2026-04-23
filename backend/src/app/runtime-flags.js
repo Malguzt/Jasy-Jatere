@@ -47,6 +47,8 @@ function resolveRuntimeFlags(env = process.env) {
     const cameraDiscoverCommonSubnets = parseStringEnv(env.CAMERA_DISCOVER_COMMON_SUBNETS, '');
     const cameraDiscoverPorts = parseStringEnv(env.CAMERA_DISCOVER_PORTS, '');
     const cameraDiscoverIpRange = parseStringEnv(env.CAMERA_DISCOVER_IP_RANGE, '');
+    const mapsDataDir = parseStringEnv(env.MAPS_DATA_DIR, '');
+    const mapperUrl = parseStringEnv(env.MAPPER_URL, 'http://localhost:5002');
 
     return {
         detectorUrl,
@@ -87,7 +89,17 @@ function resolveRuntimeFlags(env = process.env) {
         recordingRetentionMaxEntries: parseOptionalPositiveIntEnv(env.RECORDING_RETENTION_MAX_ENTRIES),
         recordingsMaxSizeGb: parsePositiveNumberEnv(env.RECORDINGS_MAX_SIZE_GB, 50),
         recordingsDeleteOldestBatch: parsePositiveIntEnv(env.RECORDINGS_DELETE_OLDEST_BATCH, 100),
-        observationMaxEntries: parsePositiveIntEnv(env.OBSERVATION_MAX_ENTRIES, 2500)
+        observationMaxEntries: parsePositiveIntEnv(env.OBSERVATION_MAX_ENTRIES, 2500),
+        mapsDataDir,
+        mapperUrl,
+        mapMapperTimeoutMs: parsePositiveIntEnv(env.MAP_MAPPER_TIMEOUT_MS, 90000),
+        mapMaxJobsHistory: parsePositiveIntEnv(env.MAP_MAX_JOBS_HISTORY, 250),
+        mapPlanAEnabled: parseBoolEnv(env.MAP_PLAN_A_ENABLED, true),
+        mapPlanBEnabled: parseBoolEnv(env.MAP_PLAN_B_ENABLED, true),
+        mapPlanCEnabled: parseBoolEnv(env.MAP_PLAN_C_ENABLED, true),
+        mapPlanDEnabled: parseBoolEnv(env.MAP_PLAN_D_ENABLED, true),
+        mapApplyManualCorrections: parseBoolEnv(env.MAP_APPLY_MANUAL_CORRECTIONS, true),
+        mapCorrectionHistoryLimit: parsePositiveIntEnv(env.MAP_CORRECTION_HISTORY_LIMIT, 20)
     };
 }
 

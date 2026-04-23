@@ -182,7 +182,7 @@ test('createBackendApp exposes internal worker config and perception ingest APIs
         assert.equal(readyzRes.status, 503);
 
         const metricsRes = await fetch(`${baseUrl}/metrics`);
-        assert.equal(metricsRes.status, 500);
+        assert.equal(metricsRes.status, 200);
     } finally {
         await new Promise((resolve) => server.close(resolve));
     }

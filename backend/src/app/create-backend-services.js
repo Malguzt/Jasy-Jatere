@@ -20,9 +20,9 @@ const { DetectorProxyService } = require('../domains/perception/detector-proxy-s
 const { MapsService } = require('../domains/maps/maps-service');
 const { createMetadataContext } = require('./create-metadata-context');
 const { createCameraInventoryStack } = require('./create-camera-inventory-stack');
-const mapsStorage = require('../../maps/storage');
-const mapsJobs = require('../../maps/job-queue');
-const mapsCorrections = require('../../maps/corrections');
+const { createMapStorageFromRuntimeFlags } = require('../../maps/storage');
+const { createMapJobQueueFromRuntimeFlags } = require('../../maps/job-queue');
+const { createMapCorrectionsFromRuntimeFlags } = require('../../maps/corrections');
 const { loadSchemaSummaries } = require('../contracts/schema-registry');
 
 function createBackendServices({
@@ -145,6 +145,19 @@ function createBackendServices({
                 gatewayWsBaseUrl: effectiveRuntimeFlags.streamGatewayWsBaseUrl
             })
             : null;
+    const mapsStorage = createMapStorageFromRuntimeFlags({
+        runtimeFlags: effectiveRuntimeFlags
+    });
+    const mapsCorrections = createMapCorrectionsFromRuntimeFlags({
+        runtimeFlags: effectiveRuntimeFlags,
+        mapsStorage
+    });
+    const mapsJobs = createMapJobQueueFromRuntimeFlags({
+        runtimeFlags: effectiveRuntimeFlags,
+        cameraInventoryService,
+        observationRepository,
+        correctionsService: mapsCorrections
+    });
     const mapsService = new MapsService({
         storage: mapsStorage,
         jobs: mapsJobs,

@@ -124,6 +124,36 @@ test('manual corrections are persisted and exposed as hints', () => {
     });
 });
 
+test('reusable corrections can be updated without creating a manual map version', () => {
+    const tempDir = makeTmpDir('maps-reusable-corrections');
+    withEnv({
+        MAPS_DATA_DIR: tempDir,
+        METADATA_DRIVER: 'sqlite',
+        METADATA_SQLITE_PATH: path.join(tempDir, 'metadata.db')
+    }, () => {
+        freshRequire('../maps/storage');
+        const corrections = freshRequire('../maps/corrections');
+
+        corrections.upsertFromManualMap({
+            mapId: 'manual_base_1',
+            cameras: [{ id: 'cam-base', label: 'Base Cam', x: 0, y: 0, yawDeg: 0 }],
+            objects: []
+        });
+
+        const saved = corrections.saveReusableCorrections({
+            manualCameraLayout: [{ id: 'cam-2', label: 'Cam 2', x: 5, y: -1, yawDeg: 180 }],
+            objectHints: [{ label: 'lavadora', category: 'electrodomestico', x: 2, y: 3, cameraId: 'cam-2' }]
+        });
+
+        assert.equal(saved.lastManualMapId, 'manual_base_1');
+        assert.equal(saved.manualCameraLayout.length, 1);
+        assert.equal(saved.manualCameraLayout[0].id, 'cam-2');
+        assert.equal(saved.objectHints.length, 1);
+        assert.equal(saved.objectHints[0].label, 'lavadora');
+        assert.equal(saved.history[0].type, 'corrections');
+    });
+});
+
 test('maps modules skip legacy JSON compatibility files in repository-first runtime mode', () => {
     const tempDir = makeTmpDir('maps-no-legacy-exports');
     withEnv({

@@ -48,6 +48,18 @@ function createMapsRouter({ mapsService }) {
         }
     });
 
+    router.post('/corrections', validateBody('jasy-jatere/contracts/map-corrections-request/v1'), (req, res) => {
+        try {
+            const corrections = mapsService.saveCorrections(req.body || {});
+            return res.status(201).json({
+                success: true,
+                corrections
+            });
+        } catch (error) {
+            return sendMapsError(res, error);
+        }
+    });
+
     router.get('/corrections', (req, res) => {
         try {
             return res.json({ success: true, corrections: mapsService.getCorrections() });

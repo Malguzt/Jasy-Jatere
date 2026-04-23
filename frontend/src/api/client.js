@@ -185,6 +185,13 @@ export const apiClient = {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload || {})
         });
+    },
+    saveMapCorrections(payload) {
+        return apiFetch('/api/maps/corrections', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload || {})
+        });
     }
 };
 

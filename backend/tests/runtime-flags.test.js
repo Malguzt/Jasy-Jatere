@@ -79,7 +79,17 @@ test('resolveRuntimeFlags returns stream-related runtime toggles', () => {
         recordingRetentionMaxEntries: 500,
         recordingsMaxSizeGb: 64.5,
         recordingsDeleteOldestBatch: 77,
-        observationMaxEntries: 900
+        observationMaxEntries: 900,
+        mapsDataDir: '',
+        mapperUrl: 'http://localhost:5002',
+        mapMapperTimeoutMs: 90000,
+        mapMaxJobsHistory: 250,
+        mapPlanAEnabled: true,
+        mapPlanBEnabled: true,
+        mapPlanCEnabled: true,
+        mapPlanDEnabled: true,
+        mapApplyManualCorrections: true,
+        mapCorrectionHistoryLimit: 20
     });
 });
 
@@ -128,6 +138,32 @@ test('resolveRuntimeFlags keeps websocket gateway disabled by default when proxy
 
     assert.equal(flags.streamProxyModeEnabled, false);
     assert.equal(flags.streamWebSocketGatewayEnabled, false);
+});
+
+test('resolveRuntimeFlags parses map generation toggles and limits', () => {
+    const flags = resolveRuntimeFlags({
+        MAPPER_URL: 'http://mapper:5002/',
+        MAP_MAPPER_TIMEOUT_MS: '45000',
+        MAP_MAX_JOBS_HISTORY: '120',
+        MAP_PLAN_A_ENABLED: '0',
+        MAP_PLAN_B_ENABLED: '1',
+        MAP_PLAN_C_ENABLED: 'false',
+        MAP_PLAN_D_ENABLED: 'true',
+        MAP_APPLY_MANUAL_CORRECTIONS: 'off',
+        MAP_CORRECTION_HISTORY_LIMIT: '35',
+        MAPS_DATA_DIR: '/tmp/maps-data'
+    });
+
+    assert.equal(flags.mapsDataDir, '/tmp/maps-data');
+    assert.equal(flags.mapperUrl, 'http://mapper:5002/');
+    assert.equal(flags.mapMapperTimeoutMs, 45000);
+    assert.equal(flags.mapMaxJobsHistory, 120);
+    assert.equal(flags.mapPlanAEnabled, false);
+    assert.equal(flags.mapPlanBEnabled, true);
+    assert.equal(flags.mapPlanCEnabled, false);
+    assert.equal(flags.mapPlanDEnabled, true);
+    assert.equal(flags.mapApplyManualCorrections, false);
+    assert.equal(flags.mapCorrectionHistoryLimit, 35);
 });
 
 test('parsePositiveIntEnv and parseOptionalPositiveIntEnv normalize retention settings', () => {
